@@ -35,9 +35,9 @@ The way this repository is designed, each individual classification project will
 
 ### Model Parameters:
 
-- `model`:          This defines which Neural Network model to be used. For this test, we are using the VarioMLP model, defined       in `Models/VarioMLP.py`
-- `num_classes`:
-- `vario_num_lag`:
+- `model`:          This defines which Neural Network model to be used. We are using VarioMLP, defined in `VarioMLP.py`
+- `num_classes`:    The number of classes to be used. This can be changed and updated as more data is labeled, but we will      start with just 2 clases
+- `vario_num_lag`:  
 - `hidden_layers`:
 - `activations`:
 
