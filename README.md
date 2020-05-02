@@ -100,13 +100,33 @@ image here
 
 The right side of the window shows a preview of the geotiff image, with the glacier contour overlaid as well as a crosshairs pinpointing the location of the split image shown on the left side. You can navigate around the geotiff image preview by clicking in the desired location, or using the 'a' and 'd' keys on your keyboard to move one split image at a time.
 
-**Note:** If there's some offset between where you click and where the crosshairs actually move, try minimizing and then maximizing, or maximizing and then minimizing the window, sometimes it boots up to the wrong size initially. I'm working on a fix for it, but I've tested it on both MacOS and Ubuntu and it seems to work.
+**Note:** If there's some offset between where you click and where the crosshairs actually move, try minimizing and then maximizing, or maximizing and then minimizing the window, sometimes it boots up to the wrong size initially. I'm working on a fix for it, but I've tested it on both MacOS and Ubuntu and with some finagling it seems to work. If not, submit an issue for it with a screenshot and you OS.
 
-Note the two buttons near the bottom corresponding to the two classes defined in `mlp_test_negri.config`
+Note the two buttons near the bottom corresponding to the two classes defined in `mlp_test_negri.config`, 'Undisturbed Snow' and 'Other'. Split images can be labeled either by clicking these buttons, or by pressing the number key on your keyboard corresponding to a class (in this case, 0 for Undisturbed Snow and 1 for Other). 
+
+Start off by labeling some undisturbed snow images. You can do this pretty rapidly from where the crosshair initializes by just pressing 0-d-0-d-0-d-0-d over and over again. Then, click into a few areas of the image preview that are not undisturbed snow, and repeat the process (1-d-1-d-1-d-1-d...). It should only take a minute or two until you've labeled about 100 of each. After labeling, toggle the 'Visualize Labels' checkbox to see the images you've labeled. After labeling a bunch of Undisturbed Snow in the top corner, and a few stripes of Other in the crevassed areas this is what my preview looked like:
+
+image here
+
+Here dark blue and light blue correspond to Undisturbed Snow and Other respectively (I will be fleshing out the color coding in a future commit). To save your labels, simply close the Split Image Explorer window. 
 
 ## Training
 
+Now that we have some labels, it's time to do a basic training run with our Neural Network model. The `train.py` script takes as an argument a `.config` file and takes care of the whole process. 
+
+```
+python3 train.py Config/mlp_test_negri/mlp_test_negri.config
+```
+
+After some time loading, you will begin to see printouts of the training and validation loss after each epoch.
+
+**Note:** Right now this training script is extremely memory-intensive. I'm working on a fix that will roughly cut the memory usage in half, but if you have an older computer that only has like 8GB of RAM it's going to slow it way down, especially if there's a lot of other stuff open.
+
+You can stop the training whenever you feel like it using crtl+c in the terminal, or let it run the full 100 epochs. Either way, checkpoints will be saved when the validation loss reaches a new minimum. Once the training has been ended, check the `NN_Class/Output` directory. You will see a folder named with a timestamp for when you started the training session. Within this folder, there is a `checkpoints`, `labels` and `losses` directory. In the `checkpoints` directory you will see the checkpoints that have been saved as your network was training. The most recent of these will be the checkpoint for which the validation loss was lowest.
+
 ## Testing
+
+After training, any neural network checkpoint can be used to run a test classification across the whole dataset. In order to do this, the test script takes as an argument a `.config` file, and a checkpoint file specified with the `--load_checkpoint` parameter. For me, 
 
 ## Vizualizing
 
