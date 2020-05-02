@@ -132,8 +132,9 @@ After training, any neural network checkpoint can be used to run a test classifi
 python3 test.py Config/mlp_test_negri/mlp_test_negri.config --load_checkpoint Output/01-05-2020_23\:26/checkpoints/epoch_37
 ```
 
-But the argument for `--load_checkpoint` will be different for you.
+But the argument for `--load_checkpoint` will be different for you. When complete, the test script generates labels based on the trained model checkpoint in the `Output/[your timestamp here]/labels` directory. The file generated from my command above was `Output/01-05-2020_23\:26/labels/labeled_epoch_37.npy`
 
 ## Vizualizing
+
 
 ## Notes
