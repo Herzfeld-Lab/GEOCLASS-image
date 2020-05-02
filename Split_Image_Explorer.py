@@ -43,7 +43,7 @@ class SplitImageTool(QWidget):
         with open(self.cfg_path, 'r') as ymlfile:
             self.cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
-        if checkpoint:
+        if checkpoint != None:
             self.label_path = checkpoint
         else:
             self.label_path = self.cfg['txt_path']
