@@ -96,7 +96,7 @@ python3 Split_Image_Explorer.py Config/mlp_test_negri/mlp_test_negri.config
 
 It will take some time to load up as it loads in the geotiff image and initializes the UI, but when it's done you should see a window like this:
 
-image here
+![Split Image Explorer](images/tool1.png)
 
 The right side of the window shows a preview of the geotiff image, with the glacier contour overlaid as well as a crosshairs pinpointing the location of the split image shown on the left side. You can navigate around the geotiff image preview by clicking in the desired location, or using the 'a' and 'd' keys on your keyboard to move one split image at a time.
 
@@ -106,7 +106,7 @@ Note the two buttons near the bottom corresponding to the two classes defined in
 
 Start off by labeling some undisturbed snow images. You can do this pretty rapidly from where the crosshair initializes by just pressing 0-d-0-d-0-d-0-d over and over again. Then, click into a few areas of the image preview that are not undisturbed snow, and repeat the process (1-d-1-d-1-d-1-d...). It should only take a minute or two until you've labeled about 100 of each. After labeling, toggle the 'Visualize Labels' checkbox to see the images you've labeled. After labeling a bunch of Undisturbed Snow in the top corner, and a few stripes of Other in the crevassed areas this is what my preview looked like:
 
-image here
+![A few labeled images](images/tool2.png)
 
 Here dark blue and light blue correspond to Undisturbed Snow and Other respectively (I will be fleshing out the color coding in a future commit). To save your labels, simply close the Split Image Explorer window. 
 
@@ -142,7 +142,11 @@ We can visualize the labels predicted by the neural network using the Split Imag
 python3 Split_Image_Explorer.py Config/mlp_test_negri/mlp_test_negri.config --load_labels Output/02-05-2020_13\:17/labels/labeled_epoch_57.npy
 ```
 
-Using the Visualize Labels checkbox, the labels can be seen. The slider represents a minimum confidence threshold on a scale from 0% to 100% for visualizing labels. When the Visualize Labels checkbox is toggled, only split images with a confidence greater than the value set by the slider are shown. 
+Using the Visualize Labels checkbox, the labels can be seen. Here is what mine looked like:
+
+![Classification from NN](images/tool3.png)
+
+The slider represents a minimum confidence threshold on a scale from 0% to 100% for visualizing labels. When the Visualize Labels checkbox is toggled, only split images with a confidence greater than the value set by the slider are shown. 
 
 **Note:** The Visualize Checkbox must be un toggled and re toggled any time a change is made in order for the preview to update.
 
