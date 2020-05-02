@@ -21,9 +21,25 @@ cd NN_Class
 ./install_dependencies.sh
 ```
 
-This might take some time. **Note: I probably missed adding some dependencies to this script. If you run into a dependency problem later on please submit an issue for it and I'll add it**
+This might take some time. 
 
-## Setting up config file
+**Note:** I probably missed adding some dependencies to this script. If you run into a dependency problem later on please submit an issue for it and I'll add it
+
+## Getting Test Data
+
+To get the test data for this tutorial, sftp into Snowdon and download `/Volumes/yosemite3/backup/jackh/Data`. Place this Data folder in the `NN_Class` directory. This will probably take a minute to download since the tiff image is large.
+
+## Configuring the test
+
+The way this repository is designed, each individual classification project will have its own folder in `NN_Class/Config`, whic contains everything needed for the project. Namely, this folder contains a `.config` file which defines all the parameters necessary to train and test the neural network, visualize and label split images, tune network hyperparameters and define image preprocessing steps. I've included an example config file for this test run in `NN_Class/Config/mlp_test_negri/mlp_test_negri.config`. Open up this file in a text editor so we can fill out a few lines. Here is a brief description of the configuration parameters:
+
+### Model Parameters:
+
+- `model`:
+- `num_classes`:
+- `vario_num_lag`:
+- `hidden_layers`:
+- `activations`:
 
 ## Creating Dataset
 
