@@ -6,9 +6,9 @@ from Dataset import *
 from torch.utils.data import DataLoader
 
 class VarioMLP(nn.Module):
-    """!@brief testy testy test
+    """!@brief doxygen test
 
-    LALALALALALALALALALALALALALALALALALALA
+    doxygen test
     """
 
     def __init__(self, num_classes, vario_num_lag, hidden_layers = [3,3]):
@@ -34,7 +34,6 @@ class VarioMLP(nn.Module):
 
         # Run directional variogram on input images and reshape for network input
         #print(splitImgs.shape)
-
 
         #x = splitImgs.view(splitImgs.shape[0],splitImgs.shape[2],splitImgs.shape[3])
         #x = torch.from_numpy(split_img_vario)

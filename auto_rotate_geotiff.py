@@ -112,11 +112,3 @@ def auto_rotate_geotiff(tiffImg, img_mat, epsg_code, contourUTM):
     img_mat_rot = cv2.flip(img_mat_rot,0)
 
     return img_mat_rot, UTM_bounds, transform_rot
-
-    #cv2.imshow('hmm',img_mat_rot)
-    #cv2.waitKey()
-
-#tiff = rio.open('Data/classes_10/Worldview_Image/WV02_20160625170309_1030010059AA3500_16JUN25170309-P1BS-500807681050_01_P004_u16ns3413.tif')
-#epsg = 32633
-
-#auto_rotate_geotiff(tiff,epsg)

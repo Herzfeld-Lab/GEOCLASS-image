@@ -33,7 +33,7 @@ class SplitImageTool(QWidget):
         print('-------- Initializing App --------')
         screen_resolution = app.desktop().screenGeometry()
         self.title = 'Split Image Labeling tool'
-        self.width, self.height = screen_resolution.width(), screen_resolution.height()
+        self.width, self.height = int(screen_resolution.width()), int(screen_resolution.height())
         self.setGeometry(0, 0, self.width, self.height)
         self.setWindowTitle(self.title)
 
@@ -228,7 +228,6 @@ class SplitImageTool(QWidget):
                     c = (np.array(self.cmap(int(splitImg[4]))[:3])*255).astype('int')
 
                     cv2.rectangle(self.bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
-
 
         # Rotate tiff to align North and plot glacier contour
         self.bg_img_cv, self.bg_img_utm, self.bg_img_transform = auto_rotate_geotiff(self.geotiff, self.bg_img_scaled, self.utm_epsg_code, self.contour_np)
