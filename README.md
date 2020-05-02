@@ -1,6 +1,6 @@
 # NN_Class Basic Functionality Tutorial
 
-This is meant to be a guide for installing and running some of the basic functionality of the NN Class project. Right now it is only meant to run on MacOS and Linux, and has only been tested on MacOS Catalina and Ubuntu 18.04. At any time, if you run into an problem please submit an issue from the 'Issues' tab with a description of the problem and your operating system. 
+This is meant to be a guide for installing and running some of the basic functionality of the NN Class project. Right now it is only meant to run on MacOS and Linux, and has only been tested on MacOS Catalina and Ubuntu 18.04. At any time, if you run into an problem please submit an issue from the 'Issues' tab with a description of the problem and your operating system. Once the initial bugs seemed to be ironed out, I'll keep pushing additional pieces of functionality to this repo until the full software is stable and ready to release (when that time comes).
 
 ## Installing
 
@@ -78,7 +78,31 @@ For this test run, I have already set up most of the paramaters in `mlp_test_neg
 
 ## Creating Dataset
 
+Now, it's time to split the geotiff image into a set of smaller split images that can be used for classification. This is one with the `createDatasetFromGeotiff.py` script. This script takes as an argument a `.config` file, and generates a list of split images from the geotiff that fall within the given glacier contour, and do not contain any black background sections. It saves the pixel coordinates and UTM coordinates of each split image, as well as other usefull information such as the affine transform for pixel to UTM transformations in a data structure that is utilized by the training and testing script, and the labeling and visualization tool. To create a split image dataset, run
+
+```
+python3 createDatasetFromGeotiff.py Config/mlp_test_negri/mlp_test_negri.config
+```
+
+After it's done, open up `mlp_test_negri.config` again. You will see that the `txt_path` parameter has been automatically filled to point to the newly created split image dataset file.
+
 ## Labeling Images with Split Tool
+
+Viewing and Labeling split images and classification labels is done with the Split Image Explorer tool. To load our new split image dataset with the tool, run
+
+```
+python3 Split_Image_Explorer.py Config/mlp_test_negri/mlp_test_negri.config
+```
+
+It will take some time to load up as it loads in the geotiff image and initializes the UI, but when it's done you should see a window like this:
+
+image here
+
+The right side of the window shows a preview of the geotiff image, with the glacier contour overlaid as well as a crosshairs pinpointing the location of the split image shown on the left side. You can navigate around the geotiff image preview by clicking in the desired location, or using the 'a' and 'd' keys on your keyboard to move one split image at a time.
+
+**Note:** If there's some offset between where you click and where the crosshairs actually move, try minimizing and then maximizing, or maximizing and then minimizing the window, sometimes it boots up to the wrong size initially. I'm working on a fix for it, but I've tested it on both MacOS and Ubuntu and it seems to work.
+
+Note the two buttons near the bottom corresponding to the two classes defined in `mlp_test_negri.config`
 
 ## Training
 
