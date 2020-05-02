@@ -1,0 +1,146 @@
+import os
+import utm
+import rasterio as rio
+import numpy as np
+import math
+from utils import *
+from shapely.geometry import Point
+from shapely.geometry.polygon import Polygon
+import torch
+from skimage import io, transform
+from torch.utils.data import Dataset, DataLoader
+from torchvision import transforms, utils
+import pandas as pd
+import random
+import argparse
+
+class SplitImageDataset(Dataset):
+
+    def __init__(self, imgPath, imgData, labels, transform=None, train=False):
+
+        self.train = train
+        self.imagePath = imgPath
+        self.imageLabels = labels
+        self.imageData = imgData
+
+        #if self.train:
+        img = rio.open(self.imagePath)
+        self.imageMatrix = img.read(1)
+        self.max = self.imageMatrix.max()
+
+        self.winSize = self.imageData['winsize_pix']
+        self.dataFrame = pd.DataFrame(data=self.imageLabels,columns=['x_pix','y_pix','x_utm','y_utm','label','conf'])
+
+        '''
+        else:
+            print('Loading image paths...')
+            data_array = np.load(txtPath, allow_pickle=True)
+            self.dataFrame = pd.DataFrame(data=data_array,columns=['path','label'])
+        '''
+
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.dataFrame)
+
+    def __getitem__(self, idx):
+
+        (x,y) = list(self.dataFrame.iloc[idx,:2].astype('int'))
+        splitImg_np = self.imageMatrix[x:x+self.winSize[0],y:y+self.winSize[1]]
+        splitImg_np = splitImg_np/self.max
+        splitImg_np = (splitImg_np*255).astype('uint8')
+
+        if self.transform:
+            splitImg_np = self.transform(splitImg_np)
+
+        splitImg_tensor = torch.from_numpy(splitImg_np)
+
+        if self.train:
+            label = int(self.dataFrame.iloc[idx,4])
+            return (splitImg_tensor, label)
+
+        else:
+            return splitImg_tensor
+
+class RandomRotateVario(object):
+
+    def __init__(self):
+        self.random = random.uniform(0,1)
+
+    def __call__(self, vario):
+        if self.random < 0.25:
+            return np.concatenate((vario[0,:],vario[1,:],vario[2,:]))
+        elif self.random < 0.5:
+            return np.concatenate((vario[1,:],vario[0,:],vario[2,:]))
+        elif self.random < 0.75:
+            return np.concatenate((vario[0,:],vario[1,:],vario[3,:]))
+        elif self.random < 1:
+            return np.concatenate((vario[1,:],vario[0,:],vario[3,:]))
+
+class DefaultRotateVario(object):
+
+    def __call__(self, vario):
+        return np.concatenate((vario[0,:],vario[1,:],vario[2,:]))
+
+class DirectionalVario(object):
+
+    def __init__(self, numLag):
+        self.numLag = numLag
+
+    def __call__(self, img):
+        return directional_vario(img, self.numLag)
+
+class RandomShift(object):
+
+    def __call__(self, img):
+        size = img.shape
+        size_diff = abs(size[0]-size[1])
+        rand = random.randint(0,size_diff-1)
+        img = img[:,rand:]
+        return img
+
+
+class FlipHoriz(object):
+
+    def __init__(self, threshold):
+        self.random = random.uniform(0,1)
+        self.threshold = threshold
+
+    def __call__(self, sample):
+        if self.random < self.threshold:
+            sample = np.fliplr(sample)
+        return sample
+
+class FlipVert(object):
+
+    def __init__(self, threshold):
+        self.random = random.uniform(0,1)
+        self.threshold = threshold
+
+    def __call__(self, sample):
+        if self.random < self.threshold:
+            sample = np.flipud(sample)
+        return sample
+
+class AdjustContrast(object):
+
+    def __init__(self, threshold):
+        self.random = random.uniform(0,1)
+        self.threshold = threshold
+
+    def __call__(self, sample):
+        if self.random < self.threshold:
+            min=np.min(sample)        # result=144
+            max=np.max(sample)        # result=216
+
+            start = random.randint(0,np.min)
+            stop = random.randint(np.max,255)
+
+            # Make a LUT (Look-Up Table) to translate image values
+            LUT=np.zeros(256,dtype=np.uint8)
+            LUT[min:max+1]=np.linspace(start=start,stop=stop,num=(max-min)+1,endpoint=True,dtype=np.uint8)
+
+            sample = LUT(sample)
+            Image.fromarray(sample).save('result.png')
+
+        return sample
