@@ -1,6 +1,6 @@
 # NN_Class Basic Functionality Tutorial
 
-This is meant to be a guide for installing and running some of the basic functionality of the NN Class project. Right now it is only meant to run on MacOS and Linux, and has only been tested on MacOS Catalina and Ubuntu 18.04. At any time, if you run into an problem please submit an issue from the 'Issues' tab with a description of the problem and your operating system. Once the initial bugs seemed to be ironed out, I'll keep pushing additional pieces of functionality to this repo until the full software is stable and ready to release (when that time comes).
+This is meant to be a guide for installing and running some of the basic functionality of the NN Class project. Right now it is only meant to run on MacOS and Linux, and has only been tested on MacOS Catalina and Ubuntu 18.04. At any time, if you run into an problem please submit an issue from the 'Issues' tab with a description of the problem and your operating system. Also, you can message me on the group slack, I'm pretty much always online. Once the initial bugs seemed to be ironed out, I'll keep pushing additional pieces of functionality to this repo until the full software is stable and ready to release (when that time comes).
 
 ## Installing
 
