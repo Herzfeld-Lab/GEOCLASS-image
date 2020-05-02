@@ -25,16 +25,15 @@ args = parser.parse_args()
 
 # Read config file
 with open(args.config, 'r') as ymlfile:
-    cfg = yaml.load(ymlfile)
+    cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
+# Load config parameters
 imgPath = cfg['img_path']
 winSize = cfg['split_img_size']
 contourPath = cfg['contour_path']
 epsgCode = cfg['utm_epsg_code']
 classEnum = cfg['class_enum']
 xmlPath = None
-
-print(winSize[0])
 
 # Load tiff image
 print("Loading Tiff Image...")
@@ -63,8 +62,6 @@ else:
 crs_stere = CRS.from_wkt(tiffImg.crs.to_string())
 crs_latlon = CRS.from_epsg(4326)
 crs_utm = CRS.from_epsg(epsgCode)
-
-print(crs_stere)
 
 stere_to_latlon = Transformer.from_crs(crs_stere, crs_latlon)#, always_xy=True)
 latlon_to_utm = Transformer.from_crs(crs_latlon, crs_utm)
@@ -147,10 +144,6 @@ test_indeces = list(set(range(pix_coords_np.shape[0])) - set(train_indeces))
 train_coords = pix_coords_np[train_indeces, :]
 test_coords = pix_coords_np[test_indeces, :]
 
-print(pix_coords_np.shape)
-print(train_coords.shape)
-print(test_coords.shape)
-
 info = {'filename': imgPath,
         'contour_path': contourPath,
         'winsize_pix': winSize,
@@ -170,9 +163,9 @@ cfg['txt_path'] = dataset_path+'.npy'
 np.save(dataset_path, save_array_full)
 #np.save(train_path, save_array_train)
 #np.save(test_path, save_array_test)
+print('Created %d split images'%(pix_coords_np.shape[0]))
 
-print('Done!')
-print('Saved Full Dataset to ',imgPath[:-4] + "_(%d,%d)_dataset"%(winSize[0],winSize[1]))
+print('Saved Full Dataset to ', dataset_path)
 
 f = open(args.config, 'w')
 f.write(generate_config(cfg))

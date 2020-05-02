@@ -41,7 +41,7 @@ class SplitImageTool(QWidget):
         print('-------- Loading Tiff Image --------')
         self.cfg_path = cfg_path
         with open(self.cfg_path, 'r') as ymlfile:
-            self.cfg = yaml.load(ymlfile)
+            self.cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
         if checkpoint:
             self.label_path = checkpoint
@@ -380,7 +380,13 @@ class SplitImageTool(QWidget):
     def closeEvent(self, event):
         save_array = np.array([self.dataset_info, self.split_info])
         np.save(self.label_path, save_array)
-        print('DONE')
+
+        self.cfg['class_enum'] = self.class_enum
+        self.cfg['num_classes'] = len(self.class_enum)
+        f = open(args.config, 'w')
+        f.write(generate_config(self.cfg))
+        f.close()
+
         event.accept()
         return
 
