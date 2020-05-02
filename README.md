@@ -126,7 +126,13 @@ You can stop the training whenever you feel like it using crtl+c in the terminal
 
 ## Testing
 
-After training, any neural network checkpoint can be used to run a test classification across the whole dataset. In order to do this, the test script takes as an argument a `.config` file, and a checkpoint file specified with the `--load_checkpoint` parameter. For me, 
+After training, any neural network checkpoint can be used to run a test classification across the whole dataset. In order to do this, the test script takes as an argument a `.config` file, and a checkpoint file specified with the `--load_checkpoint` parameter. For me, the command looked like this
+
+```
+python3 test.py Config/mlp_test_negri/mlp_test_negri.config --load_checkpoint Output/01-05-2020_23\:26/checkpoints/epoch_37
+```
+
+But the argument for `--load_checkpoint` will be different for you.
 
 ## Vizualizing
 
