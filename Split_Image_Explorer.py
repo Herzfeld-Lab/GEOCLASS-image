@@ -394,12 +394,12 @@ if __name__ == '__main__':
     # Parse command line flags
     parser = argparse.ArgumentParser()
     parser.add_argument("config", type=str)
-    parser.add_argument("--load_checkpoint", type=str, default=None)
+    parser.add_argument("--load_labels", type=str, default=None)
     args = parser.parse_args()
 
     app = QApplication(sys.argv)
     #ex = SplitImageTool('Data/classes_10/Worldview_Image/WV02_20160625170309_1030010059AA3500_16JUN25170309-P1BS-500807681050_01_P004_u16ns3413_(201,268)_dataset.npy')
     #ex = SplitImageTool('Output/28-01-2020_18:20/labels/labeled_epoch_624.npy')
-    ex = SplitImageTool(args.config, args.load_checkpoint)
+    ex = SplitImageTool(args.config, args.load_labels)
 
     sys.exit(app.exec_())
