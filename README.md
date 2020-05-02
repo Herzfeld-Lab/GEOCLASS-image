@@ -8,7 +8,9 @@ First, make sure you have both python3, pip and git installed on your machine, t
 
 To download the repository, open up a terminal and navigate to the directory you want this project to live. Then, run
 
-```git clone https://github.com/Herzfeld-Lab/NN_Class.git```
+```
+git clone https://github.com/Herzfeld-Lab/NN_Class.git
+```
 
 If you don't have an ssh key for github set up on your machine, it will ask for your github username and password in the terminal. If you want to set up an ssh key to make things easier in the future, you can follow the tutorial [here](https://help.github.com/en/github/authenticating-to-github/connecting-to-github-with-ssh)
 
