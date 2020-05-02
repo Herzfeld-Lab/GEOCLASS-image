@@ -31,7 +31,7 @@ To get the test data for this tutorial, sftp into Snowdon and download `/Volumes
 
 ## Configuring the test
 
-The way this repository is designed, each individual classification project will have its own folder in `NN_Class/Config`, whic contains everything needed for the project. Namely, this folder contains a `.config` file which defines all the parameters necessary to train and test the neural network, visualize and label split images, tune network hyperparameters and define image preprocessing steps. I've included an example config file for this test run in `NN_Class/Config/mlp_test_negri/mlp_test_negri.config`. Open up this file in a text editor so we can fill out a few lines. Here is a brief description of the configuration parameters:
+The way this repository is designed, each individual classification project will have its own folder in `NN_Class/Config`, whic contains everything needed for the project. Namely, this folder contains a YAML-format `.config` file which defines all the parameters necessary to train and test the neural network, visualize and label split images, tune network hyperparameters and define image preprocessing steps. I've included an example config file for this test run in `NN_Class/Config/mlp_test_negri/mlp_test_negri.config`. Open up this file in a text editor so we can fill out a few lines. Here is a brief description of the configuration parameters:
 
 ### Model Parameters:
 
@@ -62,7 +62,7 @@ The way this repository is designed, each individual classification project will
 
 ### Data Augmentation Parameters:
 
-- `directional vario`:    Whether to use directional variogram on split images (Always true unless using a CNN model)
+- `directional_vario`:    Whether to use directional variogram on split images (Always true unless using a CNN model)
 - `random_rotate`:        Randomly rotate via variogram before feeding into network
 - `random_shift`:         Randomly shift area to perform variogram over (if the split images are not squares)
 - `random_contrast`:      Randomly adjust contrast (untested)
@@ -70,7 +70,11 @@ The way this repository is designed, each individual classification project will
 
 ### Visualization Parameters:
 
+- `contour_path`:   Filepath to list of UTM coordinates of glacier contour (.npy format)
+- `bg_img_path`:    Filepath to background image to display visualizations over (depracated, scaled tiff image used instead)
+- `bg_img_utm`:     Filepath to list of UTM coordinates of background image (depracated)
 
+For this test run, I have already set up most of the paramaters in `mlp_test_negri.config`. The config file is automatically updated by various scripts to reflect changes such as adding new classes, and creating a split image dataset. To add the tiff image you just downloaded to the config file, paste it's filepath into the `img_path` parameter. This filepath can be absolute, or relative to the `NN_Class` directory, so `Data/WV02_20160625170309/WV02_20160625170309.tif` should be easiest.
 
 ## Creating Dataset
 
