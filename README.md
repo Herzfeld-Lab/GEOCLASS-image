@@ -36,10 +36,41 @@ The way this repository is designed, each individual classification project will
 ### Model Parameters:
 
 - `model`:          This defines which Neural Network model to be used. We are using VarioMLP, defined in `VarioMLP.py`
-- `num_classes`:    The number of classes to be used. This can be changed and updated as more data is labeled, but we will      start with just 2 clases
-- `vario_num_lag`:  
-- `hidden_layers`:
-- `activations`:
+- `num_classes`:    The number of classes to be used. We will start with just 2 classes for this test.
+- `vario_num_lag`:  The number of lag values to be used in the directional Variogram during preprocessing
+- `hidden_layers`:  The shape of the hidden layers of the MLP network. Detailed description of how this works below
+- `activations`:    The activation functions used in the network's hidden layers (right now, only ReLU is implemented)
+
+### Dataset Parameters:
+
+- `img_path`:         The filepath to the geotiff image to be classified.
+- `txt_path`:         The filepath to the .npy file containing all the split image data
+- `train_path`:       Deprecated - used only to load split images in the old matlab format (file heirarchy with .png)
+- `valid_path`:       Deprecated - used only to load split images in the old matlab format (file heirarchy with .png)
+- `class_enum`:       A list of class names, of length `num_classes`. 
+- `utm_epsg_code`:    EPSG code of the UTM zone the geotiff image is within (33N for Negribreen)
+- `split_img_size`:   Size of split images, in pixels (This will be changed to UTM in the next release)
+- `train_test_split`: Percentage of images to be kept as training images (0.8 == 80%), the rest are used for testing
+
+### Training Parameters:
+
+- `use_cuda`:       If true, utilizes GPU for training and testing. Requires extra setup 
+- `num_epochs`:     Maximum number of epochs to run the training loop
+- `learning_rate`:  Initial learning rate for the optimizer
+- `batch_size`:     Number of split images to be passed through network before each iteration of the backpropagation
+- `optimizer`:      Optimization algorithm to be used during training
+
+### Data Augmentation Parameters:
+
+- `directional vario`:    Whether to use directional variogram on split images (Always true unless using a CNN model)
+- `random_rotate`:        Randomly rotate via variogram before feeding into network
+- `random_shift`:         Randomly shift area to perform variogram over (if the split images are not squares)
+- `random_contrast`:      Randomly adjust contrast (untested)
+- `random_distort`:       Depracated
+
+### Visualization Parameters:
+
+
 
 ## Creating Dataset
 
