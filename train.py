@@ -22,7 +22,7 @@ args = parser.parse_args()
 
 # Read config file
 with open(args.config, 'r') as ymlfile:
-    cfg = yaml.load(ymlfile)
+    cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
 # Set training hyperparameters as specified by config file
 learning_rate = float(cfg['learning_rate'])
