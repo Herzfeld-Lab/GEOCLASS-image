@@ -326,7 +326,8 @@ class SplitImageTool(QWidget):
                        55: 7,
                        56: 8,
                        57: 9}
-            self.label(key_map[event.key()])
+            if key_map[event.key()] < len(self.class_enum):
+                self.label(key_map[event.key()])
 
         elif event.key() == 65: #Left arrow key
             index -= 1
