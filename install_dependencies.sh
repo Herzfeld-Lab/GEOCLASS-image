@@ -5,7 +5,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 elif [[ "$OSTYPE" == "linux-gnu" ]]; then
   sudo apt install python3-pyqt5
 else
-  echo "System not recognized"
+  echo "System not recognized - Please install on MacOS or Ubuntu Linux"
 fi
 
-sudo pip3 install affine pillow opencv-python rasterio torch torchvision shapely sklearn utm pyproj matplotlib pandas pyyaml skimage
+sudo pip3 install affine pillow opencv-python rasterio torch torchvision shapely sklearn utm pyproj matplotlib pandas pyyaml scikit-image
