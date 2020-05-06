@@ -31,7 +31,7 @@ class SplitImageTool(QWidget):
 
         # Initialize GUI Window properties
         print('-------- Initializing App --------')
-        screen_resolution = app.desktop().screenGeometry()
+        screen_resolution = app.desktop().availableGeometry()
         self.title = 'Split Image Labeling tool'
         self.width, self.height = int(screen_resolution.width()), int(screen_resolution.height())
         self.setGeometry(0, 0, self.width, self.height)
