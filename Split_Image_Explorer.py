@@ -26,7 +26,7 @@ import yaml
 
 class SplitImageTool(QWidget):
 
-    def __init__(self, cfg_path, checkpoint=None):
+    def __init__(self, cfg_path, checkpoint=None, netcdf=False):
         super().__init__()
 
         # Initialize GUI Window properties
@@ -36,6 +36,7 @@ class SplitImageTool(QWidget):
         self.width, self.height = int(screen_resolution.width()), int(screen_resolution.height())
         self.setGeometry(0, 0, self.width, self.height)
         self.setWindowTitle(self.title)
+        self.to_netcdf = netcdf
 
         # Load Tiff Image and split image data
         print('-------- Loading Tiff Image --------')
@@ -463,6 +464,9 @@ class SplitImageTool(QWidget):
         f.write(generate_config(self.cfg))
         f.close()
 
+        if self.to_netcdf:
+            to_netCDF(save_array, self.label_path[:-4])
+
         event.accept()
         return
 
@@ -472,11 +476,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("config", type=str)
     parser.add_argument("--load_labels", type=str, default=None)
+    parser.add_argument("--netcdf", action="store_true")
     args = parser.parse_args()
 
     app = QApplication(sys.argv)
     #ex = SplitImageTool('Data/classes_10/Worldview_Image/WV02_20160625170309_1030010059AA3500_16JUN25170309-P1BS-500807681050_01_P004_u16ns3413_(201,268)_dataset.npy')
     #ex = SplitImageTool('Output/28-01-2020_18:20/labels/labeled_epoch_624.npy')
-    ex = SplitImageTool(args.config, args.load_labels)
+    ex = SplitImageTool(args.config, args.load_labels, args.netcdf)
 
     sys.exit(app.exec_())

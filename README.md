@@ -1,3 +1,7 @@
+# UPDATE FOR NETCDF4 OUTPUT
+
+THe SplitImageExplorer tool can now output a dataset in netcdf4 format by adding the command line flag `--netcdf`
+
 # UPDATE FOR BATCH LABELING
 
 Batch labeling can be done by defining a polygon by right clicking each vertex. Pressing escape will reset the polygon. Once you have defined a polygon, use the number keys to label (buttons haven't been implemented yet). This is still a largely untested feature and will be updated frequently
