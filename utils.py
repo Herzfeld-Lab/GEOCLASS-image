@@ -13,6 +13,38 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import random
+from netCDF4 import Dataset
+
+def to_netCDF(data, filepath):
+    attributes = data[0]
+
+    array = data[1]
+    height,width = array.shape
+
+    out = Dataset(filepath+'.nc','w')
+    out.createDimension('img_x', height)
+    out.createDimension('img_y', height)
+    out.createDimension('UTM_x', height)
+    out.createDimension('UTM_y', height)
+    out.createDimension('class', height)
+    out.createDimension('conf', height)
+
+    img_x = out.createVariable('img_x','f8',('img_x'))
+    img_y = out.createVariable('img_y','f8',('img_y'))
+    UTM_x = out.createVariable('UTM_x','f8',('UTM_x'))
+    UTM_y = out.createVariable('UTM_y','f8',('UTM_y'))
+    type = out.createVariable('class','i1',('img_x'))
+    conf = out.createVariable('conf','f8',('img_x'))
+
+    img_x[:] = array[:,0]
+    img_y[:] = array[:,1]
+    UTM_x[:] = array[:,2]
+    UTM_y[:] = array[:,3]
+    type[:] = array[:,4]
+    conf[:] = array[:,5]
+
+    out.setncatts(attributes)
+    out.close()
 
 def utm_to_pix(imgSize,utmBounds,utmCoord):
     """
