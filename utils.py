@@ -13,6 +13,59 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import random
+from netCDF4 import Dataset
+
+
+def unit_vector(vector):
+    """ Returns the unit vector of the vector.  """
+    return vector / np.linalg.norm(vector)
+
+def angle_between(v1, v2):
+    """ Returns the angle in radians between vectors 'v1' and 'v2'::
+
+            >>> angle_between((1, 0, 0), (0, 1, 0))
+            1.5707963267948966
+            >>> angle_between((1, 0, 0), (1, 0, 0))
+            0.0
+            >>> angle_between((1, 0, 0), (-1, 0, 0))
+            3.141592653589793
+    """
+    v1_u = unit_vector(v1)
+    v2_u = unit_vector(v2)
+    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+
+def to_netCDF(data):
+    attributes = data[0]
+
+    array = data[1]
+    height,width = array.shape
+
+    out = Dataset('dataset.nc','w')
+    out.createDimension('img_x', height)
+    out.createDimension('img_y', height)
+    out.createDimension('UTM_x', height)
+    out.createDimension('UTM_y', height)
+    out.createDimension('class', height)
+    out.createDimension('conf', height)
+
+    img_x = out.createVariable('img_x','f8',('img_x'))
+    img_y = out.createVariable('img_y','f8',('img_y'))
+    UTM_x = out.createVariable('UTM_x','f8',('UTM_x'))
+    UTM_y = out.createVariable('UTM_y','f8',('UTM_y'))
+    type = out.createVariable('class','i1',('img_x'))
+    conf = out.createVariable('conf','f8',('img_x'))
+
+    img_x[:] = array[:,0]
+    img_y[:] = array[:,1]
+    UTM_x[:] = array[:,2]
+    UTM_y[:] = array[:,3]
+    type[:] = array[:,4]
+    conf[:] = array[:,5]
+
+    out.setncatts(attributes)
+
+    print(out)
+
 
 def utm_to_pix(imgSize,utmBounds,utmCoord):
     """

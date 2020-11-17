@@ -37,6 +37,8 @@ class SplitImageTool(QWidget):
         self.setGeometry(0, 0, self.width, self.height)
         self.setWindowTitle(self.title)
 
+        print(self.width, self.height)
+
         # Load Tiff Image and split image data
         print('-------- Loading Tiff Image --------')
         self.cfg_path = cfg_path
@@ -232,7 +234,7 @@ class SplitImageTool(QWidget):
                     cv2.rectangle(self.bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
 
         # Rotate tiff to align North and plot glacier contour
-        self.bg_img_cv, self.bg_img_utm, self.bg_img_transform = auto_rotate_geotiff(self.geotiff, self.bg_img_scaled, self.utm_epsg_code, self.contour_np)
+        self.bg_img_cv, self.bg_img_utm, self.bg_img_transform = auto_rotate_geotiff(self.dataset_info, self.geotiff, self.bg_img_scaled, self.utm_epsg_code, self.contour_np)
         height,width,_ = self.bg_img_scaled.shape
 
         # Convert to QImage from cv and wrap in QPixmap container
@@ -243,6 +245,11 @@ class SplitImageTool(QWidget):
         # Get scaling factor between cv and q image
         bg_img_cv_size = np.array(self.bg_img_cv.shape[:-1])
         bg_img_q_size = np.array((self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
+
+        print('SIZES')
+
+        print(bg_img_cv_size)
+        print(bg_img_q_size)
 
         self.scale_factor = bg_img_cv_size / bg_img_q_size
         self.tiff_image_label.setPixmap(self.tiff_image_pixmap)
@@ -283,8 +290,13 @@ class SplitImageTool(QWidget):
 
          bg_img = self.bg_img_cv.copy()
          height,width,_ = self.bg_img_cv.shape
-         imgSize = np.array([width,height])
+         imgSize = np.array([height,width])
+
+         #print(imgSize)
+
          pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array([[x_utm,y_utm]]))
+
+         #print(pix_coords)
 
          # Draw crosshairs
          cv2.circle(bg_img,(pix_coords[0][0],height-pix_coords[0][1]),8,(255,0,0),thickness=-1)
@@ -321,8 +333,11 @@ class SplitImageTool(QWidget):
 
         click_pos = event.pos()
         click_pos_scaled = self.tiff_image_label.mapFromGlobal(click_pos)
+        print(click_pos_scaled)
         click_pos_scaled = np.array([click_pos_scaled.y(), click_pos_scaled.x()]) * self.scale_factor
+        print(click_pos_scaled)
         click_pos_utm = self.bg_img_transform * (click_pos_scaled[1], self.bg_img_cv.shape[0] - click_pos_scaled[0])
+
 
         return click_pos_utm
 
@@ -344,7 +359,7 @@ class SplitImageTool(QWidget):
 
             bg_img = self.bg_img_cv.copy()
             height,width,_ = self.bg_img_cv.shape
-            imgSize = np.array([width,height])
+            imgSize = np.array([height,width])
             pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array(self.batch_select_polygon))
 
             for point in pix_coords:
@@ -366,7 +381,7 @@ class SplitImageTool(QWidget):
 
             bg_img = self.bg_img_cv.copy()
             height,width,_ = self.bg_img_cv.shape
-            imgSize = np.array([width,height])
+            imgSize = np.array([height,width])
             pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array(self.batch_select_polygon))
             current_pos = utm_to_pix(imgSize, self.bg_img_utm.T, np.array([[click_pos_utm[0], click_pos_utm[1]]]))
 
@@ -457,7 +472,7 @@ class SplitImageTool(QWidget):
         print('')
 
     def closeEvent(self, event):
-        save_array = np.array([self.dataset_info, self.split_info])
+        save_array = np.array([self.dataset_info, self.split_info], dtype=object)
         np.save(self.label_path, save_array)
 
         self.cfg['class_enum'] = self.class_enum
