@@ -226,7 +226,7 @@ class SplitImageTool(QWidget):
 
                 if splitImg[5] > self.conf_thresh and self.selected_classes[int(splitImg[4])]:
 
-                    x,y = int(splitImg[0]/25),int(splitImg[1]/25)
+                    x,y = int(splitImg[0]/scale_factor),int(splitImg[1]/scale_factor)
                     ul = (y,x)
                     lr = (y+7,x+7)
 
