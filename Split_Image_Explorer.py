@@ -38,6 +38,8 @@ class SplitImageTool(QWidget):
         self.setWindowTitle(self.title)
         self.to_netcdf = netcdf
 
+        print('GUI resolution: {} x {}'.format(self.height, self.width))
+
         # Load Tiff Image and split image data
         print('-------- Loading Tiff Image --------')
         self.cfg_path = cfg_path
@@ -244,6 +246,10 @@ class SplitImageTool(QWidget):
         # Get scaling factor between cv and q image
         bg_img_cv_size = np.array(self.bg_img_cv.shape[:-1])
         bg_img_q_size = np.array((self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
+
+
+        print('CV IMG SIZE: {} x {}'.format(bg_img_cv_size[0], bg_img_cv_size[1]))
+        print('QT IMG SIZE: {} x {}'.format(bg_img_q_size[0], bg_img_q_size[1]))
 
         self.scale_factor = bg_img_cv_size / bg_img_q_size
         self.tiff_image_label.setPixmap(self.tiff_image_pixmap)
