@@ -318,13 +318,25 @@ class SplitImageTool(QWidget):
         self.getNewImage(self.image_index)
         self.update()
 
+    def getMousePosUTM(self, event):
+
+        width, height = self.tiff_image_label.size().width(), self.tiff_image_label.size().height()
+
+        margin = height - self.tiff_image_pixmap.size().height()
+
+        click_pos = event.pos()
+        click_pos_scaled = self.tiff_image_label.mapFromParent(click_pos)
+        click_pos_corrected = np.array([click_pos_scaled.y() - int(margin/2), click_pos_scaled.x()])
+        click_pos_scaled = click_pos_corrected * self.scale_factor
+
+        click_pos_utm = self.bg_img_transform * (click_pos_scaled[1], self.bg_img_cv.shape[0] - click_pos_scaled[0])
+
+        return click_pos_utm
+
     def mousePressEvent(self, event):
         button = event.button()
 
-        click_pos = event.pos()
-        click_pos_scaled = self.tiff_image_label.mapFromGlobal(click_pos)
-        click_pos_scaled = np.array([click_pos_scaled.y(), click_pos_scaled.x()]) * self.scale_factor
-        click_pos_utm = self.bg_img_transform * (click_pos_scaled[1], self.bg_img_cv.shape[0] - click_pos_scaled[0])
+        click_pos_utm = self.getMousePosUTM(event)
 
         # Left Click (move crosshairs)
         if button == 1:
