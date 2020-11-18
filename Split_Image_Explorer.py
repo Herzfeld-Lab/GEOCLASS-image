@@ -186,6 +186,9 @@ class SplitImageTool(QWidget):
         buttonContainer = QHBoxLayout()
 
         labelButton = QPushButton('%d: %s'%(i, className), self)
+
+        r,g,b,a = np.array(self.cmap(i))*255
+        labelButton.setStyleSheet("background-color:rgb({},{},{});".format(r,g,b));
         #labelButton.setAlignment(Qt.AlignLeft)
         labelButton.clicked.connect(self.makeClassLabelCallbacks(i))
 
