@@ -26,7 +26,7 @@ import yaml
 
 class SplitImageTool(QWidget):
 
-    def __init__(self, cfg_path, checkpoint=None):
+    def __init__(self, cfg_path, checkpoint=None, netcdf=False):
         super().__init__()
 
         # Initialize GUI Window properties
@@ -36,6 +36,7 @@ class SplitImageTool(QWidget):
         self.width, self.height = int(screen_resolution.width()), int(screen_resolution.height())
         self.setGeometry(0, 0, self.width, self.height)
         self.setWindowTitle(self.title)
+        self.to_netcdf = netcdf
 
         # Load Tiff Image and split image data
         print('-------- Loading Tiff Image --------')
@@ -87,6 +88,7 @@ class SplitImageTool(QWidget):
         self.tiff_image_pixmap = QPixmap()
         self.tiff_image_label = QLabel(self)
         self.tiff_image_label.setMargin(0)
+        self.tiff_image_label.setMouseTracking(True)
         #self.tiff_image_label.setAlignment(Qt.AlignCenter)
         #self.tiff_image_label.move(self.tiff_image_pos[0], self.tiff_image_pos[1])
 
@@ -136,6 +138,8 @@ class SplitImageTool(QWidget):
         self.cmap = plt.get_cmap('tab20')
         self.conf_thresh = 0
         self.selected_classes = np.ones(len(self.class_enum))
+        self.batch_select_polygon = []
+        self.setMouseTracking(True)
 
         self.initBgImage()
         self.getNewImage(0)
@@ -205,7 +209,6 @@ class SplitImageTool(QWidget):
 
         for i, className in enumerate(self.class_enum):
             self.addClassButton(i, className)
-
 
     def initBgImage(self, visualize=False):
 
@@ -302,18 +305,87 @@ class SplitImageTool(QWidget):
         self.getNewImage(self.image_index)
         self.update()
 
-    def mousePressEvent(self, QMouseEvent):
-        click_pos = QMouseEvent.pos()
+    def batchLabel(self, class_label):
+        height,width,_ = self.bg_img_cv.shape
+        imgSize = np.array([width,height])
+        pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array(self.batch_select_polygon))
+        batch_select = Polygon(self.batch_select_polygon)
+        for i,img in enumerate(self.split_info):
+            if Point(img[2],img[3]).within(batch_select):
+                self.split_info[i][4] = class_label
+                self.split_info[i][5] = 1
+        self.batch_select_polygon = []
+        self.getNewImage(self.image_index)
+        self.update()
+
+    def mousePressEvent(self, event):
+        button = event.button()
+
+        click_pos = event.pos()
         click_pos_scaled = self.tiff_image_label.mapFromGlobal(click_pos)
         click_pos_scaled = np.array([click_pos_scaled.y(), click_pos_scaled.x()]) * self.scale_factor
         click_pos_utm = self.bg_img_transform * (click_pos_scaled[1], self.bg_img_cv.shape[0] - click_pos_scaled[0])
 
-        if Point(click_pos_utm[0], click_pos_utm[1]).within(self.contour_polygon):
-            d,i = self.lookup_tree.query(click_pos_utm)
-            self.getNewImage(i)
+        # Left Click (move crosshairs)
+        if button == 1:
+            if Point(click_pos_utm[0], click_pos_utm[1]).within(self.contour_polygon):
+                d,i = self.lookup_tree.query(click_pos_utm)
+                self.getNewImage(i)
+
+        # Right Click (draw polygon)
+        elif button == 2:
+
+            self.batch_select_polygon.append(click_pos_utm)
+
+            bg_img = self.bg_img_cv.copy()
+            height,width,_ = self.bg_img_cv.shape
+            imgSize = np.array([width,height])
+            pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array(self.batch_select_polygon))
+
+            for point in pix_coords:
+                cv2.circle(bg_img,(point[0],height-point[1]),8,(0,0,255),thickness=-1)
+
+            height,width,channels = bg_img.shape
+            bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
+            background_image = QPixmap(bg_img)
+            background_image = background_image.scaledToWidth(int(self.width/2) - 10)
+            self.bg_img_scaled = background_image
+            self.tiff_image_label.setPixmap(background_image)
+
+
+    def mouseMoveEvent(self, event):
+
+        if self.batch_select_polygon != []:
+
+            click_pos = event.pos()
+            click_pos_scaled = self.tiff_image_label.mapFromGlobal(click_pos)
+            click_pos_scaled = np.array([click_pos_scaled.y(), click_pos_scaled.x()]) * self.scale_factor
+            click_pos_utm = self.bg_img_transform * (click_pos_scaled[1], self.bg_img_cv.shape[0] - click_pos_scaled[0])
+
+            bg_img = self.bg_img_cv.copy()
+            height,width,_ = self.bg_img_cv.shape
+            imgSize = np.array([width,height])
+            pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array(self.batch_select_polygon))
+            current_pos = utm_to_pix(imgSize, self.bg_img_utm.T, np.array([[click_pos_utm[0], click_pos_utm[1]]]))
+
+            for i in range(len(pix_coords)-1):
+                cv2.circle(bg_img,(pix_coords[i][0],height-pix_coords[i][1]),8,(0,0,255),thickness=-1)
+                cv2.line(bg_img, (pix_coords[i][0], height-pix_coords[i][1]), (pix_coords[i+1][0], height-pix_coords[i+1][1]), (0,0,255),thickness=3)
+
+            cv2.line(bg_img, (pix_coords[-2][0], height-pix_coords[-2][1]), (current_pos[0][0], height-current_pos[0][1]), (255,0,0),thickness=3)
+
+            height,width,channels = bg_img.shape
+            bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
+            background_image = QPixmap(bg_img)
+            background_image = background_image.scaledToWidth(int(self.width/2) - 10)
+            self.bg_img_scaled = background_image
+            self.tiff_image_label.setPixmap(background_image)
+
+
 
     def keyPressEvent(self, event):
         index = self.image_index
+
 
         if event.key() <= 57 and event.key() >= 48:
             key_map = {48: 0,
@@ -327,12 +399,17 @@ class SplitImageTool(QWidget):
                        56: 8,
                        57: 9}
             if key_map[event.key()] < len(self.class_enum):
-                self.label(key_map[event.key()])
+                if self.batch_select_polygon != []:
+                    self.batchLabel(key_map[event.key()])
+                else:
+                    self.label(key_map[event.key()])
 
         elif event.key() == 65: #Left arrow key
             index -= 1
         elif event.key() == 68: #Right arrow key
             index += 1
+        elif event.key() == Qt.Key_Escape:
+            self.batch_select_polygon = []
 
         self.getNewImage(index)
         self.update()
@@ -387,6 +464,9 @@ class SplitImageTool(QWidget):
         f.write(generate_config(self.cfg))
         f.close()
 
+        if self.to_netcdf:
+            to_netCDF(save_array, self.label_path[:-4])
+
         event.accept()
         return
 
@@ -396,11 +476,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("config", type=str)
     parser.add_argument("--load_labels", type=str, default=None)
+    parser.add_argument("--netcdf", action="store_true")
     args = parser.parse_args()
 
     app = QApplication(sys.argv)
     #ex = SplitImageTool('Data/classes_10/Worldview_Image/WV02_20160625170309_1030010059AA3500_16JUN25170309-P1BS-500807681050_01_P004_u16ns3413_(201,268)_dataset.npy')
     #ex = SplitImageTool('Output/28-01-2020_18:20/labels/labeled_epoch_624.npy')
-    ex = SplitImageTool(args.config, args.load_labels)
+    ex = SplitImageTool(args.config, args.load_labels, args.netcdf)
 
     sys.exit(app.exec_())
