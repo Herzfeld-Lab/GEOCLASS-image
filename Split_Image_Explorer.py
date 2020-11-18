@@ -216,8 +216,10 @@ class SplitImageTool(QWidget):
 
         print('TIFF IMG SIZE: {} x {}'.format(self.tiff_image_matrix.shape[0], self.tiff_image_matrix.shape[1]))
 
+        scale_factor = int(self.tiff_image_matrix.shape[0] / 2000)
+
         # Scale down tiff image for visualization and convert to 8-bit grayscale
-        self.bg_img_scaled = self.tiff_image_matrix[::25,::25]
+        self.bg_img_scaled = self.tiff_image_matrix[::scale_factor,::scale_factor]
         self.bg_img_scaled = self.bg_img_scaled / self.bg_img_scaled.max()
         self.bg_img_scaled = (self.bg_img_scaled * 255).astype('uint8')
 
