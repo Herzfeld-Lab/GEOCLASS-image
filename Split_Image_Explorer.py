@@ -246,13 +246,17 @@ class SplitImageTool(QWidget):
         bg_img_cv_size = np.array(self.bg_img_cv.shape[:-1])
         bg_img_q_size = np.array((self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
 
-        print('SIZES')
-
-        print(bg_img_cv_size)
-        print(bg_img_q_size)
-
         self.scale_factor = bg_img_cv_size / bg_img_q_size
         self.tiff_image_label.setPixmap(self.tiff_image_pixmap)
+
+        print('SIZES')
+
+        print('CV:\t\t',bg_img_cv_size)
+        print('Qt:\t\t',bg_img_q_size)
+
+        print(self.bg_img_transform * (0,0))
+        print(self.bg_img_transform * (height,width))
+
 
     def scaleImage(self, img):
         img = img/self.tiff_image_max
@@ -290,7 +294,7 @@ class SplitImageTool(QWidget):
 
          bg_img = self.bg_img_cv.copy()
          height,width,_ = self.bg_img_cv.shape
-         imgSize = np.array([height,width])
+         imgSize = np.array([width,height])
 
          #print(imgSize)
 
@@ -331,13 +335,16 @@ class SplitImageTool(QWidget):
 
     def getMousePosUTM(self, event):
 
-        click_pos = event.pos()
-        click_pos_scaled = self.tiff_image_label.mapFromGlobal(click_pos)
-        print(click_pos_scaled)
-        click_pos_scaled = np.array([click_pos_scaled.y(), click_pos_scaled.x()]) * self.scale_factor
-        print(click_pos_scaled)
-        click_pos_utm = self.bg_img_transform * (click_pos_scaled[1], self.bg_img_cv.shape[0] - click_pos_scaled[0])
+        width, height = self.tiff_image_label.size().width(), self.tiff_image_label.size().height()
 
+        margin = height - self.tiff_image_pixmap.size().height()
+
+        click_pos = event.pos()
+        click_pos_scaled = self.tiff_image_label.mapFromParent(click_pos)
+        click_pos_corrected = np.array([click_pos_scaled.y() - int(margin/2), click_pos_scaled.x()])
+        click_pos_scaled = click_pos_corrected * self.scale_factor
+
+        click_pos_utm = self.bg_img_transform * (click_pos_scaled[1], self.bg_img_cv.shape[0] - click_pos_scaled[0])
 
         return click_pos_utm
 
@@ -359,7 +366,7 @@ class SplitImageTool(QWidget):
 
             bg_img = self.bg_img_cv.copy()
             height,width,_ = self.bg_img_cv.shape
-            imgSize = np.array([height,width])
+            imgSize = np.array([width,height])
             pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array(self.batch_select_polygon))
 
             for point in pix_coords:
@@ -381,7 +388,7 @@ class SplitImageTool(QWidget):
 
             bg_img = self.bg_img_cv.copy()
             height,width,_ = self.bg_img_cv.shape
-            imgSize = np.array([height,width])
+            imgSize = np.array([width,height])
             pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array(self.batch_select_polygon))
             current_pos = utm_to_pix(imgSize, self.bg_img_utm.T, np.array([[click_pos_utm[0], click_pos_utm[1]]]))
 
