@@ -214,12 +214,16 @@ class SplitImageTool(QWidget):
 
     def initBgImage(self, visualize=False):
 
+        print('TIFF IMG SIZE: {} x {}'.format(self.tiff_image_matrix.shape[0], self.tiff_image_matrix.shape[1]))
+
         # Scale down tiff image for visualization and convert to 8-bit grayscale
         self.bg_img_scaled = self.tiff_image_matrix[::25,::25]
         self.bg_img_scaled = self.bg_img_scaled / self.bg_img_scaled.max()
         self.bg_img_scaled = (self.bg_img_scaled * 255).astype('uint8')
 
         self.bg_img_scaled = cv2.cvtColor(self.bg_img_scaled,cv2.COLOR_GRAY2RGB)
+
+        print('SCALED IMG SIZE: {} x {}'.format(self.bg_img_scaled.shape[0], self.bg_img_scaled.shape[1]))
 
         if visualize:
             for splitImg in self.split_info:
