@@ -38,8 +38,6 @@ class SplitImageTool(QWidget):
         self.setWindowTitle(self.title)
         self.to_netcdf = netcdf
 
-        print('GUI resolution: {} x {}'.format(self.height, self.width))
-
         # Load Tiff Image and split image data
         print('-------- Loading Tiff Image --------')
         self.cfg_path = cfg_path
@@ -214,8 +212,6 @@ class SplitImageTool(QWidget):
 
     def initBgImage(self, visualize=False):
 
-        print('TIFF IMG SIZE: {} x {}'.format(self.tiff_image_matrix.shape[0], self.tiff_image_matrix.shape[1]))
-
         scale_factor = int(self.tiff_image_matrix.shape[0] / 2000)
 
         # Scale down tiff image for visualization and convert to 8-bit grayscale
@@ -224,8 +220,6 @@ class SplitImageTool(QWidget):
         self.bg_img_scaled = (self.bg_img_scaled * 255).astype('uint8')
 
         self.bg_img_scaled = cv2.cvtColor(self.bg_img_scaled,cv2.COLOR_GRAY2RGB)
-
-        print('SCALED IMG SIZE: {} x {}'.format(self.bg_img_scaled.shape[0], self.bg_img_scaled.shape[1]))
 
         if visualize:
             for splitImg in self.split_info:
@@ -252,10 +246,6 @@ class SplitImageTool(QWidget):
         # Get scaling factor between cv and q image
         bg_img_cv_size = np.array(self.bg_img_cv.shape[:-1])
         bg_img_q_size = np.array((self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
-
-
-        print('CV IMG SIZE: {} x {}'.format(bg_img_cv_size[0], bg_img_cv_size[1]))
-        print('QT IMG SIZE: {} x {}'.format(bg_img_q_size[0], bg_img_q_size[1]))
 
         self.scale_factor = bg_img_cv_size / bg_img_q_size
         self.tiff_image_label.setPixmap(self.tiff_image_pixmap)
