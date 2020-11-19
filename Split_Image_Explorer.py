@@ -161,8 +161,8 @@ class SplitImageTool(QWidget):
         self.master_layout = QHBoxLayout()
         self.left_layout = QVBoxLayout()
         self.visualization_widgets = QVBoxLayout()
-        self.class_buttons = QVBoxLayout()
         self.split_text = QHBoxLayout()
+        self.class_buttons = QVBoxLayout()
 
         self.initClassButtons()
 
@@ -182,7 +182,7 @@ class SplitImageTool(QWidget):
         self.master_layout.addLayout(self.left_layout)
         self.master_layout.addWidget(self.tiff_image_label)
 
-    def addClassButton(self, i, className):
+    def addClassButton(self, i, className, container):
         buttonContainer = QHBoxLayout()
 
         labelButton = QPushButton('%d: %s'%(i, className), self)
@@ -196,22 +196,36 @@ class SplitImageTool(QWidget):
         labelToggle.toggle()
         labelToggle.stateChanged.connect(self.makeClassToggleCallbacks(i))
 
-        buttonContainer.addSpacing(200)
+        buttonContainer.addSpacing(20)
         buttonContainer.addWidget(labelToggle)
         buttonContainer.addWidget(labelButton)
-        buttonContainer.addSpacing(200)
-        self.class_buttons.addLayout(buttonContainer)
+        buttonContainer.addSpacing(20)
+        container.addLayout(buttonContainer)
 
     def initClassButtons(self):
+
+        numColumns = math.ceil(len(self.class_enum) / 12)
+
+        self.class_buttons_columns_list = []
+        for i in range(numColumns):
+            self.class_buttons_columns_list.append(QVBoxLayout())
 
         self.new_class_layout = QHBoxLayout()
         self.new_class_layout.addSpacing(200)
         self.new_class_layout.addWidget(self.new_class_field)
         self.new_class_layout.addSpacing(200)
-        self.class_buttons.addLayout(self.new_class_layout)
 
         for i, className in enumerate(self.class_enum):
-            self.addClassButton(i, className)
+            col = math.floor(i / 12)
+            row = i % 12
+            self.addClassButton(i, className, self.class_buttons_columns_list[col])
+
+        self.class_buttons_columns = QHBoxLayout()
+        for column in self.class_buttons_columns_list:
+            self.class_buttons_columns.addLayout(column)
+
+        self.class_buttons.addLayout(self.new_class_layout)
+        self.class_buttons.addLayout(self.class_buttons_columns)
 
     def initBgImage(self, visualize=False):
 
@@ -379,8 +393,6 @@ class SplitImageTool(QWidget):
             #self.bg_img_scaled = background_image
             self.tiff_image_label.setPixmap(background_image)
 
-
-
     def keyPressEvent(self, event):
         index = self.image_index
 
@@ -446,7 +458,7 @@ class SplitImageTool(QWidget):
     def newClass(self):
         self.class_enum.append(self.new_class_label)
         self.selected_classes = np.ones(len(self.class_enum))
-        self.addClassButton(len(self.class_enum)-1, self.new_class_label)
+        self.addClassButton(len(self.class_enum)-1, self.new_class_label, self.class_buttons_columns_list[-1])
         self.update()
 
     def newClassCallback(self):
