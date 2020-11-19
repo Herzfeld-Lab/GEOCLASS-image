@@ -351,23 +351,7 @@ class SplitImageTool(QWidget):
 
         # Right Click (draw polygon)
         elif button == 2:
-
             self.batch_select_polygon.append(click_pos_utm)
-
-            bg_img = self.bg_img_cv.copy()
-            height,width,_ = self.bg_img_cv.shape
-            imgSize = np.array([width,height])
-            pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array(self.batch_select_polygon))
-
-            for point in pix_coords:
-                cv2.circle(bg_img,(point[0],height-point[1]),8,(0,0,255),thickness=-1)
-
-            height,width,channels = bg_img.shape
-            bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
-            background_image = QPixmap(bg_img)
-            background_image = background_image.scaledToWidth(int(self.width/2) - 10)
-            #self.bg_img_scaled = background_image
-            self.tiff_image_label.setPixmap(background_image)
 
 
     def mouseMoveEvent(self, event):
