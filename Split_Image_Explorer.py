@@ -301,7 +301,7 @@ class SplitImageTool(QWidget):
          bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
          background_image = QPixmap(bg_img)
          background_image = background_image.scaledToWidth(int(self.width/2) - 10)
-         self.bg_img_scaled = background_image
+         #self.bg_img_scaled = background_image
          self.tiff_image_label.setPixmap(background_image)
 
     def label(self, class_label):
@@ -366,7 +366,7 @@ class SplitImageTool(QWidget):
             bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
             background_image = QPixmap(bg_img)
             background_image = background_image.scaledToWidth(int(self.width/2) - 10)
-            self.bg_img_scaled = background_image
+            #self.bg_img_scaled = background_image
             self.tiff_image_label.setPixmap(background_image)
 
 
@@ -374,10 +374,7 @@ class SplitImageTool(QWidget):
 
         if self.batch_select_polygon != []:
 
-            click_pos = event.pos()
-            click_pos_scaled = self.tiff_image_label.mapFromGlobal(click_pos)
-            click_pos_scaled = np.array([click_pos_scaled.y(), click_pos_scaled.x()]) * self.scale_factor
-            click_pos_utm = self.bg_img_transform * (click_pos_scaled[1], self.bg_img_cv.shape[0] - click_pos_scaled[0])
+            click_pos_utm = self.getMousePosUTM(event)
 
             bg_img = self.bg_img_cv.copy()
             height,width,_ = self.bg_img_cv.shape
@@ -395,7 +392,7 @@ class SplitImageTool(QWidget):
             bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
             background_image = QPixmap(bg_img)
             background_image = background_image.scaledToWidth(int(self.width/2) - 10)
-            self.bg_img_scaled = background_image
+            #self.bg_img_scaled = background_image
             self.tiff_image_label.setPixmap(background_image)
 
 
