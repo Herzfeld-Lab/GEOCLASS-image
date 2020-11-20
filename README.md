@@ -1,3 +1,11 @@
+# UPDATE FOR NETCDF4 OUTPUT
+
+THe SplitImageExplorer tool can now output a dataset in netcdf4 format by adding the command line flag `--netcdf`
+
+# UPDATE FOR BATCH LABELING
+
+Batch labeling can be done by defining a polygon by right clicking each vertex. Pressing escape will reset the polygon. Once you have defined a polygon, use the number keys to label (buttons haven't been implemented yet). This is still a largely untested feature and will be updated frequently
+
 # NN_Class Basic Functionality Tutorial
 
 This is meant to be a guide for installing and running some of the basic functionality of the NN Class project. Right now it is only meant to run on MacOS and Linux, and has only been tested on MacOS Catalina and Ubuntu 18.04. At any time, if you run into an problem please submit an issue from the 'Issues' tab with a description of the problem and your operating system. Also, you can message me on the group slack, I'm pretty much always online. Once the initial bugs seemed to be ironed out, I'll keep pushing additional pieces of functionality to this repo until the full software is stable and ready to release (when that time comes).
