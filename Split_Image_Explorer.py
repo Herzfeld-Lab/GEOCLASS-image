@@ -75,6 +75,7 @@ class SplitImageTool(QWidget):
         self.conf_slider_pos = (self.split_image_class_pos[0], self.split_image_class_pos[1] + 20)
         self.buttons_pos = (10, self.conf_slider_pos[1] + 20)
         self.visualize_button_pos = (self.conf_slider_pos[0], self.conf_slider_pos[1] + 20)
+        self.heatmap_button_pos = (self.visualize_button_pos[0], self.visualize_button_pos[1] + 20)
 
         # --- Initialize UI elements ---
         # Current split Image container
@@ -108,6 +109,9 @@ class SplitImageTool(QWidget):
 
         self.visualize_button = QCheckBox('Visualize Labels', self)
         self.visualize_button.stateChanged.connect(self.visualize_callback)
+
+        self.heatmap_button = QCheckBox('Visualize Confidence Heatmap', self)
+        self.heatmap_button.stateChanged.connect(self.heatmap_callback)
 
         self.new_class_field = QLineEdit()
         self.new_class_field.textChanged.connect(self.textChangedCallback)
@@ -175,6 +179,7 @@ class SplitImageTool(QWidget):
         self.visualization_widgets.addLayout(self.split_text)
         self.visualization_widgets.addWidget(self.conf_thresh_slider)
         self.visualization_widgets.addWidget(self.visualize_button)
+        self.visualization_widgets.addWidget(self.heatmap_button)
 
         self.left_layout.addLayout(self.visualization_widgets)
         self.left_layout.addLayout(self.class_buttons)
@@ -227,7 +232,7 @@ class SplitImageTool(QWidget):
         self.class_buttons.addLayout(self.new_class_layout)
         self.class_buttons.addLayout(self.class_buttons_columns)
 
-    def initBgImage(self, visualize=False):
+    def initBgImage(self, visualize=False, heatmap=False):
 
         scale_factor = int(self.tiff_image_matrix.shape[0] / 2000)
 
@@ -250,6 +255,19 @@ class SplitImageTool(QWidget):
                     c = (np.array(self.cmap(int(splitImg[4]))[:3])*255).astype('int')
 
                     cv2.rectangle(self.bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
+
+        elif heatmap:
+            heatmap_cmap = plt.get_cmap('autumn')
+
+            for splitImg in self.split_info:
+
+                x,y = int(splitImg[0]/scale_factor),int(splitImg[1]/scale_factor)
+                ul = (y,x)
+                lr = (y+7,x+7)
+
+                c = (np.array(heatmap_cmap(1 - splitImg[5])[:3])*255).astype('int')
+
+                cv2.rectangle(self.bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
 
         # Rotate tiff to align North and plot glacier contour
         self.bg_img_cv, self.bg_img_utm, self.bg_img_transform = auto_rotate_geotiff(self.geotiff, self.bg_img_scaled, self.utm_epsg_code, self.contour_np)
@@ -444,9 +462,15 @@ class SplitImageTool(QWidget):
 
     def visualize_callback(self, state):
         if state == Qt.Checked:
-            self.initBgImage(visualize=True)
+            self.initBgImage(visualize=True, heatmap=False)
         else:
-            self.initBgImage(visualize=False)
+            self.initBgImage(visualize=False, heatmap=False)
+
+    def heatmap_callback(self, state):
+        if state == Qt.Checked:
+            self.initBgImage(visualize=False, heatmap=True)
+        else:
+            self.initBgImage(visualize=False, heatmap=False)
 
     def slider_callback(self):
         value = self.conf_thresh_slider.value()
