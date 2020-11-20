@@ -38,6 +38,8 @@ class SplitImageTool(QWidget):
         self.setWindowTitle(self.title)
         self.to_netcdf = netcdf
 
+        print(self.width, self.height)
+
         # Load Tiff Image and split image data
         print('-------- Loading Tiff Image --------')
         self.cfg_path = cfg_path
@@ -270,7 +272,7 @@ class SplitImageTool(QWidget):
                 cv2.rectangle(self.bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
 
         # Rotate tiff to align North and plot glacier contour
-        self.bg_img_cv, self.bg_img_utm, self.bg_img_transform = auto_rotate_geotiff(self.geotiff, self.bg_img_scaled, self.utm_epsg_code, self.contour_np)
+        self.bg_img_cv, self.bg_img_utm, self.bg_img_transform = auto_rotate_geotiff(self.dataset_info, self.geotiff, self.bg_img_scaled, self.utm_epsg_code, self.contour_np)
         height,width,_ = self.bg_img_scaled.shape
 
         # Convert to QImage from cv and wrap in QPixmap container
@@ -284,6 +286,15 @@ class SplitImageTool(QWidget):
 
         self.scale_factor = bg_img_cv_size / bg_img_q_size
         self.tiff_image_label.setPixmap(self.tiff_image_pixmap)
+
+        print('SIZES')
+
+        print('CV:\t\t',bg_img_cv_size)
+        print('Qt:\t\t',bg_img_q_size)
+
+        print(self.bg_img_transform * (0,0))
+        print(self.bg_img_transform * (height,width))
+
 
     def scaleImage(self, img):
         img = img/self.tiff_image_max
@@ -322,7 +333,12 @@ class SplitImageTool(QWidget):
          bg_img = self.bg_img_cv.copy()
          height,width,_ = self.bg_img_cv.shape
          imgSize = np.array([width,height])
+
+         #print(imgSize)
+
          pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array([[x_utm,y_utm]]))
+
+         #print(pix_coords)
 
          # Draw crosshairs
          cv2.circle(bg_img,(pix_coords[0][0],height-pix_coords[0][1]),8,(255,0,0),thickness=-1)
@@ -489,7 +505,7 @@ class SplitImageTool(QWidget):
         print('')
 
     def closeEvent(self, event):
-        save_array = np.array([self.dataset_info, self.split_info])
+        save_array = np.array([self.dataset_info, self.split_info], dtype=object)
         np.save(self.label_path, save_array)
 
         self.cfg['class_enum'] = self.class_enum

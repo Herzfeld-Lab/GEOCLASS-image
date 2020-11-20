@@ -19,6 +19,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("config", type=str)
 parser.add_argument("-c", "--cuda", action="store_true")
 parser.add_argument("--load_checkpoint", type=str, default=None)
+parser.add_argument("--netCDF", action="store_true")
 args = parser.parse_args()
 
 # Read config file
@@ -158,3 +159,6 @@ print(dataset[1].shape)
 dataset[1] = split_info
 #data.append(confs)
 np.save(output_dir+"/labels/labeled_"+checkpoint_str, dataset)
+
+if args.netCDF:
+    to_netCDF(dataset)
