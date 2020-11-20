@@ -38,6 +38,8 @@ class SplitImageTool(QWidget):
         self.setWindowTitle(self.title)
         self.to_netcdf = netcdf
 
+        print(self.width, self.height)
+
         # Load Tiff Image and split image data
         print('-------- Loading Tiff Image --------')
         self.cfg_path = cfg_path
@@ -75,6 +77,7 @@ class SplitImageTool(QWidget):
         self.conf_slider_pos = (self.split_image_class_pos[0], self.split_image_class_pos[1] + 20)
         self.buttons_pos = (10, self.conf_slider_pos[1] + 20)
         self.visualize_button_pos = (self.conf_slider_pos[0], self.conf_slider_pos[1] + 20)
+        self.heatmap_button_pos = (self.visualize_button_pos[0], self.visualize_button_pos[1] + 20)
 
         # --- Initialize UI elements ---
         # Current split Image container
@@ -108,6 +111,9 @@ class SplitImageTool(QWidget):
 
         self.visualize_button = QCheckBox('Visualize Labels', self)
         self.visualize_button.stateChanged.connect(self.visualize_callback)
+
+        self.heatmap_button = QCheckBox('Visualize Confidence Heatmap', self)
+        self.heatmap_button.stateChanged.connect(self.heatmap_callback)
 
         self.new_class_field = QLineEdit()
         self.new_class_field.textChanged.connect(self.textChangedCallback)
@@ -175,6 +181,7 @@ class SplitImageTool(QWidget):
         self.visualization_widgets.addLayout(self.split_text)
         self.visualization_widgets.addWidget(self.conf_thresh_slider)
         self.visualization_widgets.addWidget(self.visualize_button)
+        self.visualization_widgets.addWidget(self.heatmap_button)
 
         self.left_layout.addLayout(self.visualization_widgets)
         self.left_layout.addLayout(self.class_buttons)
@@ -227,7 +234,7 @@ class SplitImageTool(QWidget):
         self.class_buttons.addLayout(self.new_class_layout)
         self.class_buttons.addLayout(self.class_buttons_columns)
 
-    def initBgImage(self, visualize=False):
+    def initBgImage(self, visualize=False, heatmap=False):
 
         scale_factor = int(self.tiff_image_matrix.shape[0] / 2000)
 
@@ -251,8 +258,21 @@ class SplitImageTool(QWidget):
 
                     cv2.rectangle(self.bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
 
+        elif heatmap:
+            heatmap_cmap = plt.get_cmap('autumn')
+
+            for splitImg in self.split_info:
+
+                x,y = int(splitImg[0]/scale_factor),int(splitImg[1]/scale_factor)
+                ul = (y,x)
+                lr = (y+7,x+7)
+
+                c = (np.array(heatmap_cmap(1 - splitImg[5])[:3])*255).astype('int')
+
+                cv2.rectangle(self.bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
+
         # Rotate tiff to align North and plot glacier contour
-        self.bg_img_cv, self.bg_img_utm, self.bg_img_transform = auto_rotate_geotiff(self.geotiff, self.bg_img_scaled, self.utm_epsg_code, self.contour_np)
+        self.bg_img_cv, self.bg_img_utm, self.bg_img_transform = auto_rotate_geotiff(self.dataset_info, self.geotiff, self.bg_img_scaled, self.utm_epsg_code, self.contour_np)
         height,width,_ = self.bg_img_scaled.shape
 
         # Convert to QImage from cv and wrap in QPixmap container
@@ -266,6 +286,15 @@ class SplitImageTool(QWidget):
 
         self.scale_factor = bg_img_cv_size / bg_img_q_size
         self.tiff_image_label.setPixmap(self.tiff_image_pixmap)
+
+        print('SIZES')
+
+        print('CV:\t\t',bg_img_cv_size)
+        print('Qt:\t\t',bg_img_q_size)
+
+        print(self.bg_img_transform * (0,0))
+        print(self.bg_img_transform * (height,width))
+
 
     def scaleImage(self, img):
         img = img/self.tiff_image_max
@@ -304,7 +333,12 @@ class SplitImageTool(QWidget):
          bg_img = self.bg_img_cv.copy()
          height,width,_ = self.bg_img_cv.shape
          imgSize = np.array([width,height])
+
+         #print(imgSize)
+
          pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array([[x_utm,y_utm]]))
+
+         #print(pix_coords)
 
          # Draw crosshairs
          cv2.circle(bg_img,(pix_coords[0][0],height-pix_coords[0][1]),8,(255,0,0),thickness=-1)
@@ -444,9 +478,15 @@ class SplitImageTool(QWidget):
 
     def visualize_callback(self, state):
         if state == Qt.Checked:
-            self.initBgImage(visualize=True)
+            self.initBgImage(visualize=True, heatmap=False)
         else:
-            self.initBgImage(visualize=False)
+            self.initBgImage(visualize=False, heatmap=False)
+
+    def heatmap_callback(self, state):
+        if state == Qt.Checked:
+            self.initBgImage(visualize=False, heatmap=True)
+        else:
+            self.initBgImage(visualize=False, heatmap=False)
 
     def slider_callback(self):
         value = self.conf_thresh_slider.value()
@@ -465,7 +505,7 @@ class SplitImageTool(QWidget):
         print('')
 
     def closeEvent(self, event):
-        save_array = np.array([self.dataset_info, self.split_info])
+        save_array = np.array([self.dataset_info, self.split_info], dtype=object)
         np.save(self.label_path, save_array)
 
         self.cfg['class_enum'] = self.class_enum

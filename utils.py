@@ -16,12 +16,14 @@ import random
 from netCDF4 import Dataset
 
 def to_netCDF(data, filepath):
+
     attributes = data[0]
 
     array = data[1]
     height,width = array.shape
 
     out = Dataset(filepath+'.nc','w')
+
     out.createDimension('img_x', height)
     out.createDimension('img_y', height)
     out.createDimension('UTM_x', height)
@@ -45,6 +47,7 @@ def to_netCDF(data, filepath):
 
     out.setncatts(attributes)
     out.close()
+
 
 def utm_to_pix(imgSize,utmBounds,utmCoord):
     """
