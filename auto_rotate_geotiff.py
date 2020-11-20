@@ -87,16 +87,28 @@ def cv2_shear(img_mat, transform):
     translat_center_x = -(shear*cols)/2;
     translat_center_y = -(shear*rows)/2;
 
+def shear(img_mat, transform):
+
+    H, W, _ = img_mat.shape
+
+    M2 = np.float32([[1, -transform.b, 0], [-transform.d, 1, 0]])
+    #M2[0,2] = -M2[0,1] * W/2
+    #M2[1,2] = -M2[1,0] * H/2
+    aff2 = cv2.warpAffine(img_mat, M2, (W, H))
+
+    return aff2
+
 def auto_rotate_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM):
 
     if tiffInfo['transform']:
         transform = tiffInfo['transform']
 
-        '''
+
         ul_out = np.array(transform*(0, 0))
         lr_out = np.array(transform*(tiffImg.width, tiffImg.height))
         ll_out = np.array(transform*(0, tiffImg.height))
         ur_out = np.array(transform*(tiffImg.width, 0))
+
         '''
         ul_out = np.array(transform*(0, 0))
         lr_out = np.array(transform*(tiffImg.height, tiffImg.width))
@@ -108,36 +120,7 @@ def auto_rotate_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM):
         UL = bbox.min(axis = 0)
         LR = bbox.max(axis = 0)
 
-        height,width,channels = img_mat.shape
-        imgSize = np.array([height,width])
-
-
-        img_mat_rot = img_mat
-        UTM_bounds = np.array([LR,UL])
-
-        utm_range = LR - UL
-        pixSizes = utm_range / imgSize
-
-        transform_rot = Affine(pixSizes[0], 0, UL[0],
-                               0, pixSizes[1], UL[1])
-
-        contourPixel = utm_to_pix(imgSize, UTM_bounds.T, contourUTM)
-
-        img_mat_rot = cv2.flip(img_mat_rot,0)
-
-        for i in range(len(contourPixel)-1):
-            cv2.line(img_mat_rot, tuple(contourPixel[i]), tuple(contourPixel[i+1]), (0,0,255), 2)
-
-        #for i in range(len(rots)):
-        #    cv2.circle(img_mat_rot,(int(rots[i][0]),int(rots[i][1])),8,(255,0,0),thickness=-1)
-
-        img_mat_rot = cv2.flip(img_mat_rot,0)
         '''
-        bbox = np.array((ul_out,ur_out,lr_out,ll_out))
-
-        UL = bbox.min(axis = 0)
-        LR = bbox.max(axis = 0)
-
         rot_angle = angle_between(ur_out - ul_out, [1,0])*180/math.pi
 
         orig = [[0,0],
@@ -148,17 +131,20 @@ def auto_rotate_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM):
         img_mat_rot = rotate(img_mat,-rot_angle)
 
         rots = rot(img_mat,orig,-rot_angle)
+        '''
+
+        img_mat_rot = shear(img_mat, transform)
 
         height,width,channels = img_mat_rot.shape
-        imgSize = np.array([height,width])
+        imgSize = np.array([width,height])
 
         UTM_bounds = np.array([LR,UL])
 
         utm_range = LR - UL
         pixSizes = utm_range / imgSize
 
-        transform_rot = Affine(pixSizes[0], 0, UL[0],
-                               0, pixSizes[1], UL[1])
+        transform_rot = Affine(pixSizes[0], transform.b, UL[0],
+                               transform.d, pixSizes[1], UL[1])
 
         print(transform)
         print(transform_rot)

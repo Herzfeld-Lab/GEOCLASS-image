@@ -275,6 +275,9 @@ class SplitImageTool(QWidget):
         self.bg_img_cv, self.bg_img_utm, self.bg_img_transform = auto_rotate_geotiff(self.dataset_info, self.geotiff, self.bg_img_scaled, self.utm_epsg_code, self.contour_np)
         height,width,_ = self.bg_img_scaled.shape
 
+        print(self.bg_img_scaled.shape)
+        print(self.bg_img_cv.shape)
+
         # Convert to QImage from cv and wrap in QPixmap container
         self.bg_qimg = QImage(self.bg_img_cv.data,self.bg_img_cv.shape[1],self.bg_img_cv.shape[0],self.bg_img_cv.shape[1]*3,QImage.Format_RGB888)
         self.tiff_image_pixmap = QPixmap(self.bg_qimg)
@@ -452,6 +455,7 @@ class SplitImageTool(QWidget):
             index -= 1
         elif event.key() == 68: #Right arrow key
             index += 1
+            index = index % len(self.split_info)
         elif event.key() == Qt.Key_Escape:
             self.batch_select_polygon = []
 
