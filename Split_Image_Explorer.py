@@ -478,12 +478,14 @@ class SplitImageTool(QWidget):
 
     def visualize_callback(self, state):
         if state == Qt.Checked:
+            self.heatmap_button.setChecked(False)
             self.initBgImage(visualize=True, heatmap=False)
         else:
             self.initBgImage(visualize=False, heatmap=False)
 
     def heatmap_callback(self, state):
         if state == Qt.Checked:
+            self.visualize_button.setChecked(False)
             self.initBgImage(visualize=False, heatmap=True)
         else:
             self.initBgImage(visualize=False, heatmap=False)
