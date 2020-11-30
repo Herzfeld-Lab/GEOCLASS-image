@@ -115,13 +115,13 @@ class SplitImageTool(QWidget):
         self.button_containers = []
 
         self.predictions_button = QCheckBox('Visualize Predictions', self)
-        self.predictions_button.stateChanged.connect(self.predictions_callback)
+        self.predictions_button.stateChanged.connect(self.predictionsCallback)
 
         self.heatmap_button = QCheckBox('Visualize Confidence Heatmap', self)
-        self.heatmap_button.stateChanged.connect(self.heatmap_callback)
+        self.heatmap_button.stateChanged.connect(self.heatmapCallback)
 
         self.labels_button = QCheckBox('Visualize Labels', self)
-        self.labels_button.stateChanged.connect(self.labels_callback)
+        self.labels_button.stateChanged.connect(self.labelsCallback)
 
         self.new_class_field = QLineEdit()
         self.new_class_field.textChanged.connect(self.textChangedCallback)
@@ -130,6 +130,13 @@ class SplitImageTool(QWidget):
 
         self.new_class_button = QPushButton('New Class')
         self.new_class_button.clicked.connect(self.newClassCallback)
+
+        self.save_predictions_button = QPushButton('Save Predictions Image')
+        self.save_predictions_button.clicked.connect(self.savePredictionsCallback)
+
+        self.save_heatmap_button = QPushButton('Save Heatmap Image')
+        self.save_heatmap_button.clicked.connect(self.saveHeatmapCallback)
+
 
         # Slider
         self.conf_thresh_slider = QSlider(Qt.Horizontal)
@@ -176,6 +183,9 @@ class SplitImageTool(QWidget):
         self.master_layout = QHBoxLayout()
         self.left_layout = QVBoxLayout()
         self.visualization_widgets = QVBoxLayout()
+        self.visualization_interactive = QHBoxLayout()
+        self.visualization_toggles = QVBoxLayout()
+        self.visualization_save_buttons = QVBoxLayout()
         self.split_text = QHBoxLayout()
         self.class_buttons = QVBoxLayout()
 
@@ -189,9 +199,18 @@ class SplitImageTool(QWidget):
         self.visualization_widgets.addWidget(self.split_image_label)
         self.visualization_widgets.addLayout(self.split_text)
         self.visualization_widgets.addWidget(self.conf_thresh_slider)
-        self.visualization_widgets.addWidget(self.predictions_button)
-        self.visualization_widgets.addWidget(self.heatmap_button)
-        self.visualization_widgets.addWidget(self.labels_button)
+
+        self.visualization_toggles.addWidget(self.predictions_button)
+        self.visualization_toggles.addWidget(self.heatmap_button)
+        self.visualization_toggles.addWidget(self.labels_button)
+
+        self.visualization_save_buttons.addWidget(self.save_predictions_button)
+        self.visualization_save_buttons.addWidget(self.save_heatmap_button)
+
+        self.visualization_interactive.addLayout(self.visualization_toggles)
+        self.visualization_interactive.addLayout(self.visualization_save_buttons)
+
+        self.visualization_widgets.addLayout(self.visualization_interactive)
 
         self.left_layout.addLayout(self.visualization_widgets)
         self.left_layout.addLayout(self.class_buttons)
@@ -486,7 +505,7 @@ class SplitImageTool(QWidget):
     def new_class(self):
         self.update()
 
-    def predictions_callback(self, state):
+    def predictionsCallback(self, state):
         if state == Qt.Checked:
             self.heatmap_button.setChecked(False)
             self.labels_button.setChecked(False)
@@ -494,7 +513,7 @@ class SplitImageTool(QWidget):
         else:
             self.initBgImage(visualize_labels=False, visualize_predictions=False, heatmap=False)
 
-    def heatmap_callback(self, state):
+    def heatmapCallback(self, state):
         if state == Qt.Checked:
             self.predictions_button.setChecked(False)
             self.labels_button.setChecked(False)
@@ -502,7 +521,7 @@ class SplitImageTool(QWidget):
         else:
             self.initBgImage(visualize_labels=False, visualize_predictions=False, heatmap=False)
 
-    def labels_callback(self, state):
+    def labelsCallback(self, state):
         if state == Qt.Checked:
             self.predictions_button.setChecked(False)
             self.heatmap_button.setChecked(False)
@@ -516,6 +535,18 @@ class SplitImageTool(QWidget):
 
     def textChangedCallback(self, text):
         self.new_class_label = text
+
+    def savePredictionsCallback(self):
+        if self.predictions:
+            self.predictionsCallback(Qt.Checked)
+            out_path = self.pred_label_path[:-4] + '_prediction.png'
+            cv2.imwrite(out_path, cv2.cvtColor(self.bg_img_cv, cv2.COLOR_BGR2RGB))
+
+    def saveHeatmapCallback(self):
+        if self.predictions:
+            self.heatmapCallback(Qt.Checked)
+            out_path = self.pred_label_path[:-4] + '_confidence_heatmap.png'
+            cv2.imwrite(out_path, cv2.cvtColor(self.bg_img_cv, cv2.COLOR_BGR2RGB))
 
     def newClass(self):
         self.class_enum.append(self.new_class_label)
