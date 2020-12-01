@@ -67,7 +67,6 @@ class SplitImageTool(QWidget):
         self.class_enum = self.dataset_info['class_enumeration']
         self.utm_epsg_code = self.cfg['utm_epsg_code']
         self.win_size = self.dataset_info['winsize_pix']
-        #self.contour_np = np.load(self.dataset_info['contour_path'])
         self.contour_np = np.load(self.cfg['contour_path'])
         self.contour_polygon = Polygon(self.contour_np)
         self.lookup_tree = KDTree(self.split_info[:,2:4])
@@ -90,15 +89,12 @@ class SplitImageTool(QWidget):
         self.split_image_label = QLabel(self)
         self.split_image_label.setMargin(0)
         self.split_image_label.setAlignment(Qt.AlignCenter)
-        #self.split_image_label.move(self.split_image_pos[0], self.split_image_pos[1])
 
         # Background Image container
         self.tiff_image_pixmap = QPixmap()
         self.tiff_image_label = QLabel(self)
         self.tiff_image_label.setMargin(0)
         self.tiff_image_label.setMouseTracking(True)
-        #self.tiff_image_label.setAlignment(Qt.AlignCenter)
-        #self.tiff_image_label.move(self.tiff_image_pos[0], self.tiff_image_pos[1])
 
         # Current class label container
         self.split_image_class = QLabel(self)
@@ -137,8 +133,12 @@ class SplitImageTool(QWidget):
         self.save_heatmap_button = QPushButton('Save Heatmap Image')
         self.save_heatmap_button.clicked.connect(self.saveHeatmapCallback)
 
-
         # Slider
+        self.conf_thresh_value = QLabel(self)
+        self.conf_thresh_value.setMargin(0)
+        self.conf_thresh_value.setAlignment(Qt.AlignCenter)
+        self.conf_thresh_value.setFont(QFont("Helvetica", 13, QFont.Bold))
+
         self.conf_thresh_slider = QSlider(Qt.Horizontal)
         self.conf_thresh_slider.setFocusPolicy(Qt.StrongFocus)
         self.conf_thresh_slider.setTickPosition(QSlider.TicksBothSides)
@@ -147,6 +147,8 @@ class SplitImageTool(QWidget):
         self.conf_thresh_slider.setMinimum(0)
         self.conf_thresh_slider.setMaximum(99)
         self.conf_thresh_slider.setValue(0)
+        self.conf_thresh_slider.setStyleSheet('background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 rgba(255,255,0,200), stop:1 rgba(255,0,0,200)); \
+                                               border-radius: 4px')
         self.conf_thresh_slider.valueChanged.connect(self.slider_callback)
 
         # Initialize Image and Dimensions container variables
@@ -156,7 +158,8 @@ class SplitImageTool(QWidget):
         self.bg_img_utm = None
         self.image_index = None
         self.clicked = None
-        self.cmap = plt.get_cmap('tab20')
+        self.label_cmap = plt.get_cmap('tab20')
+        self.conf_cmap = plt.get_cmap('autumn')
         self.conf_thresh = 0
         self.selected_classes = np.ones(len(self.class_enum))
         self.batch_select_polygon = []
@@ -183,6 +186,7 @@ class SplitImageTool(QWidget):
         self.master_layout = QHBoxLayout()
         self.left_layout = QVBoxLayout()
         self.visualization_widgets = QVBoxLayout()
+        self.conf_slider_container = QHBoxLayout()
         self.visualization_interactive = QHBoxLayout()
         self.visualization_toggles = QVBoxLayout()
         self.visualization_save_buttons = QVBoxLayout()
@@ -198,7 +202,10 @@ class SplitImageTool(QWidget):
 
         self.visualization_widgets.addWidget(self.split_image_label)
         self.visualization_widgets.addLayout(self.split_text)
-        self.visualization_widgets.addWidget(self.conf_thresh_slider)
+
+        self.conf_slider_container.addWidget(self.conf_thresh_slider)
+        self.conf_slider_container.addWidget(self.conf_thresh_value)
+        self.visualization_widgets.addLayout(self.conf_slider_container)
 
         self.visualization_toggles.addWidget(self.predictions_button)
         self.visualization_toggles.addWidget(self.heatmap_button)
@@ -229,7 +236,7 @@ class SplitImageTool(QWidget):
 
         labelButton = QPushButton('%d: %s'%(i, className), self)
 
-        r,g,b,a = np.array(self.cmap(i))*255
+        r,g,b,a = np.array(self.label_cmap(i))*255
         labelButton.setStyleSheet("background-color:rgb({},{},{});".format(r,g,b));
         #labelButton.setAlignment(Qt.AlignLeft)
         labelButton.clicked.connect(self.makeClassLabelCallbacks(i))
@@ -252,13 +259,6 @@ class SplitImageTool(QWidget):
         for i in range(numColumns):
             self.class_buttons_columns_list.append(QVBoxLayout())
 
-        '''
-        self.new_class_layout = QHBoxLayout()
-        self.new_class_layout.addSpacing(200)
-        self.new_class_layout.addWidget(self.new_class_field)
-        self.new_class_layout.addSpacing(200)
-        '''
-
         for i, className in enumerate(self.class_enum):
             col = math.floor(i / 12)
             row = i % 12
@@ -268,9 +268,6 @@ class SplitImageTool(QWidget):
         for column in self.class_buttons_columns_list:
             self.class_buttons_columns.addLayout(column)
 
-        '''
-        self.class_buttons.addLayout(self.new_class_layout)
-        '''
         self.class_buttons.addLayout(self.class_buttons_columns)
 
     def initBgImage(self, visualize_labels=False, visualize_predictions=False, heatmap=False):
@@ -293,7 +290,7 @@ class SplitImageTool(QWidget):
                     ul = (y,x)
                     lr = (y+7,x+7)
 
-                    c = (np.array(self.cmap(int(splitImg[4]))[:3])*255).astype('int')
+                    c = (np.array(self.label_cmap(int(splitImg[4]))[:3])*255).astype('int')
 
                     cv2.rectangle(self.bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
 
@@ -306,22 +303,23 @@ class SplitImageTool(QWidget):
                     ul = (y,x)
                     lr = (y+7,x+7)
 
-                    c = (np.array(self.cmap(int(splitImg[4]))[:3])*255).astype('int')
+                    c = (np.array(self.label_cmap(int(splitImg[4]))[:3])*255).astype('int')
 
                     cv2.rectangle(self.bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
 
         elif heatmap and self.predictions:
-            heatmap_cmap = plt.get_cmap('autumn')
 
             for splitImg in self.pred_labels:
 
-                x,y = int(splitImg[0]/scale_factor),int(splitImg[1]/scale_factor)
-                ul = (y,x)
-                lr = (y+7,x+7)
+                if splitImg[5] > self.conf_thresh and self.selected_classes[int(splitImg[4])]:
 
-                c = (np.array(heatmap_cmap(1 - splitImg[5])[:3])*255).astype('int')
+                    x,y = int(splitImg[0]/scale_factor),int(splitImg[1]/scale_factor)
+                    ul = (y,x)
+                    lr = (y+7,x+7)
 
-                cv2.rectangle(self.bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
+                    c = (np.array(self.conf_cmap(1 - splitImg[5])[:3])*255).astype('int')
+
+                    cv2.rectangle(self.bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
 
         # Rotate tiff to align North and plot glacier contour
         self.bg_img_cv, self.bg_img_utm, self.bg_img_transform = auto_rotate_geotiff(self.dataset_info, self.geotiff, self.bg_img_scaled, self.utm_epsg_code, self.contour_np)
@@ -338,6 +336,9 @@ class SplitImageTool(QWidget):
 
         self.scale_factor = bg_img_cv_size / bg_img_q_size
         self.tiff_image_label.setPixmap(self.tiff_image_pixmap)
+
+    def updateBgImage(self, visualize_labels=False, visualize_predictions=False, heatmap=False):
+        return
 
     def scaleImage(self, img):
         img = img/self.tiff_image_max
@@ -362,13 +363,18 @@ class SplitImageTool(QWidget):
          self.split_image_label.setPixmap(self.split_image_pixmap)
 
          # Update label text
-         class_text = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
-         if label == -1:
-             class_text = "No class assigned yet"
-             class_conf = ''
+         class_text = ''
+         if self.predictions:
+            label = int(self.pred_labels[index,4])
+            conf = self.pred_labels[index,5]
+            class_text = "Class %d: %s"%(label, self.class_enum[label])
+            class_conf = "Conf: {:.2%}".format(conf)
+         elif label == -1:
+            class_text = "No class assigned yet"
+            class_conf = ''
          else:
-             class_text = "Class %d: %s"%(label, self.class_enum[label])
-             class_conf = "Conf: {:.2%}".format(conf)
+            class_text = "Class %d: %s"%(label, self.class_enum[label])
+            class_conf = "Conf: {:.2%}".format(conf)
 
          self.split_image_class.setText(class_text)
          self.split_image_conf.setText(class_conf)
@@ -541,6 +547,7 @@ class SplitImageTool(QWidget):
 
     def slider_callback(self):
         value = self.conf_thresh_slider.value()
+        self.conf_thresh_value.setText('{}%'.format(value))
         self.conf_thresh = value/100.0
 
     def textChangedCallback(self, text):
@@ -596,8 +603,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     app = QApplication(sys.argv)
-    #ex = SplitImageTool('Data/classes_10/Worldview_Image/WV02_20160625170309_1030010059AA3500_16JUN25170309-P1BS-500807681050_01_P004_u16ns3413_(201,268)_dataset.npy')
-    #ex = SplitImageTool('Output/28-01-2020_18:20/labels/labeled_epoch_624.npy')
     ex = SplitImageTool(args.config, args.load_labels, args.netcdf)
 
     sys.exit(app.exec_())
