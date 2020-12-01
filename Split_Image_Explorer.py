@@ -212,6 +212,12 @@ class SplitImageTool(QWidget):
 
         self.visualization_widgets.addLayout(self.visualization_interactive)
 
+        self.new_class_layout = QHBoxLayout()
+        self.new_class_layout.addSpacing(200)
+        self.new_class_layout.addWidget(self.new_class_field)
+        self.new_class_layout.addSpacing(200)
+        self.visualization_widgets.addLayout(self.new_class_layout)
+
         self.left_layout.addLayout(self.visualization_widgets)
         self.left_layout.addLayout(self.class_buttons)
 
@@ -246,10 +252,12 @@ class SplitImageTool(QWidget):
         for i in range(numColumns):
             self.class_buttons_columns_list.append(QVBoxLayout())
 
+        '''
         self.new_class_layout = QHBoxLayout()
         self.new_class_layout.addSpacing(200)
         self.new_class_layout.addWidget(self.new_class_field)
         self.new_class_layout.addSpacing(200)
+        '''
 
         for i, className in enumerate(self.class_enum):
             col = math.floor(i / 12)
@@ -260,7 +268,9 @@ class SplitImageTool(QWidget):
         for column in self.class_buttons_columns_list:
             self.class_buttons_columns.addLayout(column)
 
+        '''
         self.class_buttons.addLayout(self.new_class_layout)
+        '''
         self.class_buttons.addLayout(self.class_buttons_columns)
 
     def initBgImage(self, visualize_labels=False, visualize_predictions=False, heatmap=False):
@@ -540,18 +550,21 @@ class SplitImageTool(QWidget):
         if self.predictions:
             self.predictionsCallback(Qt.Checked)
             out_path = self.pred_label_path[:-4] + '_prediction.png'
-            cv2.imwrite(out_path, cv2.cvtColor(self.bg_img_cv, cv2.COLOR_BGR2RGB))
+            cv2.imwrite(out_path, cv2.cvtColor(self.bg_img_scaled, cv2.COLOR_BGR2RGB))
 
     def saveHeatmapCallback(self):
         if self.predictions:
             self.heatmapCallback(Qt.Checked)
             out_path = self.pred_label_path[:-4] + '_confidence_heatmap.png'
-            cv2.imwrite(out_path, cv2.cvtColor(self.bg_img_cv, cv2.COLOR_BGR2RGB))
+            cv2.imwrite(out_path, cv2.cvtColor(self.bg_img_scaled, cv2.COLOR_BGR2RGB))
 
     def newClass(self):
         self.class_enum.append(self.new_class_label)
         self.selected_classes = np.ones(len(self.class_enum))
-        self.addClassButton(len(self.class_enum)-1, self.new_class_label, self.class_buttons_columns_list[-1])
+        #self.addClassButton(len(self.class_enum)-1, self.new_class_label, self.class_buttons_columns_list[-1])
+        self.clearLayout(self.class_buttons)
+        self.initClassButtons()
+        self.left_layout.addLayout(self.class_buttons)
         self.update()
 
     def newClassCallback(self):
