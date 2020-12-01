@@ -135,7 +135,8 @@ if args.cuda:
 print('----- Initializing Output Directory -----')
 now = datetime.now()
 date_str = now.strftime("%d-%m-%Y_%H:%M")
-output_dir = 'Output/%s'%(date_str)
+config_str = args.config.split('/')[1]
+output_dir = 'Output/%s_%s'%(config_str, date_str)
 os.mkdir(output_dir)
 os.mkdir(output_dir+'/checkpoints')
 os.mkdir(output_dir+'/labels')
@@ -201,7 +202,6 @@ for epoch in range(num_epochs):
         checkpoint_path = os.path.join(output_dir, 'checkpoints', checkpoint_str)
         checkpoint = {'state_dict': model.state_dict(),
                       'optimizer' : optimizer.state_dict()}
-
         torch.save(checkpoint, checkpoint_path)
     else:
         if len(valid_losses) > np.array(valid_losses).argmin() + 100:
