@@ -279,6 +279,11 @@ class SplitImageTool(QWidget):
         self.bg_img_scaled = self.bg_img_scaled / self.bg_img_scaled.max()
         self.bg_img_scaled = (self.bg_img_scaled * 255).astype('uint8')
 
+        split_disp_size = (np.array(self.win_size) / scale_factor).astype('int') - 2
+
+        print(scale_factor)
+        print(split_disp_size)
+
         self.bg_img_scaled = cv2.cvtColor(self.bg_img_scaled,cv2.COLOR_GRAY2RGB)
 
         if visualize_labels:
@@ -288,7 +293,7 @@ class SplitImageTool(QWidget):
 
                     x,y = int(splitImg[0]/scale_factor),int(splitImg[1]/scale_factor)
                     ul = (y,x)
-                    lr = (y+7,x+7)
+                    lr = (y+split_disp_size[1],x+split_disp_size[0])
 
                     c = (np.array(self.label_cmap(int(splitImg[4]))[:3])*255).astype('int')
 
@@ -301,7 +306,7 @@ class SplitImageTool(QWidget):
 
                     x,y = int(splitImg[0]/scale_factor),int(splitImg[1]/scale_factor)
                     ul = (y,x)
-                    lr = (y+7,x+7)
+                    lr = (y+split_disp_size[1],x+split_disp_size[0])
 
                     c = (np.array(self.label_cmap(int(splitImg[4]))[:3])*255).astype('int')
 
@@ -315,7 +320,7 @@ class SplitImageTool(QWidget):
 
                     x,y = int(splitImg[0]/scale_factor),int(splitImg[1]/scale_factor)
                     ul = (y,x)
-                    lr = (y+7,x+7)
+                    lr = (y+split_disp_size[1],x+split_disp_size[0])
 
                     c = (np.array(self.conf_cmap(1 - splitImg[5])[:3])*255).astype('int')
 
@@ -588,6 +593,7 @@ class SplitImageTool(QWidget):
         f.close()
 
         if self.to_netcdf:
+            save_array = np.array([self.dataset_info, self.pred_labels], dtype=object)
             to_netCDF(save_array, self.label_path[:-4])
 
         event.accept()
