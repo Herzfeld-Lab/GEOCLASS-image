@@ -12,6 +12,25 @@ from datetime import datetime
 import random
 from Models import *
 import yaml
+import signal
+
+# Handle Ctrl-C event (manual stop training)
+def signal_handler(sig, frame):
+    save_losses()
+    sys.exit(0)
+signal.signal(signal.SIGINT, signal_handler)
+
+def save_losses():
+    np.save(output_dir+'/losses/'+checkpoint_str+"_train_losses",np.array(train_losses))
+    np.save(output_dir+'/losses/'+checkpoint_str+"_valid_losses",np.array(valid_losses))
+    plt.plot(train_losses, label='training loss')
+    plt.plot(valid_losses, label='validation loss')
+    plt.xlabel('Training epochs')
+    plt.ylabel('Cross-Entropy Loss')
+    plt.title('Training vs Validation Loss')
+    plt.legend()
+    plt.savefig(output_dir+'/losses/'+checkpoint_str+'_losses.png')
+
 
 # Parse command line flags
 parser = argparse.ArgumentParser()
@@ -137,11 +156,13 @@ now = datetime.now()
 date_str = now.strftime("%d-%m-%Y_%H:%M")
 config_str = args.config.split('/')[1]
 output_dir = 'Output/%s_%s'%(config_str, date_str)
+checkpoint_str = ''
 os.mkdir(output_dir)
 os.mkdir(output_dir+'/checkpoints')
 os.mkdir(output_dir+'/labels')
 os.mkdir(output_dir+'/losses')
 print('Output saved at %s'%(output_dir))
+
 
 print('----- Training -----')
 
@@ -206,6 +227,5 @@ for epoch in range(num_epochs):
     else:
         if len(valid_losses) > np.array(valid_losses).argmin() + 100:
             break
-#torch.save(checkpoint, checkpoint_path)
-np.save(output_dir+'/losses/'+checkpoint_str+"_train_losses",np.array(train_losses))
-np.save(output_dir+'/losses/'+checkpoint_str+"_valid_losses",np.array(valid_losses))
+
+save_losses()
