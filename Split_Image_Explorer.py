@@ -23,6 +23,7 @@ from shapely.geometry.polygon import Polygon
 from scipy.spatial import KDTree
 import matplotlib.pyplot as plt
 import yaml
+import train
 
 class SplitImageTool(QWidget):
 
@@ -163,14 +164,25 @@ class SplitImageTool(QWidget):
         self.conf_thresh = 0
         self.selected_classes = np.ones(len(self.class_enum))
         self.batch_select_polygon = []
-        self.setMouseTracking(True)
 
         print('-------- Initializing Image Preview --------')
         self.initBgImage()
         self.getNewImage(0)
         self.initUI()
-        self.setLayout(self.master_layout)
+        self.setLayout(self.uber_layout)
+        self.setMouseTracking(True)
         self.show()
+
+    def setMouseTracking(self, flag):
+        def recursive_set(parent):
+            for child in parent.findChildren(QtCore.QObject):
+                try:
+                    child.setMouseTracking(flag)
+                except:
+                    pass
+                recursive_set(child)
+        QWidget.setMouseTracking(self, flag)
+        recursive_set(self)
 
     def clearLayout(self, layout):
         if layout is not None:
@@ -183,7 +195,21 @@ class SplitImageTool(QWidget):
 
     def initUI(self):
 
-        self.master_layout = QHBoxLayout()
+        self.uber_layout = QVBoxLayout()
+        self.tabs = QTabWidget()
+        self.tabs.setMouseTracking(True)
+        self.tab1 = QWidget()
+        self.tab1.setMouseTracking(True)
+        self.tab2 = QWidget()
+        self.tab2.setMouseTracking(True)
+
+        # Add tabs
+        self.tabs.addTab(self.tab1,"Split Image Explorer")
+        self.tabs.addTab(self.tab2,"Training and Testing")
+        self.uber_layout.addWidget(self.tabs)
+
+        # LABELING / VISUALIZATION TAB
+        self.labeling_layout = QHBoxLayout()
         self.left_layout = QVBoxLayout()
         self.visualization_widgets = QVBoxLayout()
         self.conf_slider_container = QHBoxLayout()
@@ -228,8 +254,61 @@ class SplitImageTool(QWidget):
         self.left_layout.addLayout(self.visualization_widgets)
         self.left_layout.addLayout(self.class_buttons)
 
-        self.master_layout.addLayout(self.left_layout)
-        self.master_layout.addWidget(self.tiff_image_label)
+        self.labeling_layout.addLayout(self.left_layout)
+        self.labeling_layout.addWidget(self.tiff_image_label)
+
+        self.tab1.setLayout(self.labeling_layout)
+
+        '''
+        self._processes = []
+        self.terminal = QWidget(self)
+        self.training_layout = QHBoxLayout()
+        self.terminal_layout = QVBoxLayout()
+        self.graphs_layout = QVBoxLayout()
+        self.terminal_layout.addWidget(self.terminal)
+        self._start_process(
+            'xterm',
+            ['-into', str(self.terminal.winId()),
+             '-e', 'tmux', 'new', '-s', 'my_session']
+        )
+        button = QPushButton('List files')
+        self.terminal_layout.addWidget(button)
+        button.clicked.connect(self._list_files)
+        '''
+        self.training_layout = QHBoxLayout()
+        self.terminal_layout = QVBoxLayout()
+        self.graphs_layout = QVBoxLayout()
+
+        self.console = QLineEdit()
+        self.te = QTextEdit()
+        self.console.returnPressed.connect(self.run_command)
+        self.terminal_layout.addWidget(self.console)
+
+        train_button = QPushButton('Train Model')
+        test_button = QPushButton('Test Model')
+        self.graphs_layout.addWidget(train_button)
+        self.graphs_layout.addWidget(test_button)
+
+        self.training_layout.addLayout(self.terminal_layout)
+        self.training_layout.addLayout(self.graphs_layout)
+
+        self.tab2.setLayout(self.training_layout)
+
+    def run_command(self):
+        cmd = str(self.console.text())
+        stdouterr = os.popen(cmd).read()
+        self.te.setText(stdouterr)
+        self.terminal_layout.addWidget(self.console)
+
+    def _start_process(self, prog, args):
+        child = QProcess()
+        self._processes.append(child)
+        child.start(prog, args)
+
+    def _list_files(self):
+        self._start_process(
+            'tmux', ['send-keys', '-t', 'my_session:0', 'ls', 'Enter'])
+
 
     def addClassButton(self, i, className, container):
         buttonContainer = QHBoxLayout()
@@ -428,10 +507,9 @@ class SplitImageTool(QWidget):
         margin = height - self.tiff_image_pixmap.size().height()
 
         click_pos = event.pos()
-        click_pos_scaled = self.tiff_image_label.mapFromParent(click_pos)
+        click_pos_scaled = self.tiff_image_label.mapFrom(self, click_pos)
         click_pos_corrected = np.array([click_pos_scaled.y() - int(margin/2), click_pos_scaled.x()])
         click_pos_scaled = click_pos_corrected * self.scale_factor
-
         click_pos_utm = self.bg_img_transform * (click_pos_scaled[1], self.bg_img_cv.shape[0] - click_pos_scaled[0])
 
         return click_pos_utm
