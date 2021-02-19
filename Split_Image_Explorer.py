@@ -151,6 +151,11 @@ class SplitImageTool(QWidget):
                                                border-radius: 4px')
         self.conf_thresh_slider.valueChanged.connect(self.slider_callback)
 
+        # Visualization toggles
+        self.visualize_labels = False
+        self.visualize_predictions = False
+        self.visualize_heatmap = False
+
         # Initialize Image and Dimensions container variables
         self.bg_img_scaled = None
         self.bg_img_cv = None
@@ -270,7 +275,7 @@ class SplitImageTool(QWidget):
 
         self.class_buttons.addLayout(self.class_buttons_columns)
 
-    def initBgImage(self, visualize_labels=False, visualize_predictions=False, heatmap=False):
+    def initBgImage(self):
 
         scale_factor = int(self.tiff_image_matrix.shape[0] / 2000)
 
@@ -286,7 +291,7 @@ class SplitImageTool(QWidget):
 
         self.bg_img_scaled = cv2.cvtColor(self.bg_img_scaled,cv2.COLOR_GRAY2RGB)
 
-        if visualize_labels:
+        if self.visualize_labels:
             for splitImg in self.split_info:
 
                 if splitImg[5] > self.conf_thresh and self.selected_classes[int(splitImg[4])]:
@@ -299,7 +304,7 @@ class SplitImageTool(QWidget):
 
                     cv2.rectangle(self.bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
 
-        elif visualize_predictions and self.predictions:
+        elif self.visualize_predictions and self.predictions:
             for splitImg in self.pred_labels:
 
                 if splitImg[5] > self.conf_thresh and self.selected_classes[int(splitImg[4])]:
@@ -312,7 +317,7 @@ class SplitImageTool(QWidget):
 
                     cv2.rectangle(self.bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
 
-        elif heatmap and self.predictions:
+        elif self.visualize_heatmap and self.predictions:
 
             for splitImg in self.pred_labels:
 
@@ -342,7 +347,7 @@ class SplitImageTool(QWidget):
         self.scale_factor = bg_img_cv_size / bg_img_q_size
         self.tiff_image_label.setPixmap(self.tiff_image_pixmap)
 
-    def updateBgImage(self, visualize_labels=False, visualize_predictions=False, heatmap=False):
+    def updateBgImage(self):
         return
 
     def scaleImage(self, img):
@@ -351,6 +356,7 @@ class SplitImageTool(QWidget):
         return img
 
     def getNewImage(self, index):
+
          self.image_index = index
 
          # Grab info of split image at index
@@ -402,13 +408,19 @@ class SplitImageTool(QWidget):
          #self.bg_img_scaled = background_image
          self.tiff_image_label.setPixmap(background_image)
 
-    def label(self, class_label):
+    def label(self, mask, class_label):
+        self.split_info[mask][4] = class_label
+        self.split_info[mask][5] = 1
+        self.getNewImage(self.image_index)
+        self.update()
+
+    def labelCurrent(self, class_label):
         self.split_info[self.image_index][4] = class_label
         self.split_info[self.image_index][5] = 1
         self.getNewImage(self.image_index)
         self.update()
 
-    def batchLabel(self, class_label):
+    def batchSelectLabel(self, class_label):
         height,width,_ = self.bg_img_cv.shape
         imgSize = np.array([width,height])
         pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array(self.batch_select_polygon))
@@ -451,7 +463,6 @@ class SplitImageTool(QWidget):
         elif button == 2:
             self.batch_select_polygon.append(click_pos_utm)
 
-
     def mouseMoveEvent(self, event):
 
         if self.batch_select_polygon != []:
@@ -480,7 +491,6 @@ class SplitImageTool(QWidget):
     def keyPressEvent(self, event):
         index = self.image_index
 
-
         if event.key() <= 57 and event.key() >= 48:
             key_map = {48: 0,
                        49: 1,
@@ -494,23 +504,45 @@ class SplitImageTool(QWidget):
                        57: 9}
             if key_map[event.key()] < len(self.class_enum):
                 if self.batch_select_polygon != []:
-                    self.batchLabel(key_map[event.key()])
+                    self.batchSelectLabel(key_map[event.key()])
                 else:
-                    self.label(key_map[event.key()])
+                    self.labelCurrent(key_map[event.key()])
 
         elif event.key() == 65: #Left arrow key
-            index -= 1
+            if self.visualize_predictions or self.visualize_heatmap:
+                index -= 1
+                while self.pred_labels[index][5] < self.conf_thresh:
+                    index -= 1
+            else:
+                index -= 1
         elif event.key() == 68: #Right arrow key
-            index += 1
-        elif event.key() == Qt.Key_Escape:
+            if self.visualize_predictions or self.visualize_heatmap:
+                index += 1
+                while self.pred_labels[index][5] < self.conf_thresh:
+                    index += 1
+            else:
+                index += 1
+        elif event.key() == Qt.Key_Escape:  #Escape key (deselect batch polygon)
             self.batch_select_polygon = []
+        elif event.key() == 76: #l key - add current split image to training dataset
+            modifiers = QApplication.keyboardModifiers()
+            if modifiers == Qt.ShiftModifier:
+                #images_to_label = self.pred_labels[self.pred_labels[:,5] > self.conf_thresh]
+                for i in range(len(self.selected_classes)):
+                    if self.selected_classes[i]:
+                        mask = self.pred_labels[:,5] > self.conf_thresh and self.pred_labels[:,4] == i
+                        print(mask)
+
+            else:
+                _class = self.pred_labels[self.image_index][4]
+                self.labelCurrent(_class)
 
         self.getNewImage(index)
         self.update()
 
     def makeClassLabelCallbacks(self, classLabel):
         def class_label_callback():
-            self.label(classLabel)
+            self.labelCurrent(classLabel)
         return class_label_callback
 
     def makeClassToggleCallbacks(self, classLabel):
@@ -526,29 +558,44 @@ class SplitImageTool(QWidget):
     def new_class(self):
         self.update()
 
+    def resetVisualization(self):
+        self.visualize_labels = False
+        self.visualize_predictions = False
+        self.visualize_heatmap = False
+        self.initBgImage()
+
     def predictionsCallback(self, state):
         if state == Qt.Checked:
             self.heatmap_button.setChecked(False)
             self.labels_button.setChecked(False)
-            self.initBgImage(visualize_labels=False, visualize_predictions=True, heatmap=False)
+            self.visualize_labels = False
+            self.visualize_predictions = True
+            self.visualize_heatmap = False
+            self.initBgImage()
         else:
-            self.initBgImage(visualize_labels=False, visualize_predictions=False, heatmap=False)
+            self.resetVisualization()
 
     def heatmapCallback(self, state):
         if state == Qt.Checked:
             self.predictions_button.setChecked(False)
             self.labels_button.setChecked(False)
-            self.initBgImage(visualize_labels=False, visualize_predictions=False, heatmap=True)
+            self.visualize_labels = False
+            self.visualize_predictions = False
+            self.visualize_heatmap = True
+            self.initBgImage()
         else:
-            self.initBgImage(visualize_labels=False, visualize_predictions=False, heatmap=False)
+            self.resetVisualization()
 
     def labelsCallback(self, state):
         if state == Qt.Checked:
             self.predictions_button.setChecked(False)
             self.heatmap_button.setChecked(False)
-            self.initBgImage(visualize_labels=True, visualize_predictions=False, heatmap=False)
+            self.visualize_labels = True
+            self.visualize_predictions = False
+            self.visualize_heatmap = False
+            self.initBgImage()
         else:
-            self.initBgImage(visualize_labels=False, visualize_predictions=False, heatmap=False)
+            self.resetVisualization()
 
     def slider_callback(self):
         value = self.conf_thresh_slider.value()
