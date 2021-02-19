@@ -409,8 +409,12 @@ class SplitImageTool(QWidget):
          self.tiff_image_label.setPixmap(background_image)
 
     def label(self, mask, class_label):
-        self.split_info[mask][4] = class_label
-        self.split_info[mask][5] = 1
+        print(mask[mask==True].shape)
+        print(class_label)
+        print(self.split_info[mask].shape)
+        print(self.split_info[mask,4].shape)
+        self.split_info[mask,4] = class_label
+        self.split_info[mask,5] = 1
         self.getNewImage(self.image_index)
         self.update()
 
@@ -530,8 +534,8 @@ class SplitImageTool(QWidget):
                 #images_to_label = self.pred_labels[self.pred_labels[:,5] > self.conf_thresh]
                 for i in range(len(self.selected_classes)):
                     if self.selected_classes[i]:
-                        mask = self.pred_labels[:,5] > self.conf_thresh and self.pred_labels[:,4] == i
-                        print(mask)
+                        mask = (self.pred_labels[:,5] > self.conf_thresh) & (self.pred_labels[:,4] == i)
+                        self.label(mask, i)
 
             else:
                 _class = self.pred_labels[self.image_index][4]
