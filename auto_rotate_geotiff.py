@@ -87,10 +87,10 @@ def cv2_shear(img_mat, transform):
     translat_center_x = -(shear*cols)/2;
     translat_center_y = -(shear*rows)/2;
 
-def auto_rotate_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM):
+def auto_rotate_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM, tiff_num):
 
     if tiffInfo['transform']:
-        transform = tiffInfo['transform']
+        transform = tiffInfo['transform'][tiff_num]
 
         '''
         ul_out = np.array(transform*(0, 0))
