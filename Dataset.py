@@ -19,36 +19,37 @@ class SplitImageDataset(Dataset):
     def __init__(self, imgPath, imgData, labels, transform=None, train=False):
 
         self.train = train
-        self.imagePath = imgPath
-        self.imageLabels = labels
-        self.imageData = imgData
-
-        #if self.train:
-        img = rio.open(self.imagePath)
-        self.imageMatrix = img.read(1)
-        self.max = self.imageMatrix.max()
-
-        self.winSize = self.imageData['winsize_pix']
-        self.dataFrame = pd.DataFrame(data=self.imageLabels,columns=['x_pix','y_pix','x_utm','y_utm','label','conf'])
-
-        '''
-        else:
-            print('Loading image paths...')
-            data_array = np.load(txtPath, allow_pickle=True)
-            self.dataFrame = pd.DataFrame(data=data_array,columns=['path','label'])
-        '''
-
+        imagePaths = imgPath
+        imageLabels = labels
+        imageData = imgData
         self.transform = transform
+
+        # Extract all split images and store in dataframe (takes longer to initialize but saves loads on memory usage during training)
+        dataArray = []
+
+        for imgNum,imagePath in enumerate(imagePaths):
+            img = rio.open(imagePath)
+            imageMatrix = img.read(1)
+            max = imageMatrix.max()
+            winSize = imageData['winsize_pix']
+            for row in imageLabels[imageLabels[:,6] == imgNum]:
+                x,y = row[0:2].astype('int')
+                splitImg_np = imageMatrix[x:x+winSize[0],y:y+winSize[1]]
+                splitImg_np = splitImg_np/max
+                splitImg_np = (splitImg_np*255).astype('uint8')
+                rowlist = list(row)
+                rowlist.append(splitImg_np)
+                dataArray.append(rowlist)
+
+        self.dataFrame = pd.DataFrame(dataArray, columns=['x_pix','y_pix','x_utm','y_utm','label','conf','img_source','img_mat'])
+
 
     def __len__(self):
         return len(self.dataFrame)
 
     def __getitem__(self, idx):
 
-        (x,y) = list(self.dataFrame.iloc[idx,:2].astype('int'))
-        splitImg_np = self.imageMatrix[x:x+self.winSize[0],y:y+self.winSize[1]]
-        splitImg_np = splitImg_np/self.max
-        splitImg_np = (splitImg_np*255).astype('uint8')
+        splitImg_np = self.dataFrame.iloc[idx,7]
 
         if self.transform:
             splitImg_np = self.transform(splitImg_np)
