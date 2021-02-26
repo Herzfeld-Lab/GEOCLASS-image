@@ -89,7 +89,7 @@ def cv2_shear(img_mat, transform):
 
 def auto_rotate_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM, tiff_num):
 
-    if tiffInfo['transform']:
+    if tiffInfo['transform'][tiff_num]:
         transform = tiffInfo['transform'][tiff_num]
 
         '''
