@@ -121,11 +121,19 @@ def utm_to_pix2(imgSize,utmBounds,utmCoord):
 def xml_to_latlon(xmlPath):
     xmlTree = ET.parse(xmlPath)
 
-    UL = (float(xmlTree.findall('.//BAND_P/ULLAT')[0].text),float(xmlTree.findall('.//BAND_P/ULLON')[0].text))
-    UR = (float(xmlTree.findall('.//BAND_P/URLAT')[0].text),float(xmlTree.findall('.//BAND_P/URLON')[0].text))
-    LL = (float(xmlTree.findall('.//BAND_P/LLLAT')[0].text),float(xmlTree.findall('.//BAND_P/LLLON')[0].text))
-    LR = (float(xmlTree.findall('.//BAND_P/LRLAT')[0].text),float(xmlTree.findall('.//BAND_P/LRLON')[0].text))
+    if xmlTree.findall('.//BAND_P'):
+        UL = (float(xmlTree.findall('.//BAND_P/ULLAT')[0].text),float(xmlTree.findall('.//BAND_P/ULLON')[0].text))
+        UR = (float(xmlTree.findall('.//BAND_P/URLAT')[0].text),float(xmlTree.findall('.//BAND_P/URLON')[0].text))
+        LL = (float(xmlTree.findall('.//BAND_P/LLLAT')[0].text),float(xmlTree.findall('.//BAND_P/LLLON')[0].text))
+        LR = (float(xmlTree.findall('.//BAND_P/LRLAT')[0].text),float(xmlTree.findall('.//BAND_P/LRLON')[0].text))
+    else:
+        UL = (float(xmlTree.findall('.//ULLAT')[0].text),float(xmlTree.findall('.//ULLON')[0].text))
+        UR = (float(xmlTree.findall('.//URLAT')[0].text),float(xmlTree.findall('.//URLON')[0].text))
+        LL = (float(xmlTree.findall('.//LLLAT')[0].text),float(xmlTree.findall('.//LLLON')[0].text))
+        LR = (float(xmlTree.findall('.//LRLAT')[0].text),float(xmlTree.findall('.//LRLON')[0].text))
+
     latlon = [UL, UR, LR, LL]
+
     return latlon
 
 def plot_geotif_bbox(xmlPath, contourPath, bgImgPath, bgUTMPath):
