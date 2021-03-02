@@ -20,6 +20,7 @@ import yaml
 import argparse
 import cv2
 from PIL import Image
+import json
 
 # Parse command line flags
 parser = argparse.ArgumentParser()
@@ -37,7 +38,7 @@ contourPath = cfg['contour_path']
 epsgCode = cfg['utm_epsg_code']
 classEnum = cfg['class_enum']
 
-print("{} Tiff Images in dataset".format(len(imgPaths)))
+print("\n{} Tiff Images in dataset".format(len(imgPaths)))
 
 pix_coords_list = []
 transforms = []
@@ -45,36 +46,31 @@ transforms = []
 for IMG_NUM in range(len(imgPaths)):
 
     # Load tiff image
-    print("Loading Tiff Image {}...".format(IMG_NUM))
+    print("\n**** Loading Tiff Image {} ****".format(IMG_NUM))
     imgPath = imgPaths[IMG_NUM]
     tiffImg = rio.open(imgPath)
+    print('{} Bands'.format(tiffImg.count))
     band1 = tiffImg.read(1)
     imgSize = band1.shape
+    print('Image size: {}x{}'.format(imgSize[0],imgSize[1]))
 
     if tiffImg.transform == Affine.identity():
         xmlPath = imgPath[:-4] + '.xml'
     else:
         xmlPath = None
 
-
-    # Load UTM glacier contour
-    print("Loading Glacier Contour...")
-    contourUTM = np.load(contourPath)
-    contourPolygon = Polygon(contourUTM)
-
-    # print(contourUTM)
-
     # Get geo transform for tiff image
     if xmlPath:
-        crs_latlon = CRS.from_epsg(4326)
-        crs_utm = CRS.from_epsg(epsgCode)
-        transform = Transformer.from_crs(crs_latlon, crs_utm)
-
-    else:
-        crs_in = CRS.from_wkt(tiffImg.crs.to_string())
+        crs_in = CRS.from_epsg(4326)
         crs_utm = CRS.from_epsg(epsgCode)
         transform = Transformer.from_crs(crs_in, crs_utm)
-        print(transform.to_wkt())
+
+    else:
+        crs_in = CRS.from_wkt(tiffImg.crs.wkt)
+        crs_utm = CRS.from_epsg(epsgCode)
+        transform = Transformer.from_crs(crs_in, crs_utm)
+
+    print('CRS EPSG code: {}'.format(crs_in.to_epsg()))
 
     # Calculate image bounding box in UTM
     if xmlPath:
@@ -98,7 +94,7 @@ for IMG_NUM in range(len(imgPaths)):
 
         bboxUTM = np.array((ul_out,ur_out,lr_out,ll_out))
 
-    #print('bboxUTM', bboxUTM)
+    print('\n**** Calculating Image Transform ****')
 
     image_UL_UTM = np.array([bboxUTM[:,0].min(),bboxUTM[:,1].max()])
     image_LR_UTM = np.array([bboxUTM[:,0].max(),bboxUTM[:,1].min()])
@@ -192,14 +188,26 @@ for IMG_NUM in range(len(imgPaths)):
     #utm_affine_transform = Affine(utm_affine_transform.a, 0.1, utm_affine_transform.c,
     #                       0.1, utm_affine_transform.e, utm_affine_transform.f)
 
-    print('IMAGE TRANSFORM')
-    print(utm_affine_transform)
+    print('IMAGE TRANSFORM:')
+    if xmlPath:
+        print(utm_affine_transform)
+    else:
+        print(tiffImg.transform)
 
+
+    # Load UTM glacier contour
+    if contourPath != 'None':
+        print("\n**** Loading Glacier Contour ****")
+        contourUTM = np.load(contourPath)
+        contourPolygon = Polygon(contourUTM)
+    else:
+        contourUTM = bboxUTM
+        contourPolygon = Polygon(contourUTM)
     #print(tiffImg.transform)
         #print(img_transform*(0,0),'\t---\t',image_UL_UTM)
         #print(img_transform*imgSize,'\t---\t',image_LR_UTM)
 
-    print('Splitting Image...')
+    print('\n**** Splitting Image ****')
 
     count = 0
 
@@ -244,32 +252,23 @@ for IMG_NUM in range(len(imgPaths)):
             if splitImg.shape != tuple(winSize):
                 continue
 
-            if Point(UL_UTM[0],UL_UTM[1]).within(contourPolygon) and Point(LR_UTM[0],LR_UTM[1]).within(contourPolygon):
+            if contourPath != 'None':
+                if Point(UL_UTM[0],UL_UTM[1]).within(contourPolygon) and Point(LR_UTM[0],LR_UTM[1]).within(contourPolygon):
+                    if splitImg[splitImg==0].shape[0] == 0:
+                        pix_coords_list.append([i,j,UL_UTM[0],UL_UTM[1],-1,0,IMG_NUM])
+                        count += 1
+            else:
                 if splitImg[splitImg==0].shape[0] == 0:
                     pix_coords_list.append([i,j,UL_UTM[0],UL_UTM[1],-1,0,IMG_NUM])
                     count += 1
-    print('Created %d split images'%(count))
+
     if xmlPath:
         transforms.append(utm_affine_transform)
     else:
         transforms.append(None)
 
-print('Saving Dataset...')
+print('\n**** Saving Dataset ****')
 pix_coords_np = np.array(pix_coords_list)
-
-#print(pix_coords_np)
-
-train_size = int(cfg['train_test_split'] * pix_coords_np.shape[0])
-
-train_indeces = np.random.choice(range(pix_coords_np.shape[0]), train_size, replace=False)
-test_indeces = list(set(range(pix_coords_np.shape[0])) - set(train_indeces))
-
-#print(train_indeces)
-#print(test_indeces)
-
-# extract your samples:
-train_coords = pix_coords_np[train_indeces, :]
-test_coords = pix_coords_np[test_indeces, :]
 
 
 info = {'filename': imgPaths,
@@ -279,14 +278,16 @@ info = {'filename': imgPaths,
         'transform': transforms,
         'class_enumeration': classEnum}
 
-print('FINAL INFO: ', info)
+print('DATASET INFO: ')
+print(json.dumps(info, indent=2))
 
-save_array_full = np.array([info, pix_coords_np])
+
+save_array_full = np.array([info, pix_coords_np], dtype='object')
 #save_array_train = np.array([info, train_coords])
 #save_array_test = np.array([info, test_coords])
 
 dataset_path = args.config[:-7] + "_%d"%(pix_coords_np.shape[0]) + "_(%d,%d)_split"%(winSize[0],winSize[1])
-print(dataset_path)
+
 cfg['txt_path'] = dataset_path+'.npy'
 #train_path = '/'.join(args.config.split('/')[:-1]) + 'train'
 #test_path = '/'.join(args.config.split('/')[:-1]) + 'test'
@@ -294,11 +295,9 @@ cfg['txt_path'] = dataset_path+'.npy'
 np.save(dataset_path, save_array_full)
 #np.save(train_path, save_array_train)
 #np.save(test_path, save_array_test)
-print('Created %d total split images'%(pix_coords_np.shape[0]))
+print('\nCreated {} total split images'.format(pix_coords_np.shape[0]))
 
-print('Saved Full Dataset to ', dataset_path)
-
-
+print('Saved Full Dataset to {}\n'.format(dataset_path))
 
 f = open(args.config, 'w')
 f.write(generate_config(cfg))
