@@ -178,7 +178,7 @@ def auto_rotate_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM, tiff_
         print(img_mat_rot.shape)
 
     else:
-        crs_in = CRS.from_wkt(tiffImg.crs.to_string())
+        crs_in = CRS.from_wkt(tiffImg.crs.wkt)
         crs_out = CRS.from_epsg(epsg_code)
         transform = Transformer.from_crs(crs_in, crs_out)
 
