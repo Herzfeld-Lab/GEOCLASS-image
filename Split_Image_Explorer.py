@@ -48,12 +48,13 @@ class SplitImageTool(QWidget):
         # Initialize dataset properties
         print('-------- Initializing Dataset --------')
         self.tiff_selector = 0
+        self.checkpoint = checkpoint
         self.label_path = self.cfg['txt_path']
         self.label_data = np.load(self.label_path, allow_pickle=True)
         self.split_info_save = self.label_data[1]
 
-        if checkpoint != None:
-            self.pred_label_path = checkpoint
+        if self.checkpoint != None:
+            self.pred_label_path = self.checkpoint
             pred_data = np.load(self.pred_label_path, allow_pickle=True)
             self.pred_labels_save = pred_data[1]
             self.predictions = True
@@ -92,7 +93,8 @@ class SplitImageTool(QWidget):
     def initDataset(self):
         self.dataset_info = self.label_data[0]
         self.split_info = self.split_info_save[self.split_info_save[:,6] == self.tiff_selector]
-        self.pred_labels = self.pred_labels_save[self.pred_labels_save[:,6] == self.tiff_selector]
+        if self.checkpoint != None:
+            self.pred_labels = self.pred_labels_save[self.pred_labels_save[:,6] == self.tiff_selector]
         self.geotiff = rio.open(self.dataset_info['filename'][self.tiff_selector])
         self.tiff_image_matrix = self.geotiff.read(1)
         self.tiff_image_max = self.tiff_image_matrix.max()
@@ -226,11 +228,9 @@ class SplitImageTool(QWidget):
         self.visualization_widgets.addLayout(self.new_class_layout)
 
         self.tiff_selector_buttons = QHBoxLayout()
-        print(self.cfg['img_path'])
+
         for tiffNum in range(len(self.cfg['img_path'])):
-            print(tiffNum)
-            button = QPushButton('Tiff %d'%(tiffNum), self)
-            print('wat')
+            button = QPushButton('{}...'.format(self.dataset_info['filename'][tiffNum].split('/')[-1][:13]), self)
             button.clicked.connect(self.makeTiffSelectorCallbacks(tiffNum))
             self.tiff_selector_buttons.addWidget(button)
 
@@ -289,7 +289,7 @@ class SplitImageTool(QWidget):
         self.bg_img_scaled = self.bg_img_scaled / self.bg_img_scaled.max()
         self.bg_img_scaled = (self.bg_img_scaled * 255).astype('uint8')
 
-        split_disp_size = (np.array(self.win_size) / scale_factor).astype('int') - 2
+        split_disp_size = np.floor(0.85*(np.array(self.win_size) / scale_factor)).astype('int')
 
         self.bg_img_scaled = cv2.cvtColor(self.bg_img_scaled,cv2.COLOR_GRAY2RGB)
 
@@ -334,7 +334,6 @@ class SplitImageTool(QWidget):
                     cv2.rectangle(self.bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
 
         # Rotate tiff to align North and plot glacier contour
-        print('why')
         self.bg_img_cv, self.bg_img_utm, self.bg_img_transform = auto_rotate_geotiff(self.dataset_info, self.geotiff, self.bg_img_scaled, self.utm_epsg_code, self.contour_np, self.tiff_selector)
         height,width,_ = self.bg_img_scaled.shape
 
@@ -361,8 +360,6 @@ class SplitImageTool(QWidget):
     def getNewImage(self, index):
 
          self.image_index = index
-
-         print(self.split_info.shape)
 
          # Grab info of split image at index
          x,y,x_utm,y_utm,label,conf,_ = self.split_info[index]
@@ -516,14 +513,14 @@ class SplitImageTool(QWidget):
         elif event.key() == 65: #Left arrow key
             if self.visualize_predictions or self.visualize_heatmap:
                 index -= 1
-                while self.pred_labels[index][5] < self.conf_thresh:
+                while self.pred_labels[index,5] < self.conf_thresh or not self.selected_classes[int(self.pred_labels[index,4])]:
                     index -= 1
             else:
                 index -= 1
         elif event.key() == 68: #Right arrow key
             if self.visualize_predictions or self.visualize_heatmap:
                 index += 1
-                while self.pred_labels[index][5] < self.conf_thresh:
+                while self.pred_labels[index,5] < self.conf_thresh or not self.selected_classes[int(self.pred_labels[index,4])]:
                     index += 1
             else:
                 index += 1
