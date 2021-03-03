@@ -13,13 +13,14 @@ from torchvision import transforms, utils
 import pandas as pd
 import random
 import argparse
+import glob
 
 class SplitImageDataset(Dataset):
 
     def __init__(self, imgPath, imgData, labels, transform=None, train=False):
 
         self.train = train
-        imagePaths = imgPath
+        imagePaths = glob.glob(imgPath + '/*.tif')
         imageLabels = labels
         imageData = imgData
         self.transform = transform

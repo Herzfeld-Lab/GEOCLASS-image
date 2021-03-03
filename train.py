@@ -49,7 +49,7 @@ batch_size = cfg['batch_size']
 num_epochs = cfg['num_epochs']
 
 # Set dataset hyperparameters as specified by config file
-img_path = cfg['img_path']
+topDir = cfg['img_path']
 dataset_path = cfg['txt_path']
 train_path = cfg['train_path']
 valid_path = cfg['valid_path']
@@ -74,12 +74,14 @@ if cfg['model'] == 'VarioMLP':
 elif cfg['model'] == 'Resnet18':
     num_classes = cfg['num_classes']
     model = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
+    img_transforms_train = None
+    img_transforms_valid = None
 
 #elif cfg['model'] == YOUR MODEL HERE:
 #   YOUR PARAMETERS HERE
 
 else:
-    print("Error: Model \'%s\' not recognized"%(cfg['model']))
+    print("Error: Model \'{}\' not recognized".format(cfg['model']))
     exit(1)
 
 print(model)
@@ -102,7 +104,7 @@ test_coords = dataset_labeled[test_indeces, :]
 print('----- Initializing Dataset -----')
 
 train_dataset = SplitImageDataset(
-    imgPath = img_path,
+    imgPath = topDir,
     imgData = dataset_info,
     labels = train_coords,
     train = True,
@@ -110,7 +112,7 @@ train_dataset = SplitImageDataset(
     )
 
 valid_dataset = SplitImageDataset(
-    imgPath = img_path,
+    imgPath = topDir,
     imgData = dataset_info,
     labels = test_coords,
     train = True,
@@ -171,15 +173,22 @@ valid_losses = []
 
 for epoch in range(num_epochs):
 
+    print("EPOCH: {} ".format(epoch),end='',flush=True)
+
     sum_loss = 0
     for batch_idx,(X,Y) in enumerate(train_loader):
+
+        if batch_idx % int((len(train_dataset) / batch_size)/10) == 0:
+            print('.', end='',flush=True)
 
         # Move batch to GPU
         if args.cuda:
             X,Y = X.to(device),Y.to(device)
-            X = X.view((X.shape[0],1,-1)).float()
+            #X = X.view((X.shape[0],1,-1)).float()
+            X = torch.unsqueeze(X,1).float()
         else:
-            X = X.view((X.shape[0],1,-1)).float()
+            #X = X.view((X.shape[0],1,-1)).float()
+            X = torch.unsqueeze(X,1).float()
 
         # Compute forward pass
         Y_hat = model.forward(X)
@@ -204,9 +213,11 @@ for epoch in range(num_epochs):
         # Move batch to GPU
         if args.cuda:
             X,Y = X.to(device),Y.to(device)
-            X = X.view((X.shape[0],1,-1)).float()
+            #X = X.view((X.shape[0],1,-1)).float()
+            X = torch.unsqueeze(X,1).float()
         else:
-            X = X.view((X.shape[0],1,-1)).float()
+            #X = X.view((X.shape[0],1,-1)).float()
+            X = torch.unsqueeze(X,1).float()
 
         # Compute forward pass
         Y_hat = model.forward(X)
@@ -215,7 +226,7 @@ for epoch in range(num_epochs):
         loss = loss + criterion(Y_hat, Y)
 
     valid_losses.append(loss.item()/batch_idx)
-    print("EPOCH: %d\tTRAIN LOSS = %f\tVALID LOSS = %f"%(epoch,train_losses[-1],valid_losses[-1]))
+    print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
 
     # Save checkpoint
     checkpoint_str = "epoch_" + str(epoch)
@@ -227,5 +238,8 @@ for epoch in range(num_epochs):
     else:
         if len(valid_losses) > np.array(valid_losses).argmin() + 100:
             break
-
+checkpoint_path = os.path.join(output_dir, 'checkpoints', checkpoint_str)
+checkpoint = {'state_dict': model.state_dict(),
+              'optimizer' : optimizer.state_dict()}
+torch.save(checkpoint, checkpoint_path)
 save_losses()

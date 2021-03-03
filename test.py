@@ -32,7 +32,7 @@ batch_size = cfg['batch_size']
 num_epochs = cfg['num_epochs']
 
 # Set dataset hyperparameters as specified by config file
-img_path = cfg['img_path']
+topDir = cfg['img_path']
 dataset_path = cfg['txt_path']
 train_path = cfg['train_path']
 valid_path = cfg['valid_path']
@@ -79,7 +79,7 @@ dataset_info = dataset[0]
 dataset_labels = dataset[1]
 
 valid_dataset = SplitImageDataset(
-    imgPath = img_path,
+    imgPath = topDir,
     imgData = dataset_info,
     labels = dataset_labels,
     train = False,
@@ -148,7 +148,7 @@ for batch_idx,X in enumerate(valid_loader):
     else:
         labels.append(num_classes)
 
-dataset[0]['filename'] = img_path
+#dataset[0]['filename'] = topDir
 
 split_info = dataset[1]
 split_info[:,4] = labels
