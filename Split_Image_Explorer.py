@@ -23,6 +23,7 @@ from shapely.geometry.polygon import Polygon
 from scipy.spatial import KDTree
 import matplotlib.pyplot as plt
 import yaml
+import glob
 
 class SplitImageTool(QWidget):
 
@@ -64,6 +65,7 @@ class SplitImageTool(QWidget):
         self.initDataset()
 
 
+        print('-------- Initializing GUI --------')
         # Visualization toggles
         self.visualize_labels = False
         self.visualize_predictions = False
@@ -76,14 +78,22 @@ class SplitImageTool(QWidget):
         self.bg_img_utm = None
         self.image_index = None
         self.clicked = None
-        self.label_cmap = plt.get_cmap('tab20')
-        self.conf_cmap = plt.get_cmap('autumn')
         self.conf_thresh = 0
         self.selected_classes = np.ones(len(self.class_enum))
         self.batch_select_polygon = []
-        self.setMouseTracking(True)
 
-        print('-------- Initializing GUI --------')
+        # Initialize colormaps (convert from hex if custom color map defined)
+        if self.cfg['custom_color_map'] != 'None':
+            colors = []
+            for hex in self.cfg['custom_color_map']:
+                colors.append(tuple(int(hex.lstrip('#')[i:i+2], 16)/256 for i in (0,2,4)))
+            cmap = ListedColormap(colors)
+            self.label_cmap = cmap
+        else:
+            self.label_cmap = plt.get_cmap('tab20')
+        self.conf_cmap = plt.get_cmap('autumn')
+
+        self.setMouseTracking(True)
         self.initUI()
         self.initBgImage()
         self.getNewImage(0)
@@ -229,7 +239,7 @@ class SplitImageTool(QWidget):
 
         self.tiff_selector_buttons = QHBoxLayout()
 
-        for tiffNum in range(len(self.cfg['img_path'])):
+        for tiffNum in range(len(self.dataset_info['filename'])):
             button = QPushButton('{}...'.format(self.dataset_info['filename'][tiffNum].split('/')[-1][:13]), self)
             button.clicked.connect(self.makeTiffSelectorCallbacks(tiffNum))
             self.tiff_selector_buttons.addWidget(button)
@@ -244,7 +254,7 @@ class SplitImageTool(QWidget):
     def addClassButton(self, i, className, container):
         buttonContainer = QHBoxLayout()
 
-        labelButton = QPushButton('%d: %s'%(i, className), self)
+        labelButton = QPushButton('{}: {}'.format(i+1, className), self)
 
         r,g,b,a = np.array(self.label_cmap(i))*255
         labelButton.setStyleSheet("background-color:rgb({},{},{});".format(r,g,b));
@@ -289,7 +299,8 @@ class SplitImageTool(QWidget):
         self.bg_img_scaled = self.bg_img_scaled / self.bg_img_scaled.max()
         self.bg_img_scaled = (self.bg_img_scaled * 255).astype('uint8')
 
-        split_disp_size = np.floor(0.85*(np.array(self.win_size) / scale_factor)).astype('int')
+        split_disp_size = (np.array(self.win_size) / scale_factor).astype('int') - 5
+        print(split_disp_size)
 
         self.bg_img_scaled = cv2.cvtColor(self.bg_img_scaled,cv2.COLOR_GRAY2RGB)
 
@@ -298,7 +309,7 @@ class SplitImageTool(QWidget):
 
                 if splitImg[5] > self.conf_thresh and self.selected_classes[int(splitImg[4])]:
 
-                    x,y = int(splitImg[0]/scale_factor),int(splitImg[1]/scale_factor)
+                    x,y = math.floor(splitImg[0]/scale_factor),math.floor(splitImg[1]/scale_factor)
                     ul = (y,x)
                     lr = (y+split_disp_size[1],x+split_disp_size[0])
 
@@ -311,7 +322,7 @@ class SplitImageTool(QWidget):
 
                 if splitImg[5] > self.conf_thresh and self.selected_classes[int(splitImg[4])]:
 
-                    x,y = int(splitImg[0]/scale_factor),int(splitImg[1]/scale_factor)
+                    x,y = math.floor(splitImg[0]/scale_factor),math.floor(splitImg[1]/scale_factor)
                     ul = (y,x)
                     lr = (y+split_disp_size[1],x+split_disp_size[0])
 
@@ -325,7 +336,7 @@ class SplitImageTool(QWidget):
 
                 if splitImg[5] > self.conf_thresh and self.selected_classes[int(splitImg[4])]:
 
-                    x,y = int(splitImg[0]/scale_factor),int(splitImg[1]/scale_factor)
+                    x,y = math.floor(splitImg[0]/scale_factor),math.floor(splitImg[1]/scale_factor)
                     ul = (y,x)
                     lr = (y+split_disp_size[1],x+split_disp_size[0])
 
@@ -372,7 +383,7 @@ class SplitImageTool(QWidget):
          img = ImageQt(img)
 
          # Wrap split image in QPixmap
-         self.split_image_pixmap = QPixmap.fromImage(img)
+         self.split_image_pixmap = QPixmap.fromImage(img).scaledToWidth(270)
          self.split_image_label.setPixmap(self.split_image_pixmap)
 
          # Update label text
@@ -409,6 +420,7 @@ class SplitImageTool(QWidget):
          background_image = background_image.scaledToWidth(int(self.width/2) - 10)
          #self.bg_img_scaled = background_image
          self.tiff_image_label.setPixmap(background_image)
+
 
     def label(self, mask, class_label):
         self.split_info[mask,4] = class_label

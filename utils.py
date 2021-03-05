@@ -308,9 +308,10 @@ random_distort:     {}
 
 ### VISUALIZATION PARAMETERS ###
 
-contour_path:     {}
-bg_img_path:      {}
-bg_UTM_path:      {}
+contour_path:       {}
+custom_color_map:   {}
+bg_img_path:        {}
+bg_UTM_path:        {}
         '''.format(yaml_obj['model'],
                    yaml_obj['num_classes'],
                    yaml_obj['vario_num_lag'],
@@ -335,7 +336,8 @@ bg_UTM_path:      {}
                    yaml_obj['random_contrast'],
                    yaml_obj['random_distort'],
                    yaml_obj['contour_path'],
+                   yaml_obj['custom_color_map'],
                    yaml_obj['bg_img_path'],
-                   yaml_obj['bg_UTM_path'],)
+                   yaml_obj['bg_UTM_path'])
 
     return config_str

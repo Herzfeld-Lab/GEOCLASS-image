@@ -52,6 +52,7 @@ if cfg['model'] == 'VarioMLP':
 elif cfg['model'] == 'Resnet18':
     num_classes = cfg['num_classes']
     model = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
+    img_transforms_valid = None
 else:
     print("Error: Model \'%s\' not recognized"%(cfg['model']))
     exit(1)
@@ -133,7 +134,7 @@ for batch_idx,X in enumerate(valid_loader):
     if args.cuda:
         X = X.to(device)
 
-    X = X.view((X.shape[0],1,-1)).float()
+    X = torch.unsqueeze(X,1).float()
 
     # Compute forward pass
     Y_hat = model.forward(X)

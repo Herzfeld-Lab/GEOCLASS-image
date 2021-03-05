@@ -103,6 +103,7 @@ def auto_rotate_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM, tiff_
         ll_out = np.array(transform*(0, tiffImg.width))
         ur_out = np.array(transform*(tiffImg.height, 0))
         '''
+
         bbox = np.array((ul_out,ur_out,lr_out,ll_out))
 
         UL = bbox.min(axis = 0)
@@ -149,6 +150,8 @@ def auto_rotate_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM, tiff_
 
         rots = rot(img_mat,orig,-rot_angle)
 
+        img_mat_rot = img_mat
+
         height,width,channels = img_mat_rot.shape
         imgSize = np.array([height,width])
 
@@ -157,8 +160,8 @@ def auto_rotate_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM, tiff_
         utm_range = LR - UL
         pixSizes = utm_range / imgSize
 
-        transform_rot = Affine(pixSizes[0], 0, UL[0],
-                               0, pixSizes[1], UL[1])
+        transform_rot = Affine(pixSizes[0], 0, transform.c,
+                               0, -pixSizes[1], transform.f)
 
         print(transform)
         print(transform_rot)
@@ -166,6 +169,7 @@ def auto_rotate_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM, tiff_
         contourPixel = utm_to_pix(imgSize, UTM_bounds.T, contourUTM)
 
         img_mat_rot = cv2.flip(img_mat_rot,0)
+
 
         for i in range(len(contourPixel)-1):
             cv2.line(img_mat_rot, tuple(contourPixel[i]), tuple(contourPixel[i+1]), (0,0,255), 2)
@@ -176,6 +180,9 @@ def auto_rotate_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM, tiff_
         img_mat_rot = cv2.flip(img_mat_rot,0)
 
         print(img_mat_rot.shape)
+
+        #return img_mat, bbox, transform
+
 
     else:
         crs_in = CRS.from_wkt(tiffImg.crs.wkt)
