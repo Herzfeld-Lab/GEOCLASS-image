@@ -107,7 +107,15 @@ class SplitImageTool(QWidget):
             self.pred_labels = self.pred_labels_save[self.pred_labels_save[:,6] == self.tiff_selector]
         self.geotiff = rio.open(self.dataset_info['filename'][self.tiff_selector])
         self.tiff_image_matrix = self.geotiff.read(1)
-        self.tiff_image_max = self.tiff_image_matrix.max()
+
+        std = np.std(self.tiff_image_matrix[::10,::10])
+        max = self.tiff_image_matrix.max()
+        mean = np.mean(self.tiff_image_matrix[::10,::10])
+        if max > mean+2.5*std:
+            self.tiff_image_max = mean + 2.5*std
+        else:
+            self.tiff_image_max = self.tiff_image_matrix.max()
+
         self.class_enum = self.dataset_info['class_enumeration']
         self.utm_epsg_code = self.cfg['utm_epsg_code']
         self.win_size = self.dataset_info['winsize_pix']
@@ -254,7 +262,7 @@ class SplitImageTool(QWidget):
     def addClassButton(self, i, className, container):
         buttonContainer = QHBoxLayout()
 
-        labelButton = QPushButton('{}: {}'.format(i+1, className), self)
+        labelButton = QPushButton('{}: {}'.format(i, className), self)
 
         r,g,b,a = np.array(self.label_cmap(i))*255
         labelButton.setStyleSheet("background-color:rgb({},{},{});".format(r,g,b));
@@ -296,11 +304,9 @@ class SplitImageTool(QWidget):
 
         # Scale down tiff image for visualization and convert to 8-bit grayscale
         self.bg_img_scaled = self.tiff_image_matrix[::scale_factor,::scale_factor]
-        self.bg_img_scaled = self.bg_img_scaled / self.bg_img_scaled.max()
-        self.bg_img_scaled = (self.bg_img_scaled * 255).astype('uint8')
+        self.bg_img_scaled = self.scaleImage(self.bg_img_scaled)
 
-        split_disp_size = (np.array(self.win_size) / scale_factor).astype('int') - 5
-        print(split_disp_size)
+        split_disp_size = (np.array(self.win_size) / scale_factor).astype('int') - 2
 
         self.bg_img_scaled = cv2.cvtColor(self.bg_img_scaled,cv2.COLOR_GRAY2RGB)
 
@@ -345,19 +351,24 @@ class SplitImageTool(QWidget):
                     cv2.rectangle(self.bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
 
         # Rotate tiff to align North and plot glacier contour
-        self.bg_img_cv, self.bg_img_utm, self.bg_img_transform = auto_rotate_geotiff(self.dataset_info, self.geotiff, self.bg_img_scaled, self.utm_epsg_code, self.contour_np, self.tiff_selector)
-        height,width,_ = self.bg_img_scaled.shape
+        self.bg_img_cv, self.bg_img_utm, self.bg_img_transform, self.bbox_pixel = rotate_and_crop_geotiff(self.dataset_info, self.geotiff, self.bg_img_scaled, self.utm_epsg_code, self.contour_np, self.tiff_selector)
+        #height,width,_ = self.bg_img_scaled.shape
+        height,width,_ = self.bg_img_cv.shape
 
         # Convert to QImage from cv and wrap in QPixmap container
         self.bg_qimg = QImage(self.bg_img_cv.data,self.bg_img_cv.shape[1],self.bg_img_cv.shape[0],self.bg_img_cv.shape[1]*3,QImage.Format_RGB888)
+        #print('bg_img_q: \t{}x{}'.format(self.bg_qimg.height(),self.bg_qimg.width()))
         self.tiff_image_pixmap = QPixmap(self.bg_qimg)
         self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToWidth(int(self.width/2) - 10)
+        #self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
+        #print('bg_img_pixmap:  {}x{}'.format(self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
 
         # Get scaling factor between cv and q image
         bg_img_cv_size = np.array(self.bg_img_cv.shape[:-1])
         bg_img_q_size = np.array((self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
 
         self.scale_factor = bg_img_cv_size / bg_img_q_size
+        #print('scale factor:   {}'.format(self.scale_factor))
         self.tiff_image_label.setPixmap(self.tiff_image_pixmap)
 
     def updateBgImage(self):
@@ -365,8 +376,9 @@ class SplitImageTool(QWidget):
 
     def scaleImage(self, img):
         img = img/self.tiff_image_max
-        img = (img*255).astype('uint8')
-        return img
+        img = img * 255
+        img[img > 255] = 255
+        return np.ceil(img).astype('uint8')
 
     def getNewImage(self, index):
 
@@ -417,6 +429,7 @@ class SplitImageTool(QWidget):
          height,width,channels = bg_img.shape
          bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
          background_image = QPixmap(bg_img)
+         #background_image = background_image.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
          background_image = background_image.scaledToWidth(int(self.width/2) - 10)
          #self.bg_img_scaled = background_image
          self.tiff_image_label.setPixmap(background_image)
@@ -449,16 +462,27 @@ class SplitImageTool(QWidget):
 
     def getMousePosUTM(self, event):
 
+        # Get dimensions of the QT pixmap and window margins for the image preview
         width, height = self.tiff_image_label.size().width(), self.tiff_image_label.size().height()
-
         margin = height - self.tiff_image_pixmap.size().height()
+        #print('\nImg label shape: \t\t\t{}x{}'.format(height,width))
+        #print('Img pixmap shape: \t\t\t{}x{}'.format(self.tiff_image_pixmap.size().height(),self.tiff_image_pixmap.size().width()))
 
+        # Get the position of the mouse click in the GUI window
         click_pos = event.pos()
+        #print('Window click pos: \t\t\t{}'.format(click_pos))
+        # Map the click position in pixel space from GUI window to Image
         click_pos_scaled = self.tiff_image_label.mapFromParent(click_pos)
+        #print('bgImage click pos: \t\t\t{}'.format(click_pos_scaled))
+        # Correct for GUI window margins
         click_pos_corrected = np.array([click_pos_scaled.y() - int(margin/2), click_pos_scaled.x()])
+        #print('corrected click pos: \t\t\t{}'.format(click_pos_corrected))
+        # Scale from image display size to underlying actual tiff image size
         click_pos_scaled = click_pos_corrected * self.scale_factor
-
+        #print('scaled click pos: \t\t\t{}'.format(click_pos_scaled))
+        # Get UTM coordinates from tiff image pixel coordinates
         click_pos_utm = self.bg_img_transform * (click_pos_scaled[1], self.bg_img_cv.shape[0] - click_pos_scaled[0])
+        #print('UTM click pos: \t\t\t{}\n'.format(click_pos_utm))
 
         return click_pos_utm
 
@@ -498,6 +522,7 @@ class SplitImageTool(QWidget):
             height,width,channels = bg_img.shape
             bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
             background_image = QPixmap(bg_img)
+            #background_image = background_image.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
             background_image = background_image.scaledToWidth(int(self.width/2) - 10)
             #self.bg_img_scaled = background_image
             self.tiff_image_label.setPixmap(background_image)
