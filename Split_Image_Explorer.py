@@ -108,13 +108,7 @@ class SplitImageTool(QWidget):
         self.geotiff = rio.open(self.dataset_info['filename'][self.tiff_selector])
         self.tiff_image_matrix = self.geotiff.read(1)
 
-        std = np.std(self.tiff_image_matrix[::10,::10])
-        max = self.tiff_image_matrix.max()
-        mean = np.mean(self.tiff_image_matrix[::10,::10])
-        if max > mean+2.5*std:
-            self.tiff_image_max = mean + 2.5*std
-        else:
-            self.tiff_image_max = self.tiff_image_matrix.max()
+        self.tiff_image_max = get_img_sigma(self.tiff_image_matrix[::10,::10])
 
         self.class_enum = self.dataset_info['class_enumeration']
         self.utm_epsg_code = self.cfg['utm_epsg_code']
@@ -304,7 +298,7 @@ class SplitImageTool(QWidget):
 
         # Scale down tiff image for visualization and convert to 8-bit grayscale
         self.bg_img_scaled = self.tiff_image_matrix[::scale_factor,::scale_factor]
-        self.bg_img_scaled = self.scaleImage(self.bg_img_scaled)
+        self.bg_img_scaled = scaleImage(self.bg_img_scaled, self.tiff_image_max)
 
         split_disp_size = (np.array(self.win_size) / scale_factor).astype('int') - 2
 
@@ -374,12 +368,6 @@ class SplitImageTool(QWidget):
     def updateBgImage(self):
         return
 
-    def scaleImage(self, img):
-        img = img/self.tiff_image_max
-        img = img * 255
-        img[img > 255] = 255
-        return np.ceil(img).astype('uint8')
-
     def getNewImage(self, index):
 
          self.image_index = index
@@ -390,7 +378,7 @@ class SplitImageTool(QWidget):
 
          # Get split image from image matrix
          img = self.tiff_image_matrix[x:x+self.win_size[0],y:y+self.win_size[1]]
-         img = self.scaleImage(img)
+         img = scaleImage(img, self.tiff_image_max)
          img = Image.fromarray(img).convert("L")
          img = ImageQt(img)
 

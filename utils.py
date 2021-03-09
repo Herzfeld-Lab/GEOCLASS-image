@@ -66,6 +66,20 @@ def angle_between(v1, v2):
     v2_u = unit_vector(v2)
     return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
 
+def get_img_sigma(img_mat):
+    std = np.std(img_mat)
+    max = img_mat.max()
+    mean = np.mean(img_mat)
+    if max > mean+2.5*std:
+        return (mean + 2.5*std)
+    else:
+        return (img_mat.max())
+
+def scaleImage(img, max):
+    img = img/max
+    img = img * 255
+    img[img > 255] = 255
+    return np.ceil(img).astype('uint8')
 
 def utm_to_pix(imgSize,utmBounds,utmCoord):
     """
@@ -133,11 +147,11 @@ def xml_to_latlon(xmlPath):
         UR = (float(xmlTree.findall('.//URLAT')[0].text),float(xmlTree.findall('.//URLON')[0].text))
         LL = (float(xmlTree.findall('.//LLLAT')[0].text),float(xmlTree.findall('.//LLLON')[0].text))
         LR = (float(xmlTree.findall('.//LRLAT')[0].text),float(xmlTree.findall('.//LRLON')[0].text))
-        GSD = (float(xmlTree.findall('./IMAGE/MEANCOLLECTEDROWGSD')[0].text),float(xmlTree.findall('./IMAGE/MEANCOLLECTEDCOLGSD')[0].text))
+        #GSD = (float(xmlTree.findall('./IMAGE/MEANCOLLECTEDROWGSD')[0].text),float(xmlTree.findall('./IMAGE/MEANCOLLECTEDCOLGSD')[0].text))
 
     latlon = [UL, UR, LR, LL]
 
-    return latlon, GSD
+    return latlon
 
 def plot_geotif_bbox(xmlPath, contourPath, bgImgPath, bgUTMPath):
     """

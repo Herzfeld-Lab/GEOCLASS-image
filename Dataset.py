@@ -31,13 +31,17 @@ class SplitImageDataset(Dataset):
         for imgNum,imagePath in enumerate(imagePaths):
             img = rio.open(imagePath)
             imageMatrix = img.read(1)
-            max = imageMatrix.max()
+
+            max = get_img_sigma(imageMatrix[::10,::10])
+
             winSize = imageData['winsize_pix']
             for row in imageLabels[imageLabels[:,6] == imgNum]:
                 x,y = row[0:2].astype('int')
                 splitImg_np = imageMatrix[x:x+winSize[0],y:y+winSize[1]]
                 splitImg_np = splitImg_np/max
-                splitImg_np = (splitImg_np*255).astype('uint8')
+                splitImg_np = splitImg_np*255
+                splitImg_np[splitImg_np > 255] = 255
+                splitImg_np = splitImg_np.astype('uint8')
                 rowlist = list(row)
                 rowlist.append(splitImg_np)
                 dataArray.append(rowlist)
@@ -100,7 +104,6 @@ class RandomShift(object):
         rand = random.randint(0,size_diff-1)
         img = img[:,rand:]
         return img
-
 
 class FlipHoriz(object):
 
