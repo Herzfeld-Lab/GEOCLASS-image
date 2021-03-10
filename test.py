@@ -32,8 +32,8 @@ batch_size = cfg['batch_size']
 num_epochs = cfg['num_epochs']
 
 # Set dataset hyperparameters as specified by config file
-img_path = cfg['img_path']
-dataset_path = cfg['txt_path']
+topDir = cfg['img_path']
+dataset_path = cfg['npy_path']
 train_path = cfg['train_path']
 valid_path = cfg['valid_path']
 
@@ -52,6 +52,7 @@ if cfg['model'] == 'VarioMLP':
 elif cfg['model'] == 'Resnet18':
     num_classes = cfg['num_classes']
     model = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
+    img_transforms_valid = None
 else:
     print("Error: Model \'%s\' not recognized"%(cfg['model']))
     exit(1)
@@ -79,7 +80,7 @@ dataset_info = dataset[0]
 dataset_labels = dataset[1]
 
 valid_dataset = SplitImageDataset(
-    imgPath = img_path,
+    imgPath = topDir,
     imgData = dataset_info,
     labels = dataset_labels,
     train = False,
@@ -133,7 +134,7 @@ for batch_idx,X in enumerate(valid_loader):
     if args.cuda:
         X = X.to(device)
 
-    X = X.view((X.shape[0],1,-1)).float()
+    X = torch.unsqueeze(X,1).float()
 
     # Compute forward pass
     Y_hat = model.forward(X)
@@ -148,7 +149,7 @@ for batch_idx,X in enumerate(valid_loader):
     else:
         labels.append(num_classes)
 
-dataset[0]['filename'] = img_path
+#dataset[0]['filename'] = topDir
 
 split_info = dataset[1]
 split_info[:,4] = labels

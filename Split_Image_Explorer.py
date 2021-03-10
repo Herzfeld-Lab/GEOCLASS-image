@@ -23,6 +23,7 @@ from shapely.geometry.polygon import Polygon
 from scipy.spatial import KDTree
 import matplotlib.pyplot as plt
 import yaml
+import glob
 
 class SplitImageTool(QWidget):
 
@@ -39,31 +40,76 @@ class SplitImageTool(QWidget):
         self.to_netcdf = netcdf
 
         # Load Tiff Image and split image data
-        print('-------- Loading Tiff Image --------')
+        print('-------- Loading App Config --------')
         self.cfg_path = cfg_path
         with open(self.cfg_path, 'r') as ymlfile:
             self.cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
-        if checkpoint != None:
-            self.pred_label_path = checkpoint
-            pred_data = np.load(self.pred_label_path, allow_pickle=True)
-            self.pred_labels = pred_data[1]
-            self.predictions = True
-        else:
-            self.predictions = False
-        #else:
-        self.label_path = self.cfg['txt_path']
-
-        label_data = np.load(self.label_path, allow_pickle=True)
-
 
         # Initialize dataset properties
         print('-------- Initializing Dataset --------')
-        self.split_info = label_data[1]
-        self.dataset_info = label_data[0]
-        self.geotiff = rio.open(self.dataset_info['filename'])
+        self.tiff_selector = 0
+        self.checkpoint = checkpoint
+        self.label_path = self.cfg['npy_path']
+        self.label_data = np.load(self.label_path, allow_pickle=True)
+        self.split_info_save = self.label_data[1]
+
+        if self.checkpoint != None:
+            self.pred_label_path = self.checkpoint
+            pred_data = np.load(self.pred_label_path, allow_pickle=True)
+            self.pred_labels_save = pred_data[1]
+            self.predictions = True
+        else:
+            self.predictions = False
+
+        self.initDataset()
+
+
+        print('-------- Initializing GUI --------')
+        # Visualization toggles
+        self.visualize_labels = False
+        self.visualize_predictions = False
+        self.visualize_heatmap = False
+
+        # Initialize Image and Dimensions container variables
+        bg_img_scaled = None
+        self.bg_img_cv = None
+        self.bg_qimage = None
+        self.bg_img_utm = None
+        self.image_index = None
+        self.clicked = None
+        self.conf_thresh = 0
+        self.selected_classes = np.ones(len(self.class_enum))
+        self.batch_select_polygon = []
+
+        # Initialize colormaps (convert from hex if custom color map defined)
+        if self.cfg['custom_color_map'] != 'None':
+            colors = []
+            for hex in self.cfg['custom_color_map']:
+                colors.append(tuple(int(hex.lstrip('#')[i:i+2], 16)/256 for i in (0,2,4)))
+            cmap = ListedColormap(colors)
+            self.label_cmap = cmap
+        else:
+            self.label_cmap = plt.get_cmap('tab20')
+        self.conf_cmap = plt.get_cmap('autumn')
+
+        self.setMouseTracking(True)
+        self.initUI()
+        self.initBgImage()
+        self.getNewImage(0)
+        self.setLayout(self.master_layout)
+        self.show()
+
+    def initDataset(self):
+        self.dataset_info = self.label_data[0]
+        self.split_info = self.split_info_save[self.split_info_save[:,6] == self.tiff_selector]
+        if self.checkpoint != None:
+            self.pred_labels = self.pred_labels_save[self.pred_labels_save[:,6] == self.tiff_selector]
+        self.geotiff = rio.open(self.dataset_info['filename'][self.tiff_selector])
         self.tiff_image_matrix = self.geotiff.read(1)
-        self.tiff_image_max = self.tiff_image_matrix.max()
+
+        self.tiff_image_max = get_img_sigma(self.tiff_image_matrix[::10,::10])
+
         self.class_enum = self.dataset_info['class_enumeration']
         self.utm_epsg_code = self.cfg['utm_epsg_code']
         self.win_size = self.dataset_info['winsize_pix']
@@ -71,17 +117,26 @@ class SplitImageTool(QWidget):
         self.contour_polygon = Polygon(self.contour_np)
         self.lookup_tree = KDTree(self.split_info[:,2:4])
 
-        # Declare dimensions for GUI components
-        print('-------- Initializing GUI --------')
-        self.split_image_pos = (int(self.width/4) - int(self.win_size[1]/2), 10)
-        self.button_grid_pos = (0,0)
-        self.tiff_image_pos = (int(self.width/2), 10)
-        self.split_image_class_pos = ((int(self.width/4) - int(self.win_size[1]/2), self.win_size[0] + 20))
-        self.conf_slider_pos = (self.split_image_class_pos[0], self.split_image_class_pos[1] + 20)
-        self.buttons_pos = (10, self.conf_slider_pos[1] + 20)
-        self.predictions_button_pos = (self.conf_slider_pos[0], self.conf_slider_pos[1] + 20)
-        self.heatmap_button_pos = (self.predictions_button_pos[0], self.predictions_button_pos[1] + 20)
-        self.labels_button_pos = (self.heatmap_button_pos[0], self.heatmap_button_pos[1] + 20)
+    def clearLayout(self, layout):
+        if layout is not None:
+            while layout.count():
+                child = layout.takeAt(0)
+                if child.widget() is not None:
+                    child.widget().deleteLater()
+                elif child.layout() is not None:
+                    self.clearLayout(child.layout())
+
+    def initUI(self):
+
+        self.master_layout = QHBoxLayout()
+        self.left_layout = QVBoxLayout()
+        self.visualization_widgets = QVBoxLayout()
+        self.conf_slider_container = QHBoxLayout()
+        self.visualization_interactive = QHBoxLayout()
+        self.visualization_toggles = QVBoxLayout()
+        self.visualization_save_buttons = QVBoxLayout()
+        self.split_text = QHBoxLayout()
+        self.class_buttons = QVBoxLayout()
 
         # --- Initialize UI elements ---
         # Current split Image container
@@ -102,6 +157,7 @@ class SplitImageTool(QWidget):
         self.split_image_class.setAlignment(Qt.AlignCenter)
         self.split_image_class.setFont(QFont("Helvetica", 15, QFont.Bold))
 
+        # Current class confidence container
         self.split_image_conf = QLabel(self)
         self.split_image_conf.setMargin(0)
         self.split_image_conf.setAlignment(Qt.AlignCenter)
@@ -151,48 +207,6 @@ class SplitImageTool(QWidget):
                                                border-radius: 4px')
         self.conf_thresh_slider.valueChanged.connect(self.slider_callback)
 
-        # Initialize Image and Dimensions container variables
-        self.bg_img_scaled = None
-        self.bg_img_cv = None
-        self.bg_qimage = None
-        self.bg_img_utm = None
-        self.image_index = None
-        self.clicked = None
-        self.label_cmap = plt.get_cmap('tab20')
-        self.conf_cmap = plt.get_cmap('autumn')
-        self.conf_thresh = 0
-        self.selected_classes = np.ones(len(self.class_enum))
-        self.batch_select_polygon = []
-        self.setMouseTracking(True)
-
-        print('-------- Initializing Image Preview --------')
-        self.initBgImage()
-        self.getNewImage(0)
-        self.initUI()
-        self.setLayout(self.master_layout)
-        self.show()
-
-    def clearLayout(self, layout):
-        if layout is not None:
-            while layout.count():
-                child = layout.takeAt(0)
-                if child.widget() is not None:
-                    child.widget().deleteLater()
-                elif child.layout() is not None:
-                    self.clearLayout(child.layout())
-
-    def initUI(self):
-
-        self.master_layout = QHBoxLayout()
-        self.left_layout = QVBoxLayout()
-        self.visualization_widgets = QVBoxLayout()
-        self.conf_slider_container = QHBoxLayout()
-        self.visualization_interactive = QHBoxLayout()
-        self.visualization_toggles = QVBoxLayout()
-        self.visualization_save_buttons = QVBoxLayout()
-        self.split_text = QHBoxLayout()
-        self.class_buttons = QVBoxLayout()
-
         self.initClassButtons()
 
         self.split_text.addSpacing(200)
@@ -225,6 +239,14 @@ class SplitImageTool(QWidget):
         self.new_class_layout.addSpacing(200)
         self.visualization_widgets.addLayout(self.new_class_layout)
 
+        self.tiff_selector_buttons = QHBoxLayout()
+
+        for tiffNum in range(len(self.dataset_info['filename'])):
+            button = QPushButton('{}...'.format(self.dataset_info['filename'][tiffNum].split('/')[-1][:13]), self)
+            button.clicked.connect(self.makeTiffSelectorCallbacks(tiffNum))
+            self.tiff_selector_buttons.addWidget(button)
+
+        self.left_layout.addLayout(self.tiff_selector_buttons)
         self.left_layout.addLayout(self.visualization_widgets)
         self.left_layout.addLayout(self.class_buttons)
 
@@ -234,7 +256,7 @@ class SplitImageTool(QWidget):
     def addClassButton(self, i, className, container):
         buttonContainer = QHBoxLayout()
 
-        labelButton = QPushButton('%d: %s'%(i, className), self)
+        labelButton = QPushButton('{}: {}'.format(i, className), self)
 
         r,g,b,a = np.array(self.label_cmap(i))*255
         labelButton.setStyleSheet("background-color:rgb({},{},{});".format(r,g,b));
@@ -270,101 +292,96 @@ class SplitImageTool(QWidget):
 
         self.class_buttons.addLayout(self.class_buttons_columns)
 
-    def initBgImage(self, visualize_labels=False, visualize_predictions=False, heatmap=False):
-
-        scale_factor = int(self.tiff_image_matrix.shape[0] / 2000)
+    def initBgImage(self):
 
         # Scale down tiff image for visualization and convert to 8-bit grayscale
-        self.bg_img_scaled = self.tiff_image_matrix[::scale_factor,::scale_factor]
-        self.bg_img_scaled = self.bg_img_scaled / self.bg_img_scaled.max()
-        self.bg_img_scaled = (self.bg_img_scaled * 255).astype('uint8')
+        scale_factor = int(self.tiff_image_matrix.shape[0] / 1500)
+        bg_img_scaled = self.tiff_image_matrix[::scale_factor,::scale_factor]
+        bg_img_scaled = scaleImage(bg_img_scaled, self.tiff_image_max)
 
         split_disp_size = (np.array(self.win_size) / scale_factor).astype('int') - 2
 
-        print(scale_factor)
-        print(split_disp_size)
+        bg_img_scaled = cv2.cvtColor(bg_img_scaled,cv2.COLOR_GRAY2RGB)
 
-        self.bg_img_scaled = cv2.cvtColor(self.bg_img_scaled,cv2.COLOR_GRAY2RGB)
-
-        if visualize_labels:
+        if self.visualize_labels:
             for splitImg in self.split_info:
 
                 if splitImg[5] > self.conf_thresh and self.selected_classes[int(splitImg[4])]:
 
-                    x,y = int(splitImg[0]/scale_factor),int(splitImg[1]/scale_factor)
+                    x,y = math.floor(splitImg[0]/scale_factor),math.floor(splitImg[1]/scale_factor)
                     ul = (y,x)
                     lr = (y+split_disp_size[1],x+split_disp_size[0])
 
                     c = (np.array(self.label_cmap(int(splitImg[4]))[:3])*255).astype('int')
 
-                    cv2.rectangle(self.bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
+                    cv2.rectangle(bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
 
-        elif visualize_predictions and self.predictions:
+        elif self.visualize_predictions and self.predictions:
             for splitImg in self.pred_labels:
 
                 if splitImg[5] > self.conf_thresh and self.selected_classes[int(splitImg[4])]:
 
-                    x,y = int(splitImg[0]/scale_factor),int(splitImg[1]/scale_factor)
+                    x,y = math.floor(splitImg[0]/scale_factor),math.floor(splitImg[1]/scale_factor)
                     ul = (y,x)
                     lr = (y+split_disp_size[1],x+split_disp_size[0])
 
                     c = (np.array(self.label_cmap(int(splitImg[4]))[:3])*255).astype('int')
 
-                    cv2.rectangle(self.bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
+                    cv2.rectangle(bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
 
-        elif heatmap and self.predictions:
-
+        elif self.visualize_heatmap and self.predictions:
             for splitImg in self.pred_labels:
 
                 if splitImg[5] > self.conf_thresh and self.selected_classes[int(splitImg[4])]:
 
-                    x,y = int(splitImg[0]/scale_factor),int(splitImg[1]/scale_factor)
+                    x,y = math.floor(splitImg[0]/scale_factor),math.floor(splitImg[1]/scale_factor)
                     ul = (y,x)
                     lr = (y+split_disp_size[1],x+split_disp_size[0])
 
                     c = (np.array(self.conf_cmap(1 - splitImg[5])[:3])*255).astype('int')
 
-                    cv2.rectangle(self.bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
+                    cv2.rectangle(bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
 
         # Rotate tiff to align North and plot glacier contour
-        self.bg_img_cv, self.bg_img_utm, self.bg_img_transform = auto_rotate_geotiff(self.dataset_info, self.geotiff, self.bg_img_scaled, self.utm_epsg_code, self.contour_np)
-        height,width,_ = self.bg_img_scaled.shape
+        self.bg_img_cv, self.bg_img_utm, self.bg_img_transform = rotate_and_crop_geotiff(self.dataset_info, self.geotiff, bg_img_scaled, self.utm_epsg_code, self.contour_np, self.tiff_selector)
+        #height,width,_ = bg_img_scaled.shape
+        height,width,_ = self.bg_img_cv.shape
 
         # Convert to QImage from cv and wrap in QPixmap container
         self.bg_qimg = QImage(self.bg_img_cv.data,self.bg_img_cv.shape[1],self.bg_img_cv.shape[0],self.bg_img_cv.shape[1]*3,QImage.Format_RGB888)
+        #print('bg_img_q: \t{}x{}'.format(self.bg_qimg.height(),self.bg_qimg.width()))
         self.tiff_image_pixmap = QPixmap(self.bg_qimg)
         self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToWidth(int(self.width/2) - 10)
+        #self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
+        #print('bg_img_pixmap:  {}x{}'.format(self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
 
         # Get scaling factor between cv and q image
         bg_img_cv_size = np.array(self.bg_img_cv.shape[:-1])
         bg_img_q_size = np.array((self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
 
         self.scale_factor = bg_img_cv_size / bg_img_q_size
+        #print('scale factor:   {}'.format(self.scale_factor))
         self.tiff_image_label.setPixmap(self.tiff_image_pixmap)
 
-    def updateBgImage(self, visualize_labels=False, visualize_predictions=False, heatmap=False):
+    def updateBgImage(self):
         return
 
-    def scaleImage(self, img):
-        img = img/self.tiff_image_max
-        img = (img*255).astype('uint8')
-        return img
-
     def getNewImage(self, index):
+
          self.image_index = index
 
          # Grab info of split image at index
-         x,y,x_utm,y_utm,label,conf = self.split_info[index]
+         x,y,x_utm,y_utm,label,conf,_ = self.split_info[index]
          x,y,x_utm,y_utm,label = int(x),int(y),int(x_utm),int(y_utm),int(label)
 
          # Get split image from image matrix
          img = self.tiff_image_matrix[x:x+self.win_size[0],y:y+self.win_size[1]]
-         img = self.scaleImage(img)
+         img = scaleImage(img, self.tiff_image_max)
          img = Image.fromarray(img).convert("L")
          img = ImageQt(img)
 
          # Wrap split image in QPixmap
-         self.split_image_pixmap = QPixmap.fromImage(img)
+         self.split_image_pixmap = QPixmap.fromImage(img).scaledToWidth(270)
          self.split_image_label.setPixmap(self.split_image_pixmap)
 
          # Update label text
@@ -392,23 +409,31 @@ class SplitImageTool(QWidget):
 
          # Draw crosshairs
          cv2.circle(bg_img,(pix_coords[0][0],height-pix_coords[0][1]),8,(255,0,0),thickness=-1)
-         cv2.line(bg_img, (pix_coords[0][0], 0), (pix_coords[0][0], height), (255,0,0),thickness=3)
-         cv2.line(bg_img, (0, height-pix_coords[0][1]), (width, height-pix_coords[0][1]), (255,0,0),thickness=3)
+         cv2.line(bg_img, (pix_coords[0][0], 0), (pix_coords[0][0], height), (255,0,0),thickness=2)
+         cv2.line(bg_img, (0, height-pix_coords[0][1]), (width, height-pix_coords[0][1]), (255,0,0),thickness=2)
 
          height,width,channels = bg_img.shape
          bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
          background_image = QPixmap(bg_img)
+         #background_image = background_image.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
          background_image = background_image.scaledToWidth(int(self.width/2) - 10)
-         #self.bg_img_scaled = background_image
+
          self.tiff_image_label.setPixmap(background_image)
 
-    def label(self, class_label):
+
+    def label(self, mask, class_label):
+        self.split_info[mask,4] = class_label
+        self.split_info[mask,5] = 1
+        self.getNewImage(self.image_index)
+        self.update()
+
+    def labelCurrent(self, class_label):
         self.split_info[self.image_index][4] = class_label
         self.split_info[self.image_index][5] = 1
         self.getNewImage(self.image_index)
         self.update()
 
-    def batchLabel(self, class_label):
+    def batchSelectLabel(self, class_label):
         height,width,_ = self.bg_img_cv.shape
         imgSize = np.array([width,height])
         pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array(self.batch_select_polygon))
@@ -423,15 +448,23 @@ class SplitImageTool(QWidget):
 
     def getMousePosUTM(self, event):
 
+        # Get dimensions of the QT pixmap and window margins for the image preview
         width, height = self.tiff_image_label.size().width(), self.tiff_image_label.size().height()
-
         margin = height - self.tiff_image_pixmap.size().height()
 
+        # Get the position of the mouse click in the GUI window
         click_pos = event.pos()
+
+        # Map the click position in pixel space from GUI window to Image
         click_pos_scaled = self.tiff_image_label.mapFromParent(click_pos)
+
+        # Correct for GUI window margins
         click_pos_corrected = np.array([click_pos_scaled.y() - int(margin/2), click_pos_scaled.x()])
+
+        # Scale from image display size to underlying actual tiff image size
         click_pos_scaled = click_pos_corrected * self.scale_factor
 
+        # Get UTM coordinates from tiff image pixel coordinates
         click_pos_utm = self.bg_img_transform * (click_pos_scaled[1], self.bg_img_cv.shape[0] - click_pos_scaled[0])
 
         return click_pos_utm
@@ -450,7 +483,6 @@ class SplitImageTool(QWidget):
         # Right Click (draw polygon)
         elif button == 2:
             self.batch_select_polygon.append(click_pos_utm)
-
 
     def mouseMoveEvent(self, event):
 
@@ -473,13 +505,13 @@ class SplitImageTool(QWidget):
             height,width,channels = bg_img.shape
             bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
             background_image = QPixmap(bg_img)
+            #background_image = background_image.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
             background_image = background_image.scaledToWidth(int(self.width/2) - 10)
-            #self.bg_img_scaled = background_image
+            #bg_img_scaled = background_image
             self.tiff_image_label.setPixmap(background_image)
 
     def keyPressEvent(self, event):
         index = self.image_index
-
 
         if event.key() <= 57 and event.key() >= 48:
             key_map = {48: 0,
@@ -494,29 +526,60 @@ class SplitImageTool(QWidget):
                        57: 9}
             if key_map[event.key()] < len(self.class_enum):
                 if self.batch_select_polygon != []:
-                    self.batchLabel(key_map[event.key()])
+                    self.batchSelectLabel(key_map[event.key()])
                 else:
-                    self.label(key_map[event.key()])
+                    self.labelCurrent(key_map[event.key()])
 
         elif event.key() == 65: #Left arrow key
-            index -= 1
+            if self.visualize_predictions or self.visualize_heatmap:
+                index -= 1
+                while self.pred_labels[index,5] < self.conf_thresh or not self.selected_classes[int(self.pred_labels[index,4])]:
+                    index -= 1
+            else:
+                index -= 1
         elif event.key() == 68: #Right arrow key
-            index += 1
-        elif event.key() == Qt.Key_Escape:
+            if self.visualize_predictions or self.visualize_heatmap:
+                index += 1
+                while self.pred_labels[index,5] < self.conf_thresh or not self.selected_classes[int(self.pred_labels[index,4])]:
+                    index += 1
+            else:
+                index += 1
+        elif event.key() == Qt.Key_Escape:  #Escape key (deselect batch polygon)
             self.batch_select_polygon = []
+        elif event.key() == 76: #l key - add current split image to training dataset
+            modifiers = QApplication.keyboardModifiers()
+            if modifiers == Qt.ShiftModifier:
+                #images_to_label = self.pred_labels[self.pred_labels[:,5] > self.conf_thresh]
+                for i in range(len(self.selected_classes)):
+                    if self.selected_classes[i]:
+                        mask = (self.pred_labels[:,5] > self.conf_thresh) & (self.pred_labels[:,4] == i)
+                        self.label(mask, i)
+
+            else:
+                _class = self.pred_labels[self.image_index][4]
+                self.labelCurrent(_class)
 
         self.getNewImage(index)
         self.update()
 
     def makeClassLabelCallbacks(self, classLabel):
         def class_label_callback():
-            self.label(classLabel)
+            self.labelCurrent(classLabel)
         return class_label_callback
 
     def makeClassToggleCallbacks(self, classLabel):
         def class_toggle_callback():
             self.selected_classes[classLabel] = not self.selected_classes[classLabel]
         return class_toggle_callback
+
+    def makeTiffSelectorCallbacks(self, tiff_num):
+        def tiff_selector_callback():
+            self.split_info_save[self.split_info_save[:,6] == self.tiff_selector] = self.split_info
+            self.tiff_selector = tiff_num
+            self.initDataset()
+            self.initBgImage()
+            self.getNewImage(0)
+        return tiff_selector_callback
 
     @pyqtSlot()
     def on_click(self):
@@ -526,29 +589,44 @@ class SplitImageTool(QWidget):
     def new_class(self):
         self.update()
 
+    def resetVisualization(self):
+        self.visualize_labels = False
+        self.visualize_predictions = False
+        self.visualize_heatmap = False
+        self.initBgImage()
+
     def predictionsCallback(self, state):
         if state == Qt.Checked:
             self.heatmap_button.setChecked(False)
             self.labels_button.setChecked(False)
-            self.initBgImage(visualize_labels=False, visualize_predictions=True, heatmap=False)
+            self.visualize_labels = False
+            self.visualize_predictions = True
+            self.visualize_heatmap = False
+            self.initBgImage()
         else:
-            self.initBgImage(visualize_labels=False, visualize_predictions=False, heatmap=False)
+            self.resetVisualization()
 
     def heatmapCallback(self, state):
         if state == Qt.Checked:
             self.predictions_button.setChecked(False)
             self.labels_button.setChecked(False)
-            self.initBgImage(visualize_labels=False, visualize_predictions=False, heatmap=True)
+            self.visualize_labels = False
+            self.visualize_predictions = False
+            self.visualize_heatmap = True
+            self.initBgImage()
         else:
-            self.initBgImage(visualize_labels=False, visualize_predictions=False, heatmap=False)
+            self.resetVisualization()
 
     def labelsCallback(self, state):
         if state == Qt.Checked:
             self.predictions_button.setChecked(False)
             self.heatmap_button.setChecked(False)
-            self.initBgImage(visualize_labels=True, visualize_predictions=False, heatmap=False)
+            self.visualize_labels = True
+            self.visualize_predictions = False
+            self.visualize_heatmap = False
+            self.initBgImage()
         else:
-            self.initBgImage(visualize_labels=False, visualize_predictions=False, heatmap=False)
+            self.resetVisualization()
 
     def slider_callback(self):
         value = self.conf_thresh_slider.value()
@@ -562,13 +640,13 @@ class SplitImageTool(QWidget):
         if self.predictions:
             self.predictionsCallback(Qt.Checked)
             out_path = self.pred_label_path[:-4] + '_prediction.png'
-            cv2.imwrite(out_path, cv2.cvtColor(self.bg_img_scaled, cv2.COLOR_BGR2RGB))
+            cv2.imwrite(out_path, cv2.cvtColor(self.bg_img_cv, cv2.COLOR_BGR2RGB))
 
     def saveHeatmapCallback(self):
         if self.predictions:
             self.heatmapCallback(Qt.Checked)
             out_path = self.pred_label_path[:-4] + '_confidence_heatmap.png'
-            cv2.imwrite(out_path, cv2.cvtColor(self.bg_img_scaled, cv2.COLOR_BGR2RGB))
+            cv2.imwrite(out_path, cv2.cvtColor(self.bg_img_cv, cv2.COLOR_BGR2RGB))
 
     def newClass(self):
         self.class_enum.append(self.new_class_label)
@@ -583,8 +661,11 @@ class SplitImageTool(QWidget):
         print('')
 
     def closeEvent(self, event):
-        save_array = np.array([self.dataset_info, self.split_info], dtype=object)
-        np.save(self.label_path, save_array)
+        print('-------- Saving Data --------')
+        self.split_info_save[self.split_info_save[:,6] == self.tiff_selector] = self.split_info
+        self.label_data[1] = self.split_info_save
+        #save_array = np.array([self.dataset_info, self.split_info], dtype=object)
+        np.save(self.label_path, self.label_data)
 
         self.cfg['class_enum'] = self.class_enum
         self.cfg['num_classes'] = len(self.class_enum)
