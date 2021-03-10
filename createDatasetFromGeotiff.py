@@ -249,7 +249,7 @@ save_array_full = np.array([info, pix_coords_np], dtype='object')
 
 dataset_path = args.config[:-7] + "_%d"%(pix_coords_np.shape[0]) + "_(%d,%d)_split"%(winSize[0],winSize[1])
 
-cfg['txt_path'] = dataset_path+'.npy'
+cfg['npy_path'] = dataset_path+'.npy'
 
 np.save(dataset_path, save_array_full)
 

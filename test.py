@@ -33,7 +33,7 @@ num_epochs = cfg['num_epochs']
 
 # Set dataset hyperparameters as specified by config file
 topDir = cfg['img_path']
-dataset_path = cfg['txt_path']
+dataset_path = cfg['npy_path']
 train_path = cfg['train_path']
 valid_path = cfg['valid_path']
 

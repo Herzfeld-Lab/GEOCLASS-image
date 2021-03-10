@@ -50,7 +50,7 @@ class SplitImageTool(QWidget):
         print('-------- Initializing Dataset --------')
         self.tiff_selector = 0
         self.checkpoint = checkpoint
-        self.label_path = self.cfg['txt_path']
+        self.label_path = self.cfg['npy_path']
         self.label_data = np.load(self.label_path, allow_pickle=True)
         self.split_info_save = self.label_data[1]
 

@@ -301,7 +301,7 @@ activation:     {}
 ### DATASET PARAMETERS ###
 
 img_path:           {}
-txt_path:           {}
+npy_path:           {}
 train_path:         {}
 valid_path:         {}
 class_enum:         {}
@@ -337,7 +337,7 @@ bg_UTM_path:        {}
                    yaml_obj['hidden_layers'],
                    yaml_obj['activation'],
                    yaml_obj['img_path'],
-                   yaml_obj['txt_path'],
+                   yaml_obj['npy_path'],
                    yaml_obj['train_path'],
                    yaml_obj['valid_path'],
                    yaml_obj['class_enum'],
