@@ -45,7 +45,8 @@ classEnum = cfg['class_enum']
 
 pix_coords_list = []
 transforms = []
-imgPaths = glob.glob(cfg['img_path'] + '/*.tif')
+imgPaths = getImgPaths(topDir)
+geotiff_bool = []
 print("\n{} Tiff Images to split".format(len(imgPaths)))
 
 for IMG_NUM,imgPath in enumerate(imgPaths):
@@ -61,6 +62,8 @@ for IMG_NUM,imgPath in enumerate(imgPaths):
         warnings.filterwarnings("ignore")
         tiffImg = rio.open(imgPath)
         isGeotiff = False
+
+    geotiff_bool.append(isGeotiff)
 
     band1 = tiffImg.read(1)
     imgSize = band1.shape
@@ -232,6 +235,7 @@ print('\n**** Saving Dataset ****')
 pix_coords_np = np.array(pix_coords_list)
 
 info = {'filename': imgPaths,
+        'is_geotiff': geotiff_bool,
         'contour_path': contourPath,
         'winsize_pix': winSize,
         #'winsize_utm': UTM_winSize,

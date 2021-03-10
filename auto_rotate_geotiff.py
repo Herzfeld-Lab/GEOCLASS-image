@@ -283,4 +283,4 @@ def rotate_and_crop_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM, t
         img_mat_rot = cv2.flip(img_mat_rot,0)
 
 
-    return img_mat_rot, UTM_bounds, transform_rot_1, bbox_pix
+    return img_mat_rot, UTM_bounds, transform_rot_1

@@ -72,7 +72,7 @@ class SplitImageTool(QWidget):
         self.visualize_heatmap = False
 
         # Initialize Image and Dimensions container variables
-        self.bg_img_scaled = None
+        bg_img_scaled = None
         self.bg_img_cv = None
         self.bg_qimage = None
         self.bg_img_utm = None
@@ -295,13 +295,13 @@ class SplitImageTool(QWidget):
     def initBgImage(self):
 
         # Scale down tiff image for visualization and convert to 8-bit grayscale
-        scale_factor = int(self.tiff_image_matrix.shape[0] / 2000)
-        self.bg_img_scaled = self.tiff_image_matrix[::scale_factor,::scale_factor]
-        self.bg_img_scaled = scaleImage(self.bg_img_scaled, self.tiff_image_max)
+        scale_factor = int(self.tiff_image_matrix.shape[0] / 1500)
+        bg_img_scaled = self.tiff_image_matrix[::scale_factor,::scale_factor]
+        bg_img_scaled = scaleImage(bg_img_scaled, self.tiff_image_max)
 
         split_disp_size = (np.array(self.win_size) / scale_factor).astype('int') - 2
 
-        self.bg_img_scaled = cv2.cvtColor(self.bg_img_scaled,cv2.COLOR_GRAY2RGB)
+        bg_img_scaled = cv2.cvtColor(bg_img_scaled,cv2.COLOR_GRAY2RGB)
 
         if self.visualize_labels:
             for splitImg in self.split_info:
@@ -314,7 +314,7 @@ class SplitImageTool(QWidget):
 
                     c = (np.array(self.label_cmap(int(splitImg[4]))[:3])*255).astype('int')
 
-                    cv2.rectangle(self.bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
+                    cv2.rectangle(bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
 
         elif self.visualize_predictions and self.predictions:
             for splitImg in self.pred_labels:
@@ -327,10 +327,9 @@ class SplitImageTool(QWidget):
 
                     c = (np.array(self.label_cmap(int(splitImg[4]))[:3])*255).astype('int')
 
-                    cv2.rectangle(self.bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
+                    cv2.rectangle(bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
 
         elif self.visualize_heatmap and self.predictions:
-
             for splitImg in self.pred_labels:
 
                 if splitImg[5] > self.conf_thresh and self.selected_classes[int(splitImg[4])]:
@@ -341,11 +340,11 @@ class SplitImageTool(QWidget):
 
                     c = (np.array(self.conf_cmap(1 - splitImg[5])[:3])*255).astype('int')
 
-                    cv2.rectangle(self.bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
+                    cv2.rectangle(bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
 
         # Rotate tiff to align North and plot glacier contour
-        self.bg_img_cv, self.bg_img_utm, self.bg_img_transform, self.bbox_pixel = rotate_and_crop_geotiff(self.dataset_info, self.geotiff, self.bg_img_scaled, self.utm_epsg_code, self.contour_np, self.tiff_selector)
-        #height,width,_ = self.bg_img_scaled.shape
+        self.bg_img_cv, self.bg_img_utm, self.bg_img_transform = rotate_and_crop_geotiff(self.dataset_info, self.geotiff, bg_img_scaled, self.utm_epsg_code, self.contour_np, self.tiff_selector)
+        #height,width,_ = bg_img_scaled.shape
         height,width,_ = self.bg_img_cv.shape
 
         # Convert to QImage from cv and wrap in QPixmap container
@@ -410,15 +409,15 @@ class SplitImageTool(QWidget):
 
          # Draw crosshairs
          cv2.circle(bg_img,(pix_coords[0][0],height-pix_coords[0][1]),8,(255,0,0),thickness=-1)
-         cv2.line(bg_img, (pix_coords[0][0], 0), (pix_coords[0][0], height), (255,0,0),thickness=3)
-         cv2.line(bg_img, (0, height-pix_coords[0][1]), (width, height-pix_coords[0][1]), (255,0,0),thickness=3)
+         cv2.line(bg_img, (pix_coords[0][0], 0), (pix_coords[0][0], height), (255,0,0),thickness=2)
+         cv2.line(bg_img, (0, height-pix_coords[0][1]), (width, height-pix_coords[0][1]), (255,0,0),thickness=2)
 
          height,width,channels = bg_img.shape
          bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
          background_image = QPixmap(bg_img)
          #background_image = background_image.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
          background_image = background_image.scaledToWidth(int(self.width/2) - 10)
-         #self.bg_img_scaled = background_image
+
          self.tiff_image_label.setPixmap(background_image)
 
 
@@ -452,24 +451,21 @@ class SplitImageTool(QWidget):
         # Get dimensions of the QT pixmap and window margins for the image preview
         width, height = self.tiff_image_label.size().width(), self.tiff_image_label.size().height()
         margin = height - self.tiff_image_pixmap.size().height()
-        #print('\nImg label shape: \t\t\t{}x{}'.format(height,width))
-        #print('Img pixmap shape: \t\t\t{}x{}'.format(self.tiff_image_pixmap.size().height(),self.tiff_image_pixmap.size().width()))
 
         # Get the position of the mouse click in the GUI window
         click_pos = event.pos()
-        #print('Window click pos: \t\t\t{}'.format(click_pos))
+
         # Map the click position in pixel space from GUI window to Image
         click_pos_scaled = self.tiff_image_label.mapFromParent(click_pos)
-        #print('bgImage click pos: \t\t\t{}'.format(click_pos_scaled))
+
         # Correct for GUI window margins
         click_pos_corrected = np.array([click_pos_scaled.y() - int(margin/2), click_pos_scaled.x()])
-        #print('corrected click pos: \t\t\t{}'.format(click_pos_corrected))
+
         # Scale from image display size to underlying actual tiff image size
         click_pos_scaled = click_pos_corrected * self.scale_factor
-        #print('scaled click pos: \t\t\t{}'.format(click_pos_scaled))
+
         # Get UTM coordinates from tiff image pixel coordinates
         click_pos_utm = self.bg_img_transform * (click_pos_scaled[1], self.bg_img_cv.shape[0] - click_pos_scaled[0])
-        #print('UTM click pos: \t\t\t{}\n'.format(click_pos_utm))
 
         return click_pos_utm
 
@@ -511,7 +507,7 @@ class SplitImageTool(QWidget):
             background_image = QPixmap(bg_img)
             #background_image = background_image.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
             background_image = background_image.scaledToWidth(int(self.width/2) - 10)
-            #self.bg_img_scaled = background_image
+            #bg_img_scaled = background_image
             self.tiff_image_label.setPixmap(background_image)
 
     def keyPressEvent(self, event):
@@ -665,6 +661,7 @@ class SplitImageTool(QWidget):
         print('')
 
     def closeEvent(self, event):
+        print('-------- Saving Data --------')
         self.split_info_save[self.split_info_save[:,6] == self.tiff_selector] = self.split_info
         self.label_data[1] = self.split_info_save
         #save_array = np.array([self.dataset_info, self.split_info], dtype=object)
