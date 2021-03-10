@@ -51,14 +51,20 @@ The following is a guide for installing and running the NN Class software, along
 ### Visualization Parameters
 # Datasets
 ## Creating a Dataset
+![Output from createdatasetfromgeotiff.py](images/create_dataset_output.png)
 ## Labeling Training Data
+![GUI landing page](images/gui_example_default.png)
 ### Individual Labeling
+![Labeling Individual Split Images](images/gui_individual_label.png)
 ### Batch Labeling
+![Batch Labeling Split Images](images/gui_batch_label_1.png)
+![Batch Labeling Split Images](images/gui_batch_label_2.png)
 ### Visualizing Labels
 ### Dataset Output
 # Training
 ## Training Options
 ## Training Output
+![Output from Training Script](images/train_output_terminal.png)
 # Testing
 ## Testing Options
 ## Testing Output
