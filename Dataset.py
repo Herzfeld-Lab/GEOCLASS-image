@@ -12,15 +12,13 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 import pandas as pd
 import random
-import argparse
-import glob
 
 class SplitImageDataset(Dataset):
 
     def __init__(self, imgPath, imgData, labels, transform=None, train=False):
 
         self.train = train
-        imagePaths = glob.glob(imgPath + '/*.tif')
+        imagePaths = getImgPaths(imgPath)
         imageLabels = labels
         imageData = imgData
         self.transform = transform
@@ -29,6 +27,11 @@ class SplitImageDataset(Dataset):
         dataArray = []
 
         for imgNum,imagePath in enumerate(imagePaths):
+
+            # If training, and there are no labeled split images from tiff image, skip loading it
+            if self.train and imageLabels[imageLabels[:,6] == imgNum].shape[0] == 0:
+                continue
+
             img = rio.open(imagePath)
             imageMatrix = img.read(1)
 
@@ -38,10 +41,7 @@ class SplitImageDataset(Dataset):
             for row in imageLabels[imageLabels[:,6] == imgNum]:
                 x,y = row[0:2].astype('int')
                 splitImg_np = imageMatrix[x:x+winSize[0],y:y+winSize[1]]
-                splitImg_np = splitImg_np/max
-                splitImg_np = splitImg_np*255
-                splitImg_np[splitImg_np > 255] = 255
-                splitImg_np = splitImg_np.astype('uint8')
+                splitImg_np = scaleImage(splitImg_np)
                 rowlist = list(row)
                 rowlist.append(splitImg_np)
                 dataArray.append(rowlist)

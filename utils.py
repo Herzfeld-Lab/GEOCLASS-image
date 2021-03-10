@@ -15,6 +15,7 @@ import matplotlib.colors as colors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import random
 from netCDF4 import Dataset
+import glob
 
 def to_netCDF(data, filepath):
 
@@ -80,6 +81,9 @@ def scaleImage(img, max):
     img = img * 255
     img[img > 255] = 255
     return np.ceil(img).astype('uint8')
+
+def getImgPaths(topDir):
+    return glob.glob(topDir + '/*.tif')
 
 def utm_to_pix(imgSize,utmBounds,utmCoord):
     """
