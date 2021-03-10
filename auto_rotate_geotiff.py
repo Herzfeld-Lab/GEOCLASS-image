@@ -87,10 +87,19 @@ def cv2_shear(img_mat, transform):
     translat_center_x = -(shear*cols)/2;
     translat_center_y = -(shear*rows)/2;
 
-def auto_rotate_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM):
+def find_contour(img_mat):
+    imgray = cv2.cvtColor(img_mat, cv2.COLOR_RGB2GRAY)
+    imgray[imgray[:] > 0] = 255
+    kernel = np.ones((5,5),np.uint8)
+    imgray = cv2.morphologyEx(imgray, cv2.MORPH_OPEN, kernel)
+    imgray = cv2.morphologyEx(imgray, cv2.MORPH_CLOSE, kernel)
+    contours, hierarchy = cv2.findContours(imgray, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    return contours[0].squeeze()
 
-    if tiffInfo['transform']:
-        transform = tiffInfo['transform']
+def rotate_and_crop_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM, tiff_num):
+
+    if tiffInfo['transform'][tiff_num]:
+        transform = tiffInfo['transform'][tiff_num]
 
         '''
         ul_out = np.array(transform*(0, 0))
@@ -103,6 +112,7 @@ def auto_rotate_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM):
         ll_out = np.array(transform*(0, tiffImg.width))
         ur_out = np.array(transform*(tiffImg.height, 0))
         '''
+
         bbox = np.array((ul_out,ur_out,lr_out,ll_out))
 
         UL = bbox.min(axis = 0)
@@ -145,9 +155,12 @@ def auto_rotate_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM):
                 [0,img_mat.shape[0]],
                 [img_mat.shape[1],img_mat.shape[0]]]
 
+
         img_mat_rot = rotate(img_mat,-rot_angle)
 
         rots = rot(img_mat,orig,-rot_angle)
+
+        img_mat_rot = img_mat
 
         height,width,channels = img_mat_rot.shape
         imgSize = np.array([height,width])
@@ -157,8 +170,8 @@ def auto_rotate_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM):
         utm_range = LR - UL
         pixSizes = utm_range / imgSize
 
-        transform_rot = Affine(pixSizes[0], 0, UL[0],
-                               0, pixSizes[1], UL[1])
+        transform_rot = Affine(pixSizes[0], 0, transform.c,
+                               0, -pixSizes[1], transform.f)
 
         print(transform)
         print(transform_rot)
@@ -166,6 +179,7 @@ def auto_rotate_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM):
         contourPixel = utm_to_pix(imgSize, UTM_bounds.T, contourUTM)
 
         img_mat_rot = cv2.flip(img_mat_rot,0)
+
 
         for i in range(len(contourPixel)-1):
             cv2.line(img_mat_rot, tuple(contourPixel[i]), tuple(contourPixel[i+1]), (0,0,255), 2)
@@ -177,8 +191,12 @@ def auto_rotate_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM):
 
         print(img_mat_rot.shape)
 
+        #return img_mat, bbox, transform
+
+
     else:
-        crs_in = CRS.from_wkt(tiffImg.crs.to_string())
+        # Get transform from tiff image georeferencing data to UTM
+        crs_in = CRS.from_wkt(tiffImg.crs.wkt)
         crs_out = CRS.from_epsg(epsg_code)
         transform = Transformer.from_crs(crs_in, crs_out)
 
@@ -192,34 +210,69 @@ def auto_rotate_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM):
         ll_out = np.array(transform.transform(ll_in[0],ll_in[1]))
         ur_out = np.array(transform.transform(ur_in[0],ur_in[1]))
 
-
+        # Get UTM boundaries
         bbox = np.array((ul_out,ur_out,lr_out,ll_out))
-
         UL = bbox.min(axis = 0)
         LR = bbox.max(axis = 0)
 
+        # Find angle between image orientation and due north
         rot_angle = angle_between(ur_out - ul_out, [1,0])*180/math.pi
 
-        orig = [[0,0],
-                [img_mat.shape[1],0],
-                [0,img_mat.shape[0]],
-                [img_mat.shape[1],img_mat.shape[0]]]
-
+        # Rotate image to line up with north/south
         img_mat_rot = rotate(img_mat,-rot_angle)
 
-        rots = rot(img_mat,orig,-rot_angle)
-
+        # Get pixel -> UTM affine transform for rotated image
         height,width,channels = img_mat_rot.shape
         imgSize = np.array([width,height])
-
         UTM_bounds = np.array([LR,UL])
-
         utm_range = LR - UL
         pixSizes = utm_range / imgSize
-
         transform_rot = Affine(pixSizes[0], 0, UL[0],
                                0, pixSizes[1], UL[1])
 
+        # Find boundaries of actual image data (non-black pixels)
+        cv2_contour = find_contour(img_mat_rot)
+        cv2_contour[:,1] = height - cv2_contour[:,1]
+
+        # Convert boundaries to UTM
+        data_bbox_utm = []
+        for b in cv2_contour:
+            data_bbox_utm.append(transform_rot*b)
+        data_bbox_utm = np.array(data_bbox_utm)
+
+        # Find intersection of data boundary contour and glacier contour
+        bbox_polygon = Polygon(data_bbox_utm)
+        contour_polygon = Polygon(contourUTM)
+        intersection = bbox_polygon.intersection(contour_polygon)
+        if intersection.geom_type == 'MultiPolygon':
+            intersection_poly = max(intersection, key=lambda a: a.area)
+            newpoly = np.array(list(intersection_poly.exterior.coords))
+        else:
+            intersection_poly = intersection
+            newpoly = np.array(list(intersection_poly.exterior.coords))
+
+        # Get bounding box in UTM of intersection
+        cropped_bbox = intersection_poly.bounds
+
+        UL = np.array([cropped_bbox[0],cropped_bbox[1]]).astype('int')
+        LR = np.array([cropped_bbox[2],cropped_bbox[3]]).astype('int')
+
+        bbox_pix = utm_to_pix(imgSize, UTM_bounds.T, np.array([UL,LR]))
+
+        # Crop image to intersection boundaries
+        img_mat_rot = img_mat_rot[height-bbox_pix[1][1]:height-bbox_pix[0][1],bbox_pix[0][0]:bbox_pix[1][0],:]
+        height,width,channels = img_mat_rot.shape
+        imgSize = np.array([width,height])
+
+        # Get affine transform for cropped image
+        UTM_bounds = np.array([LR,UL])
+        utm_range = UTM_bounds[0] - UTM_bounds[1]
+
+        pixSizes = utm_range / imgSize
+        transform_rot_1 = Affine(pixSizes[0], 0, UL[0],
+                               0, pixSizes[1], UL[1])
+
+        # Plot glacier contour onto cropped image and return
         contourPixel = utm_to_pix(imgSize, UTM_bounds.T, contourUTM)
 
         img_mat_rot = cv2.flip(img_mat_rot,0)
@@ -227,9 +280,7 @@ def auto_rotate_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM):
         for i in range(len(contourPixel)-1):
             cv2.line(img_mat_rot, tuple(contourPixel[i]), tuple(contourPixel[i+1]), (0,0,255), 2)
 
-        #for i in range(len(rots)):
-        #    cv2.circle(img_mat_rot,(int(rots[i][0]),int(rots[i][1])),8,(255,0,0),thickness=-1)
-
         img_mat_rot = cv2.flip(img_mat_rot,0)
 
-    return img_mat_rot, UTM_bounds, transform_rot
+
+    return img_mat_rot, UTM_bounds, transform_rot_1

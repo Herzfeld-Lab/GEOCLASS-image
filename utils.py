@@ -6,6 +6,7 @@ import math
 import xml.etree.ElementTree as ET
 import rasterio as rio
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 from PIL import Image, ImageOps
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
@@ -14,6 +15,8 @@ import matplotlib.colors as colors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import random
 from netCDF4 import Dataset
+import glob
+import argparse
 
 def to_netCDF(data, filepath):
 
@@ -65,6 +68,23 @@ def angle_between(v1, v2):
     v2_u = unit_vector(v2)
     return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
 
+def get_img_sigma(img_mat):
+    std = np.std(img_mat)
+    max = img_mat.max()
+    mean = np.mean(img_mat)
+    if max > mean+2.5*std:
+        return (mean + 2.5*std)
+    else:
+        return (img_mat.max())
+
+def scaleImage(img, max):
+    img = img/max
+    img = img * 255
+    img[img > 255] = 255
+    return np.ceil(img).astype('uint8')
+
+def getImgPaths(topDir):
+    return glob.glob(topDir + '/*.tif')
 
 def utm_to_pix(imgSize,utmBounds,utmCoord):
     """
@@ -121,11 +141,21 @@ def utm_to_pix2(imgSize,utmBounds,utmCoord):
 def xml_to_latlon(xmlPath):
     xmlTree = ET.parse(xmlPath)
 
-    UL = (float(xmlTree.findall('.//BAND_P/ULLAT')[0].text),float(xmlTree.findall('.//BAND_P/ULLON')[0].text))
-    UR = (float(xmlTree.findall('.//BAND_P/URLAT')[0].text),float(xmlTree.findall('.//BAND_P/URLON')[0].text))
-    LL = (float(xmlTree.findall('.//BAND_P/LLLAT')[0].text),float(xmlTree.findall('.//BAND_P/LLLON')[0].text))
-    LR = (float(xmlTree.findall('.//BAND_P/LRLAT')[0].text),float(xmlTree.findall('.//BAND_P/LRLON')[0].text))
+    if xmlTree.findall('.//BAND_P'):
+        UL = (float(xmlTree.findall('.//BAND_P/ULLAT')[0].text),float(xmlTree.findall('.//BAND_P/ULLON')[0].text))
+        UR = (float(xmlTree.findall('.//BAND_P/URLAT')[0].text),float(xmlTree.findall('.//BAND_P/URLON')[0].text))
+        LL = (float(xmlTree.findall('.//BAND_P/LLLAT')[0].text),float(xmlTree.findall('.//BAND_P/LLLON')[0].text))
+        LR = (float(xmlTree.findall('.//BAND_P/LRLAT')[0].text),float(xmlTree.findall('.//BAND_P/LRLON')[0].text))
+        GSD = (float(xmlTree.findall('.//IMAGE/MEANCOLLECTEDROWGSD')[0].text),float(xmlTree.findall('.//IMAGE/MEANCOLLECTEDCOLGSD')[0].text))
+    else:
+        UL = (float(xmlTree.findall('.//ULLAT')[0].text),float(xmlTree.findall('.//ULLON')[0].text))
+        UR = (float(xmlTree.findall('.//URLAT')[0].text),float(xmlTree.findall('.//URLON')[0].text))
+        LL = (float(xmlTree.findall('.//LLLAT')[0].text),float(xmlTree.findall('.//LLLON')[0].text))
+        LR = (float(xmlTree.findall('.//LRLAT')[0].text),float(xmlTree.findall('.//LRLON')[0].text))
+        #GSD = (float(xmlTree.findall('./IMAGE/MEANCOLLECTEDROWGSD')[0].text),float(xmlTree.findall('./IMAGE/MEANCOLLECTEDCOLGSD')[0].text))
+
     latlon = [UL, UR, LR, LL]
+
     return latlon
 
 def plot_geotif_bbox(xmlPath, contourPath, bgImgPath, bgUTMPath):
@@ -271,7 +301,7 @@ activation:     {}
 ### DATASET PARAMETERS ###
 
 img_path:           {}
-txt_path:           {}
+npy_path:           {}
 train_path:         {}
 valid_path:         {}
 class_enum:         {}
@@ -297,16 +327,17 @@ random_distort:     {}
 
 ### VISUALIZATION PARAMETERS ###
 
-contour_path:     {}
-bg_img_path:      {}
-bg_UTM_path:      {}
+contour_path:       {}
+custom_color_map:   {}
+bg_img_path:        {}
+bg_UTM_path:        {}
         '''.format(yaml_obj['model'],
                    yaml_obj['num_classes'],
                    yaml_obj['vario_num_lag'],
                    yaml_obj['hidden_layers'],
                    yaml_obj['activation'],
                    yaml_obj['img_path'],
-                   yaml_obj['txt_path'],
+                   yaml_obj['npy_path'],
                    yaml_obj['train_path'],
                    yaml_obj['valid_path'],
                    yaml_obj['class_enum'],
@@ -324,7 +355,8 @@ bg_UTM_path:      {}
                    yaml_obj['random_contrast'],
                    yaml_obj['random_distort'],
                    yaml_obj['contour_path'],
+                   yaml_obj['custom_color_map'],
                    yaml_obj['bg_img_path'],
-                   yaml_obj['bg_UTM_path'],)
+                   yaml_obj['bg_UTM_path'])
 
     return config_str
