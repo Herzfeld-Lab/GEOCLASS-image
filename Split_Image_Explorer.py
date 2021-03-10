@@ -294,9 +294,8 @@ class SplitImageTool(QWidget):
 
     def initBgImage(self):
 
-        scale_factor = int(self.tiff_image_matrix.shape[0] / 2000)
-
         # Scale down tiff image for visualization and convert to 8-bit grayscale
+        scale_factor = int(self.tiff_image_matrix.shape[0] / 2000)
         self.bg_img_scaled = self.tiff_image_matrix[::scale_factor,::scale_factor]
         self.bg_img_scaled = scaleImage(self.bg_img_scaled, self.tiff_image_max)
 
@@ -645,13 +644,13 @@ class SplitImageTool(QWidget):
         if self.predictions:
             self.predictionsCallback(Qt.Checked)
             out_path = self.pred_label_path[:-4] + '_prediction.png'
-            cv2.imwrite(out_path, cv2.cvtColor(self.bg_img_scaled, cv2.COLOR_BGR2RGB))
+            cv2.imwrite(out_path, cv2.cvtColor(self.bg_img_cv, cv2.COLOR_BGR2RGB))
 
     def saveHeatmapCallback(self):
         if self.predictions:
             self.heatmapCallback(Qt.Checked)
             out_path = self.pred_label_path[:-4] + '_confidence_heatmap.png'
-            cv2.imwrite(out_path, cv2.cvtColor(self.bg_img_scaled, cv2.COLOR_BGR2RGB))
+            cv2.imwrite(out_path, cv2.cvtColor(self.bg_img_cv, cv2.COLOR_BGR2RGB))
 
     def newClass(self):
         self.class_enum.append(self.new_class_label)
