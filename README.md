@@ -8,9 +8,83 @@ Batch labeling can be done by defining a polygon by right clicking each vertex. 
 
 # NN_Class Basic Functionality Tutorial
 
-This is meant to be a guide for installing and running some of the basic functionality of the NN Class project. Right now it is only meant to run on MacOS and Linux, and has only been tested on MacOS Catalina and Ubuntu 18.04. At any time, if you run into an problem please submit an issue from the 'Issues' tab with a description of the problem and your operating system. Also, you can message me on the group slack, I'm pretty much always online. Once the initial bugs seemed to be ironed out, I'll keep pushing additional pieces of functionality to this repo until the full software is stable and ready to release (when that time comes).
+The following is a guide for installing and running the NN Class software, along with a comprehensive documentation of its features. Right now it is only meant to run on MacOS and Linux, and has only been tested on MacOS Catalina and Ubuntu 18.04. At any time, if you run into an problem please submit an issue from the 'Issues' tab with a description of the problem and your operating system. Also, you can message me on the group slack, I'm pretty much always online. Once the initial bugs seemed to be ironed out, I'll keep pushing additional pieces of functionality to this repo until the full software is stable and ready to release (when that time comes).
 
-## Installing
+# Table of Contents
+
+- [Installation](#installation)
+  * [Operating System](#operating-system)
+  * [Required Packages](#required-packages)
+  * [NNClass Installation](#nnclass-installation)
+- [Configuration](#configuration)
+  * [Setting up Data Folder](#setting-up-data-folder)
+  * [Config Parameters](#config-parameters)
+    + [Model Parameters](#model-parameters)
+    + [Dataset Parameters](#dataset-parameters)
+    + [Training Parameters](#training-parameters)
+    + [Data Augmentation Parameters](#data-augmentation-parameters)
+    + [Visualization Parameters](#visualization-parameters)
+- [Datasets](#datasets)
+  * [Creating a Dataset](#creating-a-dataset)
+  * [Labeling Training Data](#labeling-training-data)
+    + [Individual Labeling](#individual-labeling)
+    + [Batch Labeling](#batch-labeling)
+    + [Visualizing Labels](#visualizing-labels)
+    + [Dataset Output](#dataset-output)
+- [Training](#training)
+  * [Training Options](#training-options)
+  * [Training Output](#training-output)
+- [Testing](#testing)
+  * [Testing Options](#testing-options)
+  * [Testing Output](#testing-output)
+- [Visualizing](#visualizing)
+  * [Loading Test Output](#loading-test-output)
+  * [Visualizing Classifications](#visualizing-classifications)
+  * [Visualizing Confidence](#visualizing-confidence)
+  * [Adding Classifications to Training Data](#adding-classifications-to-training-data)
+  * [Saving Classification Figures](#saving-classification-figures)
+- [Expanding Functionality(#expanding-functionality)
+
+# Installation
+## Operating System
+## Required Packages
+## NNClass Installation
+# Configuration
+## Setting up Data Folder
+## Config Parameters
+### Model Parameters
+### Dataset Parameters
+### Training Parameters
+### Data Augmentation Parameters
+### Visualization Parameters
+# Datasets
+## Creating a Dataset
+## Labeling Training Data
+### Individual Labeling
+### Batch Labeling
+### Visualizing Labels
+### Dataset Output
+# Training
+## Training Options
+## Training Output
+# Testing
+## Testing Options
+## Testing Output
+# Visualizing 
+## Loading Test Output
+## Visualizing Classifications
+## Visualizing Confidence
+## Adding Classifications to Training Data
+## Saving Classification Figures
+# Expanding Functionality
+## Adding Classification Models
+## Adding Data Augmentation Methods
+## Adding Source Data Types
+
+
+
+
+
 
 First, make sure you have both python3, pip and git installed on your machine, this will probably already be the case.
 
