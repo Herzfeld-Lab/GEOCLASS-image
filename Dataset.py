@@ -41,7 +41,7 @@ class SplitImageDataset(Dataset):
             for row in imageLabels[imageLabels[:,6] == imgNum]:
                 x,y = row[0:2].astype('int')
                 splitImg_np = imageMatrix[x:x+winSize[0],y:y+winSize[1]]
-                splitImg_np = scaleImage(splitImg_np)
+                splitImg_np = scaleImage(splitImg_np, max)
                 rowlist = list(row)
                 rowlist.append(splitImg_np)
                 dataArray.append(rowlist)

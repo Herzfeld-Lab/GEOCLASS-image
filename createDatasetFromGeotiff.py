@@ -52,7 +52,7 @@ print("\n{} Tiff Images to split".format(len(imgPaths)))
 for IMG_NUM,imgPath in enumerate(imgPaths):
 
     # Load tiff image
-    print("\n**** Loading Tiff Image {}: {} ****".format(IMG_NUM, imgPath))
+    print("**** Loading Tiff Image {}: {} ****".format(IMG_NUM, imgPath))
 
     try:
         tiffImg = rio.open(imgPath)
@@ -79,7 +79,7 @@ for IMG_NUM,imgPath in enumerate(imgPaths):
                     shapefile = filename
                     tf.extract(filename, path=topDir)
             gdf = gpd.read_file('/'.join([topDir,shapefile[:-4]+'.shp']))
-            print(gdf['geometry'][0])
+            #print(gdf['geometry'][0])
                     #crs_in = CRS.from_wkt(f.read().decode('utf-8'))
 
         crs_in = CRS.from_epsg(4326)
@@ -90,8 +90,8 @@ for IMG_NUM,imgPath in enumerate(imgPaths):
         crs_utm = CRS.from_epsg(epsgCode)
         transform = Transformer.from_crs(crs_in, crs_utm)
 
-    print(crs_in.to_wkt())
-    print('CRS EPSG code: {}'.format(crs_in.to_epsg()))
+    #print(crs_in.to_wkt())
+    #print('CRS EPSG code: {}'.format(crs_in.to_epsg()))
 
     # Calculate image bounding box in UTM
     if not isGeotiff:
@@ -108,7 +108,7 @@ for IMG_NUM,imgPath in enumerate(imgPaths):
             bboxUTM[i] = transform.transform(bboxLatlon[i][0], bboxLatlon[i][1])
         bboxUTM = np.array(bboxUTM)
 
-        print('\n**** Calculating Image Transform ****')
+        print('**** Calculating Image Transform ****')
 
         image_UL_UTM = np.array([bboxUTM[:,0].min(),bboxUTM[:,1].max()])
         image_LR_UTM = np.array([bboxUTM[:,0].max(),bboxUTM[:,1].min()])
@@ -179,15 +179,15 @@ for IMG_NUM,imgPath in enumerate(imgPaths):
         ur_out = np.array(transform.transform(ur_in[0],ur_in[1]))
 
         bboxUTM = np.array((ul_out,ur_out,lr_out,ll_out))
-
+    '''
     print('IMAGE TRANSFORM:')
     if not isGeotiff:
         print(utm_affine_transform)
     else:
         print(tiffImg.transform)
-
+    '''
     # Load UTM glacier contour
-    print("\n**** Loading Glacier Contour ****")
+    print("**** Loading Glacier Contour ****")
     try:
         contourUTM = np.load(contourPath)
     except FileNotFoundError as e:
@@ -196,7 +196,7 @@ for IMG_NUM,imgPath in enumerate(imgPaths):
     contourPolygon = Polygon(contourUTM)
 
     # Perform split image. Get all split images within UTM glacier contour
-    print('\n**** Splitting Image ****')
+    print('**** Splitting Image ****')
     count = 0
     for row,i in enumerate(range(0,imgSize[0],winSize[0])):
 
@@ -225,13 +225,13 @@ for IMG_NUM,imgPath in enumerate(imgPaths):
                 if splitImg[splitImg==0].shape[0] == 0:
                     pix_coords_list.append([i,j,UL_UTM[0],UL_UTM[1],-1,0,IMG_NUM])
                     count += 1
-
+    print('Created {} split images\n'.format(count))
     if not isGeotiff:
         transforms.append(utm_affine_transform)
     else:
         transforms.append(None)
 
-print('\n**** Saving Dataset ****')
+print('**** Saving Dataset ****')
 pix_coords_np = np.array(pix_coords_list)
 
 info = {'filename': imgPaths,
@@ -242,8 +242,8 @@ info = {'filename': imgPaths,
         'transform': transforms,
         'class_enumeration': classEnum}
 
-print('DATASET INFO: ')
-print(json.dumps(info, indent=2))
+#print('DATASET INFO: ')
+#print(json.dumps(info, indent=2))
 
 save_array_full = np.array([info, pix_coords_np], dtype='object')
 
@@ -253,7 +253,7 @@ cfg['npy_path'] = dataset_path+'.npy'
 
 np.save(dataset_path, save_array_full)
 
-print('\nCreated {} total split images'.format(pix_coords_np.shape[0]))
+print('Created {} total split images'.format(pix_coords_np.shape[0]))
 
 print('Saved Full Dataset to {}\n'.format(dataset_path))
 
