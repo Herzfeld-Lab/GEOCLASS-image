@@ -1,6 +1,6 @@
 # NN_Class User Guide and Documentation
 
-The following is a guide for installing and running the NN Class software, along with a comprehensive documentation of its features and instructions for how to expand its functionality. Right now it is only meant to run on MacOS and Linux, and has only been tested on MacOS Catalina and Ubuntu 18.04. At any time, if you run into an problem please submit an issue from the 'Issues' tab with a description of the problem and your operating system. Also, you can message me on the group slack, I'm pretty much always online. Once the initial bugs seemed to be ironed out, I'll keep pushing additional pieces of functionality to this repo until the full software is stable and ready to release (when that time comes).
+The following is a guide for installing and running the NN_Class software, along with a comprehensive documentation of its features and instructions for how to expand its functionality. Right now it is only meant to run on MacOS and Linux, and has only been tested on MacOS Catalina and Ubuntu 18.04. At any time, if you run into an problem please submit an issue from the 'Issues' tab with a description of the problem and your operating system. Also, you can message me on the group slack, I'm pretty much always online. Once the initial bugs seemed to be ironed out, I'll keep pushing additional pieces of functionality to this repo until the full software is stable and ready to release (when that time comes).
 
 # Table of Contents
 
