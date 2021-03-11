@@ -1,15 +1,16 @@
 # NN_Class User Guide and Documentation
 
-The following is a guide for installing and running the NN_Class software, along with a comprehensive documentation of its features and instructions for how to expand its functionality. The tool and accompanying scripts which make up this repository are suitable for applications in which it is desirable to characterize and classify different sub-regions within large [GeoTIFF images](https://en.wikipedia.org/wiki/GeoTIFF), especially in cases when pre-existing labelled training datasets are not available. The example use-case outlined in this guide consists of classifying glacier surface types from [WorldView](https://www.satimagingcorp.com/satellite-sensors/worldview-2/) images. When using this repository, please report any bugs by [submitting an issue](https://github.com/Herzfeld-Lab/NN_Class/issues/new) with a description of the bug, along with your operating system/version and any relevent screenshots or terminal output.
+The following is a guide for installing and running the NN_Class software, along with a comprehensive documentation of its features and instructions for how to expand its functionality. The tool and accompanying scripts which make up this repository are suitable for applications in which it is desirable to characterize and classify different sub-regions within large [GeoTIFF images](https://en.wikipedia.org/wiki/GeoTIFF), especially in cases when pre-existing labelled training datasets are not available. The example use-case outlined in this guide consists of classifying glacier surface types from [WorldView](https://www.satimagingcorp.com/satellite-sensors/worldview-2/) images using a Variogram-based Naural Network Classification Model. When using this repository, please report any bugs by [submitting an issue](https://github.com/Herzfeld-Lab/NN_Class/issues/new) with a description of the bug, along with your operating system/version and any relevant screenshots or terminal output.
 
 # Table of Contents
 
 - [Installation](#installation)
   * [Operating System](#operating-system)
   * [Required Packages](#required-packages)
-  * [NNClass Installation](#nnclass-installation)
+  * [NN_Class Installation](#nn_class-installation)
 - [Configuration](#configuration)
-  * [Setting up Data Folder](#setting-up-data-folder)
+  * [Setting up the Config Folder](#setting-up-the-config-data-folder)
+  * [Setting up the Data Folder](#setting-up-the-data-folder)
   * [Config Parameters](#config-parameters)
     + [Model Parameters](#model-parameters)
     + [Dataset Parameters](#dataset-parameters)
@@ -36,6 +37,11 @@ The following is a guide for installing and running the NN_Class software, along
   * [Visualization Options](#visualization-options)
   * [Saving Classification Figures](#saving-classification-figures)
   * [Adding Classifications to Training Data](#adding-classifications-to-training-data)
+- [Miscellaneous Features](#miscellaneous-features)
+  * [Generating a Contour File](#generating-a-contour-file)
+- [Documentation for Provided Classification Models](#documentation-for-provided-classification-models)
+  * [VarioMLP](#variomlp)
+  * [Resnet18](#resnet18)
 - [Expanding Functionality](#expanding-functionality)
   * [Adding Classification Models](#adding-classification-models)
   * [Adding Data Augmentation Methods](#adding-data-augmentation-methods)
@@ -43,12 +49,53 @@ The following is a guide for installing and running the NN_Class software, along
 
 # Installation
 ## Operating System
+The NN_Class software is meant to run on UNIX-based operating systems, primarily MacOS and Ubuntu. It has been tested on the following systems:
+- MacOS 10.14 "Mojave"
+- MacOS 10.15 "Catalina"
+- Ubuntu 18.04 "Bionic Beaver"
+- Ubuntu 20.04 "Focal Fossa"
+
+It may be possible to run this software on Windows using the [Windows Linux Subsystem](https://docs.microsoft.com/en-us/windows/wsl/install-win10), but this will likely require some debugging on the user's part.
+
+**Note:** Installing and using this software requires basic beginner-level knowledge of using UNIX terminal commands. If you are running Ubuntu, you are likely already familiar with basic terminal commands. If you are running MacOS and have not used the terminal, [here is a basic guide](https://www.makeuseof.com/tag/beginners-guide-mac-terminal/)
 ## Required Packages
-## NNClass Installation
+Before setting up the repository, make sure you have python 3.x, pip and git installed on your machine. These should be installed on your machine by default. To check your version of python/pip and upgrade if necessary, follow [this guide for Ubuntu](https://phoenixnap.com/kb/how-to-install-python-3-ubuntu) or [this guide for MacOS](https://opensource.com/article/19/5/python-3-default-mac). For git, follow [this guide](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
+## NN_Class Installation
+To download the repository, open up a terminal and navigate to the directory in which you want this repository to live. Then, run:
+
+```
+git clone https://github.com/Herzfeld-Lab/NN_Class.git
+```
+
+If you don't have an ssh key for github set up on your machine, it will ask for your github username and password in the terminal. If you want to set up an ssh key to make things easier in the future, you can follow the tutorial [here](https://help.github.com/en/github/authenticating-to-github/connecting-to-github-with-ssh)
+
+Once it's finished downloading, navigate into the `NN_Class` directory and run the install dependencies script:
+
+```
+cd NN_Class
+./install_dependencies.sh
+```
+
+This will probably take some time.
 # Configuration
-## Setting up Data Folder
+Within the top-level project directory, there are 3 main sub-directories that the user will interact with. First, the `NN_Class/Config/` directory, which contains configuration parameters for the classification model, training algorithm and dataset. Second is the `NN_Class/Data/` directory, which contains the GeoTIFF images which comprise a dataset. Lastly, the `NN_Class/Output/` directory contains output from the training, testing and visualization scripts in the form of model checkpoints, classification results and figures.
+## Setting up the Data Folder
+Each GeoTIFF image dataset should have its own sub-directory in `NN_Class/Data`. This directory should contain one or more GeoTIFF-formatted images that all contain data from the same [UTM Zone](https://en.wikipedia.org/wiki/Universal_Transverse_Mercator_coordinate_system). For the example project followed in this guide, a `Data/Negri_WV` directory was created, which contains 5 GeoTIFF images of the Negribreen Glacier taken by the WorldView-1 and WorldView-2 satellites.
+## Setting up the Config Folder
+Each individual classification project should have its own sub-directory in `NN_Class/Config`. At a minimum, this directory should contain:
+1. A YAML-formatted `.config` file which defines all necessary parameters and filepaths for the classification task (described in detail below)
+2. A `.npy`-formatted 'contour' file containing a list of UTM coordinates which define the boundaries of the area-of-interest for the classification task.
+
+There is an example Config folder with the above files included in `NN_Class/Config/mlp_test_negri`, which contains the configuration for classifying surface types of the Negribreen Glacier from WorldView GeoTIFF images. The easiest way to set up your own project is to copy this folder, and change the necessary parameters. In order to create your own area-of-interest contour file, skip to the [Generating a Contour File](#generating-a-contour-file) section before proceeding with the rest of this tutorial.
 ## Config Parameters
+The YAML-formatted `.config` file contains all of the configuration parameters for a classification task. To create your own config file, simply copy the example provided in `NN_Class/Config/mlp_test_negri/mlp_test_negri.config` and change the parameters to fit your task. The config file must have the exact format provided in the example file for the NN_Class software to work. The parameters in the config file are split into 5 categories, which are defined as follows:
 ### Model Parameters
+The model parameters define the hyperparameters of the classification model. Some of these parameters are only relevant to the provided VarioMLP model, implemented in `Models/VarioMLP.py`. For the other provided Resnet18 model (implemented in `Models/Resnet18.py`), set these parameters to `None`.
+- `model`:          This defines which Neural Network model to be used. The example project uses VarioMLP.
+- `num_classes`:    The number of classes to be used. For this tutorial, only 2 classes will be used
+- `vario_num_lag`:  (VarioMLP-only) The number of lag values to be used in the directional Variogram during preprocessing for the VarioMLP model
+- `hidden_layers`:  (VarioMLP-only) The shape of the hidden layers of the VarioMLP network. Detailed description provided [here](#variomlp)
+- `activations`:    The activation functions used in the neural network's hidden layers (right now, only [ReLU](https://machinelearningmastery.com/rectified-linear-activation-function-for-deep-learning-neural-networks/) is supported)
 ### Dataset Parameters
 ### Training Parameters
 ### Data Augmentation Parameters
@@ -75,7 +122,7 @@ The following is a guide for installing and running the NN_Class software, along
 ## Testing Options
 ## Testing Output
 ![Output files from test.py](images/test_output_files.png)
-# Visualizing 
+# Visualizing
 ## Loading Test Output
 ## Visualizing Classifications
 ![Visualizing Classifications](images/gui_visualize_predictions.png)
@@ -88,6 +135,11 @@ The following is a guide for installing and running the NN_Class software, along
 ## Adding Classifications to Training Data
 ![Confidence-Thresholded and Class-Toggled Visualization](images/gui_visualize_threshold.png)
 ![Adding High-Confidence Predictions to Training Data](images/gui_visualize_pred_label.png)
+# Miscellaneous Features
+## Generating a Contour File
+# Documentation for Provided Classification Models
+## VarioMLP
+## Resnet18
 # Expanding Functionality
 ## Adding Classification Models
 ## Adding Data Augmentation Methods
@@ -115,7 +167,7 @@ cd NN_Class
 ./install_dependencies.sh
 ```
 
-This might take some time. 
+This might take some time.
 
 **Note:** I probably missed adding some dependencies to this script. If you run into a dependency problem later on please submit an issue for it and I'll add it
 
@@ -132,7 +184,7 @@ The way this repository is designed, each individual classification project will
 - `model`:          This defines which Neural Network model to be used. We are using VarioMLP, defined in `VarioMLP.py`
 - `num_classes`:    The number of classes to be used. We will start with just 2 classes for this test.
 - `vario_num_lag`:  The number of lag values to be used in the directional Variogram during preprocessing
-- `hidden_layers`:  The shape of the hidden layers of the MLP network. Detailed description of how this works below
+- `hidden_layers`:  The shape of the hidden layers of the MLP network. Detailed description provided [here](#model-descriptions)
 - `activations`:    The activation functions used in the network's hidden layers (right now, only ReLU is implemented)
 
 ### Dataset Parameters:
@@ -141,14 +193,14 @@ The way this repository is designed, each individual classification project will
 - `txt_path`:         The filepath to the .npy file containing all the split image data
 - `train_path`:       Deprecated - used only to load split images in the old matlab format (file heirarchy with .png)
 - `valid_path`:       Deprecated - used only to load split images in the old matlab format (file heirarchy with .png)
-- `class_enum`:       A list of class names, of length `num_classes`. 
+- `class_enum`:       A list of class names, of length `num_classes`.
 - `utm_epsg_code`:    EPSG code of the UTM zone the geotiff image is within (33N for Negribreen)
 - `split_img_size`:   Size of split images, in pixels (This will be changed to UTM in the next release)
 - `train_test_split`: Percentage of images to be kept as training images (0.8 == 80%), the rest are used for testing
 
 ### Training Parameters:
 
-- `use_cuda`:       If true, utilizes GPU for training and testing. Requires extra setup 
+- `use_cuda`:       If true, utilizes GPU for training and testing. Requires extra setup
 - `num_epochs`:     Maximum number of epochs to run the training loop
 - `learning_rate`:  Initial learning rate for the optimizer
 - `batch_size`:     Number of split images to be passed through network before each iteration of the backpropagation
@@ -196,17 +248,17 @@ The right side of the window shows a preview of the geotiff image, with the glac
 
 **Note:** If there's some offset between where you click and where the crosshairs actually move, try minimizing and then maximizing, or maximizing and then minimizing the window, sometimes it boots up to the wrong size initially. I'm working on a fix for it, but I've tested it on both MacOS and Ubuntu and with some finagling it seems to work. If not, submit an issue for it with a screenshot and you OS.
 
-Note the two buttons near the bottom corresponding to the two classes defined in `mlp_test_negri.config`, 'Undisturbed Snow' and 'Other'. Split images can be labeled either by clicking these buttons, or by pressing the number key on your keyboard corresponding to a class (in this case, 0 for Undisturbed Snow and 1 for Other). 
+Note the two buttons near the bottom corresponding to the two classes defined in `mlp_test_negri.config`, 'Undisturbed Snow' and 'Other'. Split images can be labeled either by clicking these buttons, or by pressing the number key on your keyboard corresponding to a class (in this case, 0 for Undisturbed Snow and 1 for Other).
 
 Start off by labeling some undisturbed snow images. You can do this pretty rapidly from where the crosshair initializes by just pressing 0-d-0-d-0-d-0-d over and over again. Then, click into a few areas of the image preview that are not undisturbed snow, and repeat the process (1-d-1-d-1-d-1-d...). It should only take a minute or two until you've labeled about 100 of each. After labeling, toggle the 'Visualize Labels' checkbox to see the images you've labeled. After labeling a bunch of Undisturbed Snow in the top corner, and a few stripes of Other in the crevassed areas this is what my preview looked like:
 
 ![A few labeled images](images/tool2.png)
 
-Here dark blue and light blue correspond to Undisturbed Snow and Other respectively (I will be fleshing out the color coding in a future commit). To save your labels, simply close the Split Image Explorer window. 
+Here dark blue and light blue correspond to Undisturbed Snow and Other respectively (I will be fleshing out the color coding in a future commit). To save your labels, simply close the Split Image Explorer window.
 
 ## Training
 
-Now that we have some labels, it's time to do a basic training run with our Neural Network model. The `train.py` script takes as an argument a `.config` file and takes care of the whole process. 
+Now that we have some labels, it's time to do a basic training run with our Neural Network model. The `train.py` script takes as an argument a `.config` file and takes care of the whole process.
 
 ```
 python3 train.py Config/mlp_test_negri/mlp_test_negri.config
@@ -240,11 +292,11 @@ Using the Visualize Labels checkbox, the labels can be seen. Here is what mine l
 
 ![Classification from NN](images/tool3.png)
 
-The slider represents a minimum confidence threshold on a scale from 0% to 100% for visualizing labels. When the Visualize Labels checkbox is toggled, only split images with a confidence greater than the value set by the slider are shown. 
+The slider represents a minimum confidence threshold on a scale from 0% to 100% for visualizing labels. When the Visualize Labels checkbox is toggled, only split images with a confidence greater than the value set by the slider are shown.
 
 **Note:** The Visualize Checkbox must be un toggled and re toggled any time a change is made in order for the preview to update.
 
-If you want to add an additional class, simply type the class name in the text box under the slider and press enter. The new class will be created, and a new button and checkbox will be generated for it. It will also be mapped to the corresponding number key for labeling. When the Split Image tool is closed, these changes will be reflected in the `num_classes` and `class_enum` parameters in the config file, so retraining the network with new classes remains extremely simple. 
+If you want to add an additional class, simply type the class name in the text box under the slider and press enter. The new class will be created, and a new button and checkbox will be generated for it. It will also be mapped to the corresponding number key for labeling. When the Split Image tool is closed, these changes will be reflected in the `num_classes` and `class_enum` parameters in the config file, so retraining the network with new classes remains extremely simple.
 
 ## Next
 
