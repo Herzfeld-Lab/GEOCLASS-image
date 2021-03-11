@@ -33,9 +33,13 @@ The following is a guide for installing and running the NN Class software, along
   * [Loading Test Output](#loading-test-output)
   * [Visualizing Classifications](#visualizing-classifications)
   * [Visualizing Confidence](#visualizing-confidence)
-  * [Adding Classifications to Training Data](#adding-classifications-to-training-data)
+  * [Visualization Options](#visualization-options)
   * [Saving Classification Figures](#saving-classification-figures)
+  * [Adding Classifications to Training Data](#adding-classifications-to-training-data)
 - [Expanding Functionality(#expanding-functionality)
+  * [Adding Classification Models](#adding-classification-models)
+  * [Adding Data Augmentation Methods](#adding-data-augmentation-methods)
+  * [Adding Source Data Types](#adding-source-data-types)
 
 # Installation
 ## Operating System
