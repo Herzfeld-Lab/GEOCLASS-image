@@ -64,16 +64,26 @@ The following is a guide for installing and running the NN Class software, along
 # Training
 ## Training Options
 ## Training Output
-![Output from Training Script](images/train_output_terminal.png)
+![Terminal Output from train.py](images/train_output_terminal.png)
+![Output Directory Structure](images/train_output_files.png)
+![Training and Validation Losses](images/epoch_19_losses.png)
 # Testing
 ## Testing Options
 ## Testing Output
+![Output files from test.py](images/test_output_files.png)
 # Visualizing 
 ## Loading Test Output
 ## Visualizing Classifications
+![Visualizing Classifications](images/gui_visualize_predictions.png)
 ## Visualizing Confidence
-## Adding Classifications to Training Data
+![Visualizing Confidence Heatmap](images/gui_visualize_confidence.png)
+## Visualization Options
+![Confidence-Thresholded Classification Visualization](images/gui_visualize_threshold_2.png)
 ## Saving Classification Figures
+![Output Figure](images/labeled_epoch_11_prediction.png)
+## Adding Classifications to Training Data
+![Confidence-Thresholded and Class-Toggled Visualization](images/gui_visualize_threshold.png)
+![Adding High-Confidence Predictions to Training Data](images/gui_visualize_pred_label.png)
 # Expanding Functionality
 ## Adding Classification Models
 ## Adding Data Augmentation Methods
