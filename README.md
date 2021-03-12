@@ -91,11 +91,11 @@ There is an example Config folder with the above files included in `NN_Class/Con
 The YAML-formatted `.config` file contains all of the configuration parameters for a classification task. To create your own config file, simply copy the example provided in `NN_Class/Config/mlp_test_negri/mlp_test_negri.config` and change the parameters to fit your task. The config file must have the exact format provided in the example file for the NN_Class software to work. The parameters in the config file are split into 5 categories, which are defined as follows:
 ### Model Parameters
 The model parameters define the hyperparameters of the classification model. Some of these parameters are only relevant to the provided VarioMLP model, implemented in `Models/VarioMLP.py`. For the other provided Resnet18 model (implemented in `Models/Resnet18.py`), set these parameters to `None`.
-- `model`:          This defines which Neural Network model to be used. The example project uses VarioMLP.
-- `num_classes`:    The number of classes to be used. For this tutorial, only 2 classes will be used
-- `vario_num_lag`:  (VarioMLP-only) The number of lag values to be used in the directional Variogram during preprocessing for the VarioMLP model
-- `hidden_layers`:  (VarioMLP-only) The shape of the hidden layers of the VarioMLP network. Detailed description provided [here](#variomlp)
-- `activations`:    The activation functions used in the neural network's hidden layers (right now, only [ReLU](https://machinelearningmastery.com/rectified-linear-activation-function-for-deep-learning-neural-networks/) is supported)
+- `model`:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This defines which Neural Network model to be used. The example project uses VarioMLP.
+- `num_classes`:&nbsp;&nbsp;&nbsp;The number of classes for the classification task.
+- `vario_num_lag`: (VarioMLP-only) The number of lag values to be used in the directional Variogram.
+- `hidden_layers`: (VarioMLP-only) The shape of the hidden layers of the VarioMLP network. Detailed description provided [here](#variomlp).
+- `activations`:&nbsp;&nbsp;&nbsp;The activation functions used in the neural network's hidden layers (right now, only [ReLU](https://machinelearningmastery.com/rectified-linear-activation-function-for-deep-learning-neural-networks/) is supported).
 ### Dataset Parameters
 ### Training Parameters
 ### Data Augmentation Parameters
@@ -137,6 +137,8 @@ The model parameters define the hyperparameters of the classification model. Som
 ![Adding High-Confidence Predictions to Training Data](images/gui_visualize_pred_label.png)
 # Miscellaneous Features
 ## Generating a Contour File
+![Creating a custom contour](images/custom_contour.gif)
+![Loading with custom contour](images/custom_contour_result.png)
 # Documentation for Provided Classification Models
 ## VarioMLP
 ## Resnet18
