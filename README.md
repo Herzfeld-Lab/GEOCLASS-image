@@ -39,6 +39,7 @@ The following is a guide for installing and running the NN_Class software, along
   * [Adding Classifications to Training Data](#adding-classifications-to-training-data)
 - [Miscellaneous Features](#miscellaneous-features)
   * [Generating a Contour File](#generating-a-contour-file)
+  * [Using a GPU](#using-a-gpu)
 - [Documentation for Provided Classification Models](#documentation-for-provided-classification-models)
   * [VarioMLP](#variomlp)
   * [Resnet18](#resnet18)
@@ -91,16 +92,43 @@ There is an example Config folder with the above files included in `NN_Class/Con
 The YAML-formatted `.config` file contains all of the configuration parameters for a classification task. To create your own config file, simply copy the example provided in `NN_Class/Config/mlp_test_negri/mlp_test_negri.config` and change the parameters to fit your task. The config file must have the exact format provided in the example file for the NN_Class software to work. The parameters in the config file are split into 5 categories, which are defined as follows:
 ### Model Parameters
 The model parameters define the hyperparameters of the classification model. Some of these parameters are only relevant to the provided VarioMLP model, implemented in `Models/VarioMLP.py`. For the other provided Resnet18 model (implemented in `Models/Resnet18.py`), set these parameters to `None`.
-- `model`:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This defines which Neural Network model to be used. The example project uses VarioMLP.
-- `num_classes`:&nbsp;&nbsp;&nbsp;The number of classes for the classification task.
+- `model`: This defines which Neural Network model to be used. The example project uses VarioMLP.
+- `num_classes`: The number of classes for the classification task.
 - `vario_num_lag`: (VarioMLP-only) The number of lag values to be used in the directional Variogram.
 - `hidden_layers`: (VarioMLP-only) The shape of the hidden layers of the VarioMLP network. Detailed description provided [here](#variomlp).
-- `activations`:&nbsp;&nbsp;&nbsp;The activation functions used in the neural network's hidden layers (right now, only [ReLU](https://machinelearningmastery.com/rectified-linear-activation-function-for-deep-learning-neural-networks/) is supported).
+- `activations`: The activation functions used in the neural network's hidden layers (right now, only [ReLU](https://machinelearningmastery.com/rectified-linear-activation-function-for-deep-learning-neural-networks/) is supported).
 ### Dataset Parameters
+The dataset parameters define the filepaths and hyperparameters pertaining to the 'split image' dataset. When starting a new project, the `img_path`, `class_enum`, `utm_epsg_code`, `split_img_size` and `train_test_split` parameters should be defined. The `npy_path` parameter will be automatically filled in when [creating a dataset](#creating-a-dataset).
+- `img_path`:         The path to the directory containing the GeoTIFF images in your dataset (explained [here](#setting-up-the-data-folder)).
+- `npy_path`:         The filepath to the .npy file containing all the split image data (explained [here](#creating-a-dataset)).
+- `train_path`:       Deprecated - used only to load split images in the old matlab format (file heirarchy with .png).
+- `valid_path`:       Deprecated - used only to load split images in the old matlab format (file heirarchy with .png).
+- `class_enum`:       A list of human-readable class names, of length `num_classes`.
+- `utm_epsg_code`:    [EPSG code](https://epsg.io/) of the UTM zone the geotiff image is within.
+- `split_img_size`:   Desired size of split images, in pixels.
+- `train_test_split`: Percentage of images to be kept as training images (0.8 == 80%), the rest are used for testing.
 ### Training Parameters
+The training parameters govern how the classification model is trained when using `train.py`. The [Training](#training) section contains a detailed description of these operations.
+- `use_cuda`:       If true, utilizes GPU for training and testing. See [Using a GPU](#using-a-gpu)
+- `num_epochs`:     Maximum number of epochs to run the training loop
+- `learning_rate`:  Initial learning rate for the optimizer
+- `batch_size`:     Number of split images to be passed through network before each iteration of the backpropagation
+- `optimizer`:      Optimization algorithm to be used during training (right now, only [Adam](https://machinelearningmastery.com/adam-optimization-algorithm-for-deep-learning/) is supported)
 ### Data Augmentation Parameters
+The data augmentation parameters define the preprocessing steps performed on the training data before being run through the classification model. An introduction to the motivations behind data augmentation and some basic techniques can be found [here](https://markku.ai/post/data-augmentation/).
+- `directional_vario`:    Whether to use directional variogram on split images (Always true for VarioMLP model)
+- `random_rotate`:        Randomly rotate via variogram before feeding into network
+- `random_shift`:         Randomly shift area to perform variogram over (if the split images are not squares)
+- `random_contrast`:      Randomly adjust contrast (untested)
+- `random_distort`:       Depracated
 ### Visualization Parameters
+The visualization parameters define how training labels and classification results are visualized when using the Split Image Explorer GUI.
+- `contour_path`:     Filepath to list of UTM coordinates of contour (described [here](#setting-up-the-config-data-folder))
+- `custom_color_map`: List of desired class color [hex codes](https://www.color-hex.com/) of length `num_classes`. If not specified, the matplotlib [tab20](https://matplotlib.org/3.1.1/gallery/color/colormap_reference.html) color map will be used.
+- `bg_img_path`:      Filepath to background image to display visualizations over (depracated, scaled tiff image used instead)
+- `bg_img_utm`:       Filepath to list of UTM coordinates of background image (depracated)
 # Datasets
+
 ## Creating a Dataset
 ![Output from createdatasetfromgeotiff.py](images/create_dataset_output.png)
 ## Labeling Training Data
@@ -139,6 +167,7 @@ The model parameters define the hyperparameters of the classification model. Som
 ## Generating a Contour File
 ![Creating a custom contour](images/custom_contour.gif)
 ![Loading with custom contour](images/custom_contour_result.png)
+## Using a GPU
 # Documentation for Provided Classification Models
 ## VarioMLP
 ## Resnet18
@@ -210,11 +239,7 @@ The way this repository is designed, each individual classification project will
 
 ### Data Augmentation Parameters:
 
-- `directional_vario`:    Whether to use directional variogram on split images (Always true unless using a CNN model)
-- `random_rotate`:        Randomly rotate via variogram before feeding into network
-- `random_shift`:         Randomly shift area to perform variogram over (if the split images are not squares)
-- `random_contrast`:      Randomly adjust contrast (untested)
-- `random_distort`:       Depracated
+
 
 ### Visualization Parameters:
 
