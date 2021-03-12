@@ -201,28 +201,45 @@ After running the test script, a `.npy` file containing the classification label
 ## Testing Options
 TODO
 # Visualizing
+TODO
 ## Loading Test Output
+TODO
 ## Visualizing Classifications
+TODO
 ![Visualizing Classifications](images/gui_visualize_predictions.png)
 ## Visualizing Confidence
+TODO
 ![Visualizing Confidence Heatmap](images/gui_visualize_confidence.png)
 ## Visualization Options
+TODO
 ![Confidence-Thresholded Classification Visualization](images/gui_visualize_threshold_2.png)
 ## Saving Classification Figures
+TODO
 ![Output Figure](images/labeled_epoch_11_prediction.png)
 ## Adding Classifications to Training Data
+TODO
 ![Confidence-Thresholded and Class-Toggled Visualization](images/gui_visualize_threshold.png)
 ![Adding High-Confidence Predictions to Training Data](images/gui_visualize_pred_label.png)
 # Miscellaneous Features
+TODO
 ## Generating a Contour File
+TODO
 ![Creating a custom contour](images/custom_contour.gif)
 ![Loading with custom contour](images/custom_contour_result.png)
 ## Using a GPU
+TODO
 ## Outputting in netCDF format
+TODO
 # Documentation for Provided Classification Models
 ## VarioMLP
+TODO
 ## Resnet18
+TODO
 # Expanding Functionality
+TODO
 ## Adding Classification Models
+TODO
 ## Adding Data Augmentation Methods
+TODO
 ## Adding Source Data Types
+TODO
