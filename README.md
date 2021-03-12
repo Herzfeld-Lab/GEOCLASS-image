@@ -40,6 +40,7 @@ The following is a guide for installing and running the NN_Class software, along
 - [Miscellaneous Features](#miscellaneous-features)
   * [Generating a Contour File](#generating-a-contour-file)
   * [Using a GPU](#using-a-gpu)
+  * [Outputting in netCDF format](#outputting-in-netcdf-format)
 - [Documentation for Provided Classification Models](#documentation-for-provided-classification-models)
   * [VarioMLP](#variomlp)
   * [Resnet18](#resnet18)
@@ -170,15 +171,35 @@ As demonstrated above, the 'Visualize Labels' toggle can be used to view the tra
 ### Dataset Output
 Upon exiting the GUI, any labels created will be automatically saved to the [Dataset file created above](#creating-a-dataset)
 # Training
-## Training Options
+After labelling some training data with the GUI tool, the next step is to train the classification model. This is done by running `train.py` with your config file as the single argument, in the same way as `Split_Image_Explorer.py` and `createDatasetFromGeotiff.py`. For the example case the command was:
+```
+python3 train.py Config/mlp_negri_legacy/mlp_test_negri.config
+```
 ## Training Output
+After loading the training dataset (which may take quite a while for datasets sourced from multiple large GeoTIFF images) the terminal will display the structure of the classification model, followed by the training set and validation set size defined by the `train_test_split` config parameter. The training script will also create and display the path to a sub-directory in the `Output/` directory containing the output for this training run. Then, the training and validation loss of each epoch will be output to the terminal. In the example case, the terminal output was as follows:
 ![Terminal Output from train.py](images/train_output_terminal.png)
+The training script can be stopped at any time by using `ctrl-c` in the terminal. If training is not stopped, it will run for the number of epochs defined in the `num_epochs` config parameter before stopping. As shown in the terminal screenshot above, the Output for the example training run was created in a directory titled `Output/mlp_negri_legacy_09-03-2021_18:34/`. In general, the output subdirectory will be titled as `{name-of-your-config-file}_{time-and-date-of-training-run}`. Within each output subdirectory, 3 subdirectories titled `checkpoints/`, `labels/` and `losses/` will be generated. The `checkpoints/` subdirectory will contain all saved model checkpoints from the training script. By default, the training script will save a model checkpoint at the end of each epoch if and only if the validation loss is better than the previous best validation loss. For more information on the significance of loss values when training a classification model, see [this guide](https://machinelearningmastery.com/learning-curves-for-diagnosing-machine-learning-model-performance/). The model checkpoint files generated for the training run above look like this:
 ![Output Directory Structure](images/train_output_files.png)
+The training script will also output a .npy file containing the training and validation loss for each epoch, as well as a training/validation loss graph located in the `losses/` subdirectory. The loss graph for the above training run (stored in `Output/mlp_negri_legacy_09-03-2021_18:34/losses/` looks like this:
 ![Training and Validation Losses](images/epoch_19_losses.png)
+## Training Options
+The training script supports the ability to load and resume training from a previously defined model checkpoint. To do this, run `train.py` with the additional command-line flag `--load_checkpoint`. In the case of the example training run above, to restart training from the epoch 11 checkpoint the command would be:
+```
+python3 train.py Config/mlp_negri_legacy/mlp_test_negri.config --load_checkpoint Output/mlp_negri_legacy_09-03-2021_18:34/checkpoints/epoch_11
+```
+
+There are also numerous hyperparameters related to training in the config file. For a description of the available training hyperparameters please refer to the [Training Parameters](#training-parameters) section.
 # Testing
-## Testing Options
+After looking at the losses from the training run and selecting a desired model checkpoint, the `test.py` script can be used to label all split images in the dataset using the trained classification model. `train.py` takes two arguments: the config file as the first argument (same as all the other scripts), and the `--load_checkpoint` argument to specify a model checkpoint. For the example run, using the epoch 11 model checkpoint, the command was:
+```
+python3 train.py Config/mlp_negri_legacy/mlp_test_negri.config --load_checkpoint Output/mlp_negri_legacy_09-03-2021_18:34/checkpoints/epoch_11
+```
+The labeling process will take quite a while for cases in which the dataset consists of multiple large source GeoTIFF images. Labeling all 41,310 split images in the example case took about 10 minutes.
 ## Testing Output
+After running the test script, a `.npy` file containing the classification labels for all split images in the dataset will be generated in the `labels` subdirectory of the output subdirectory. For the test run above, a file called `Output/mlp_negri_legacy_09-03-2021_18:34/labels/labelled_epoch_11.npy` was generated:
 ![Output files from test.py](images/test_output_files.png)
+## Testing Options
+TODO
 # Visualizing
 ## Loading Test Output
 ## Visualizing Classifications
@@ -197,6 +218,7 @@ Upon exiting the GUI, any labels created will be automatically saved to the [Dat
 ![Creating a custom contour](images/custom_contour.gif)
 ![Loading with custom contour](images/custom_contour_result.png)
 ## Using a GPU
+## Outputting in netCDF format
 # Documentation for Provided Classification Models
 ## VarioMLP
 ## Resnet18
