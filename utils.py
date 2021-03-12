@@ -17,6 +17,9 @@ import random
 from netCDF4 import Dataset
 import glob
 import argparse
+import pyproj
+from pyproj import Transformer
+from pyproj import CRS
 
 def to_netCDF(data, filepath):
 
@@ -157,6 +160,26 @@ def xml_to_latlon(xmlPath):
     latlon = [UL, UR, LR, LL]
 
     return latlon
+
+def get_geotiff_bounds(geotiff, epsg_code):
+    # Get transform from tiff image georeferencing data to UTM
+    crs_in = CRS.from_wkt(geotiff.crs.wkt)
+    crs_out = CRS.from_epsg(epsg_code)
+    transform = Transformer.from_crs(crs_in, crs_out)
+
+    ul_in = geotiff.transform*(0, 0)
+    lr_in = geotiff.transform*(geotiff.width, geotiff.height)
+    ll_in = geotiff.transform*(0, geotiff.height)
+    ur_in = geotiff.transform*(geotiff.width, 0)
+
+    ul_out = np.array(transform.transform(ul_in[0],ul_in[1]))
+    lr_out = np.array(transform.transform(lr_in[0],lr_in[1]))
+    ll_out = np.array(transform.transform(ll_in[0],ll_in[1]))
+    ur_out = np.array(transform.transform(ur_in[0],ur_in[1]))
+
+    # Get UTM boundaries
+    bbox = np.array((ul_out,ur_out,lr_out,ll_out))
+    return bbox
 
 def plot_geotif_bbox(xmlPath, contourPath, bgImgPath, bgUTMPath):
     """
