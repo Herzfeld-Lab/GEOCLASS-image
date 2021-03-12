@@ -90,6 +90,17 @@ for IMG_NUM,imgPath in enumerate(imgPaths):
         crs_utm = CRS.from_epsg(epsgCode)
         transform = Transformer.from_crs(crs_in, crs_utm)
 
+    # Load UTM glacier contour
+    print("**** Loading Glacier Contour ****")
+    if contourPath != 'None':
+        try:
+            contourUTM = np.load(contourPath)
+        except FileNotFoundError as e:
+            print('ERROR: {} not found. Please include a .npy file with UTM coordinates of glacier boundary contour')
+            exit(1)
+    else:
+        contourUTM = get_geotiff_bounds(tiffImg,epsgCode)
+    contourPolygon = Polygon(contourUTM)
     #print(crs_in.to_wkt())
     #print('CRS EPSG code: {}'.format(crs_in.to_epsg()))
 
@@ -186,14 +197,6 @@ for IMG_NUM,imgPath in enumerate(imgPaths):
     else:
         print(tiffImg.transform)
     '''
-    # Load UTM glacier contour
-    print("**** Loading Glacier Contour ****")
-    try:
-        contourUTM = np.load(contourPath)
-    except FileNotFoundError as e:
-        print('ERROR: {} not found. Please include a .npy file with UTM coordinates of glacier boundary contour')
-        exit(1)
-    contourPolygon = Polygon(contourUTM)
 
     # Perform split image. Get all split images within UTM glacier contour
     print('**** Splitting Image ****')

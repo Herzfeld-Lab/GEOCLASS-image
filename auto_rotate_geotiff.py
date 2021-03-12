@@ -196,22 +196,10 @@ def rotate_and_crop_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM, t
 
     else:
         # Get transform from tiff image georeferencing data to UTM
-        crs_in = CRS.from_wkt(tiffImg.crs.wkt)
-        crs_out = CRS.from_epsg(epsg_code)
-        transform = Transformer.from_crs(crs_in, crs_out)
-
-        ul_in = tiffImg.transform*(0, 0)
-        lr_in = tiffImg.transform*(tiffImg.width, tiffImg.height)
-        ll_in = tiffImg.transform*(0, tiffImg.height)
-        ur_in = tiffImg.transform*(tiffImg.width, 0)
-
-        ul_out = np.array(transform.transform(ul_in[0],ul_in[1]))
-        lr_out = np.array(transform.transform(lr_in[0],lr_in[1]))
-        ll_out = np.array(transform.transform(ll_in[0],ll_in[1]))
-        ur_out = np.array(transform.transform(ur_in[0],ur_in[1]))
+        bbox = get_geotiff_bounds(tiffImg, epsg_code)
+        ul_out,ur_out = bbox[0],bbox[1]
 
         # Get UTM boundaries
-        bbox = np.array((ul_out,ur_out,lr_out,ll_out))
         UL = bbox.min(axis = 0)
         LR = bbox.max(axis = 0)
 

@@ -14,9 +14,6 @@ from skimage import io, transform
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 import random
-import pyproj
-from pyproj import Transformer
-from pyproj import CRS
 from auto_rotate_geotiff import *
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
@@ -53,14 +50,6 @@ class SplitImageTool(QWidget):
         self.label_path = self.cfg['npy_path']
         self.label_data = np.load(self.label_path, allow_pickle=True)
         self.split_info_save = self.label_data[1]
-
-        if self.checkpoint != None:
-            self.pred_label_path = self.checkpoint
-            pred_data = np.load(self.pred_label_path, allow_pickle=True)
-            self.pred_labels_save = pred_data[1]
-            self.predictions = True
-        else:
-            self.predictions = False
 
         self.initDataset()
 
@@ -103,19 +92,39 @@ class SplitImageTool(QWidget):
     def initDataset(self):
         self.dataset_info = self.label_data[0]
         self.split_info = self.split_info_save[self.split_info_save[:,6] == self.tiff_selector]
+        self.class_enum = self.dataset_info['class_enumeration']
+        self.utm_epsg_code = self.cfg['utm_epsg_code']
+        self.win_size = self.dataset_info['winsize_pix']
+        self.lookup_tree = KDTree(self.split_info[:,2:4])
+
         if self.checkpoint != None:
             self.pred_labels = self.pred_labels_save[self.pred_labels_save[:,6] == self.tiff_selector]
+
         self.geotiff = rio.open(self.dataset_info['filename'][self.tiff_selector])
+
+        # Load Contour file if specified
+        if self.cfg['contour_path'] != 'None':
+            self.has_contour = True
+            self.contour_np = np.load(self.cfg['contour_path'])
+        else:
+            self.has_contour = False
+            self.contour_np = get_geotiff_bounds(self.geotiff, self.utm_epsg_code)
+        self.contour_polygon = Polygon(self.contour_np)
+
+        # Load classification results if specified
+        if self.checkpoint != None:
+            self.pred_label_path = self.checkpoint
+            pred_data = np.load(self.pred_label_path, allow_pickle=True)
+            self.pred_labels_save = pred_data[1]
+            self.predictions = True
+        else:
+            self.predictions = False
+
         self.tiff_image_matrix = self.geotiff.read(1)
 
         self.tiff_image_max = get_img_sigma(self.tiff_image_matrix[::10,::10])
 
-        self.class_enum = self.dataset_info['class_enumeration']
-        self.utm_epsg_code = self.cfg['utm_epsg_code']
-        self.win_size = self.dataset_info['winsize_pix']
-        self.contour_np = np.load(self.cfg['contour_path'])
-        self.contour_polygon = Polygon(self.contour_np)
-        self.lookup_tree = KDTree(self.split_info[:,2:4])
+
 
     def clearLayout(self, layout):
         if layout is not None:
@@ -189,6 +198,10 @@ class SplitImageTool(QWidget):
         self.save_heatmap_button = QPushButton('Save Heatmap Image')
         self.save_heatmap_button.clicked.connect(self.saveHeatmapCallback)
 
+        if self.has_contour == False:
+            self.save_contour_button = QPushButton('Save Contour File')
+            self.save_contour_button.clicked.connect(self.saveContourCallback)
+
         # Slider
         self.conf_thresh_value = QLabel(self)
         self.conf_thresh_value.setMargin(0)
@@ -227,6 +240,8 @@ class SplitImageTool(QWidget):
 
         self.visualization_save_buttons.addWidget(self.save_predictions_button)
         self.visualization_save_buttons.addWidget(self.save_heatmap_button)
+        if self.has_contour == False:
+            self.visualization_save_buttons.addWidget(self.save_contour_button)
 
         self.visualization_interactive.addLayout(self.visualization_toggles)
         self.visualization_interactive.addLayout(self.visualization_save_buttons)
@@ -647,6 +662,10 @@ class SplitImageTool(QWidget):
             self.heatmapCallback(Qt.Checked)
             out_path = self.pred_label_path[:-4] + '_confidence_heatmap.png'
             cv2.imwrite(out_path, cv2.cvtColor(self.bg_img_cv, cv2.COLOR_BGR2RGB))
+
+    def saveContourCallback(self):
+        if self.batch_select_polygon != []:
+            np.save(self.cfg_path[:-4]+'_contour.npy', np.array(self.batch_select_polygon))
 
     def newClass(self):
         self.class_enum.append(self.new_class_label)
