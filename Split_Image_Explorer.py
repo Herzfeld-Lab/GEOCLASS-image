@@ -97,6 +97,15 @@ class SplitImageTool(QWidget):
         self.win_size = self.dataset_info['winsize_pix']
         self.lookup_tree = KDTree(self.split_info[:,2:4])
 
+        # Load classification results if specified
+        if self.checkpoint != None:
+            self.pred_label_path = self.checkpoint
+            pred_data = np.load(self.pred_label_path, allow_pickle=True)
+            self.pred_labels_save = pred_data[1]
+            self.predictions = True
+        else:
+            self.predictions = False
+
         if self.checkpoint != None:
             self.pred_labels = self.pred_labels_save[self.pred_labels_save[:,6] == self.tiff_selector]
 
@@ -110,15 +119,6 @@ class SplitImageTool(QWidget):
             self.has_contour = False
             self.contour_np = get_geotiff_bounds(self.geotiff, self.utm_epsg_code)
         self.contour_polygon = Polygon(self.contour_np)
-
-        # Load classification results if specified
-        if self.checkpoint != None:
-            self.pred_label_path = self.checkpoint
-            pred_data = np.load(self.pred_label_path, allow_pickle=True)
-            self.pred_labels_save = pred_data[1]
-            self.predictions = True
-        else:
-            self.predictions = False
 
         self.tiff_image_matrix = self.geotiff.read(1)
 
