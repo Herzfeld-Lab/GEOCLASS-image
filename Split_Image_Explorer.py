@@ -1,26 +1,23 @@
-import sys
-from PyQt5.QtWidgets import *
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
-from PyQt5 import QtCore
-from PIL.ImageQt import ImageQt
 from utils import *
+from auto_rotate_geotiff import *
+
+from PyQt5.QtWidgets import QWidget, QApplication, QHBoxLayout, QVBoxLayout, QLabel, QCheckBox, QSlider, QLineEdit, QPushButton, QButtonGroup
+from PyQt5.QtGui import QPixmap, QFont, QImage
+from PyQt5.QtCore import Qt
+
+from PIL.ImageQt import ImageQt
+
 from Models import *
 from Dataset import *
+
 import rasterio as rio
-import numpy as np
-import utm
-from skimage import io, transform
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms, utils
-import random
-from auto_rotate_geotiff import *
-from shapely.geometry import Point
-from shapely.geometry.polygon import Polygon
+
 from scipy.spatial import KDTree
-import matplotlib.pyplot as plt
+
+from matplotlib.pyplot import get_cmap
+from matplotlib.colors import ListedColormap
+
 import yaml
-import glob
 
 class SplitImageTool(QWidget):
 
@@ -79,8 +76,13 @@ class SplitImageTool(QWidget):
             cmap = ListedColormap(colors)
             self.label_cmap = cmap
         else:
-            self.label_cmap = plt.get_cmap('tab20')
-        self.conf_cmap = plt.get_cmap('autumn')
+            self.label_cmap = get_cmap('tab20')
+        self.conf_cmap = get_cmap('Spectral')
+        colors = []
+        for i in range(100):
+            colors.append(tuple(self.conf_cmap(1 - i/100)[:-1]))
+        self.conf_cmap = ListedColormap(colors)
+
 
         self.setMouseTracking(True)
         self.initUI()
@@ -123,8 +125,6 @@ class SplitImageTool(QWidget):
         self.tiff_image_matrix = self.geotiff.read(1)
 
         self.tiff_image_max = get_img_sigma(self.tiff_image_matrix[::10,::10])
-
-
 
     def clearLayout(self, layout):
         if layout is not None:
@@ -184,6 +184,13 @@ class SplitImageTool(QWidget):
         self.labels_button = QCheckBox('Visualize Labels', self)
         self.labels_button.stateChanged.connect(self.labelsCallback)
 
+        self.visualization_buttons = QButtonGroup(self)
+        self.visualization_buttons.addButton(self.predictions_button,1)
+        self.visualization_buttons.addButton(self.heatmap_button,2)
+        self.visualization_buttons.addButton(self.labels_button,3)
+        self.visualization_buttons.setExclusive(False)
+        self.visualization_buttons.buttonClicked.connect(self.visualizationCallback)
+
         self.new_class_field = QLineEdit()
         self.new_class_field.textChanged.connect(self.textChangedCallback)
         self.new_class_field.returnPressed.connect(self.newClass)
@@ -216,8 +223,11 @@ class SplitImageTool(QWidget):
         self.conf_thresh_slider.setMinimum(0)
         self.conf_thresh_slider.setMaximum(99)
         self.conf_thresh_slider.setValue(0)
-        self.conf_thresh_slider.setStyleSheet('background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 rgba(255,255,0,200), stop:1 rgba(255,0,0,200)); \
-                                               border-radius: 4px')
+        low = np.floor(np.array(self.conf_cmap.colors[0])*255)
+        mid = np.floor(np.array(self.conf_cmap.colors[50])*255)
+        high = np.floor(np.array(self.conf_cmap.colors[99])*255)
+        self.conf_thresh_slider.setStyleSheet('background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 rgba({},{},{},200), stop:0.5 rgba({},{},{},200), stop:1 rgba({},{},{},200)); \
+                                               border-radius: 4px'.format(low[0],low[1],low[2],mid[0],mid[1],mid[2],high[0],high[1],high[2]))
         self.conf_thresh_slider.valueChanged.connect(self.slider_callback)
 
         self.initClassButtons()
@@ -309,53 +319,28 @@ class SplitImageTool(QWidget):
 
     def initBgImage(self):
 
-        # Scale down tiff image for visualization and convert to 8-bit grayscale
-        scale_factor = int(self.tiff_image_matrix.shape[0] / 1500)
+        # Scale down tiff image for visualization and convert to 8-bit RGB
+        scale_factor = int(self.tiff_image_matrix.shape[0] / 1200)
         bg_img_scaled = self.tiff_image_matrix[::scale_factor,::scale_factor]
         bg_img_scaled = scaleImage(bg_img_scaled, self.tiff_image_max)
-
-        split_disp_size = (np.array(self.win_size) / scale_factor).astype('int') - 2
-
+        split_disp_size = (np.array(self.win_size) / scale_factor).astype('int') - 1
         bg_img_scaled = cv2.cvtColor(bg_img_scaled,cv2.COLOR_GRAY2RGB)
 
+        # Draw split images on scaled down preview image
         if self.visualize_labels:
-            for splitImg in self.split_info:
-
-                if splitImg[5] > self.conf_thresh and self.selected_classes[int(splitImg[4])]:
-
-                    x,y = math.floor(splitImg[0]/scale_factor),math.floor(splitImg[1]/scale_factor)
-                    ul = (y,x)
-                    lr = (y+split_disp_size[1],x+split_disp_size[0])
-
-                    c = (np.array(self.label_cmap(int(splitImg[4]))[:3])*255).astype('int')
-
-                    cv2.rectangle(bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
+            draw = self.split_info[self.split_info[:,5] > self.conf_thresh]
+            cmap = (np.array(self.label_cmap.colors)*255).astype(np.uint8)
+            draw_split_image_labels(bg_img_scaled, scale_factor, split_disp_size, draw, self.selected_classes, cmap)
 
         elif self.visualize_predictions and self.predictions:
-            for splitImg in self.pred_labels:
-
-                if splitImg[5] > self.conf_thresh and self.selected_classes[int(splitImg[4])]:
-
-                    x,y = math.floor(splitImg[0]/scale_factor),math.floor(splitImg[1]/scale_factor)
-                    ul = (y,x)
-                    lr = (y+split_disp_size[1],x+split_disp_size[0])
-
-                    c = (np.array(self.label_cmap(int(splitImg[4]))[:3])*255).astype('int')
-
-                    cv2.rectangle(bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
+            draw = self.pred_labels[self.pred_labels[:,5] > self.conf_thresh]
+            cmap = (np.array(self.label_cmap.colors)*255).astype(np.uint8)
+            draw_split_image_labels(bg_img_scaled, scale_factor, split_disp_size, draw, self.selected_classes, cmap)
 
         elif self.visualize_heatmap and self.predictions:
-            for splitImg in self.pred_labels:
-
-                if splitImg[5] > self.conf_thresh and self.selected_classes[int(splitImg[4])]:
-
-                    x,y = math.floor(splitImg[0]/scale_factor),math.floor(splitImg[1]/scale_factor)
-                    ul = (y,x)
-                    lr = (y+split_disp_size[1],x+split_disp_size[0])
-
-                    c = (np.array(self.conf_cmap(1 - splitImg[5])[:3])*255).astype('int')
-
-                    cv2.rectangle(bg_img_scaled, ul,lr,(int(c[0]),int(c[1]),int(c[2])),thickness=-1)
+            draw = self.pred_labels[self.pred_labels[:,5] > self.conf_thresh]
+            cmap = (np.array(self.conf_cmap.colors)*255).astype(np.uint8)
+            draw_split_image_confs(bg_img_scaled, scale_factor, split_disp_size, draw, self.selected_classes, cmap)
 
         # Rotate tiff to align North and plot glacier contour
         self.bg_img_cv, self.bg_img_utm, self.bg_img_transform = rotate_and_crop_geotiff(self.dataset_info, self.geotiff, bg_img_scaled, self.utm_epsg_code, self.contour_np, self.tiff_selector)
@@ -364,7 +349,6 @@ class SplitImageTool(QWidget):
 
         # Convert to QImage from cv and wrap in QPixmap container
         self.bg_qimg = QImage(self.bg_img_cv.data,self.bg_img_cv.shape[1],self.bg_img_cv.shape[0],self.bg_img_cv.shape[1]*3,QImage.Format_RGB888)
-        #print('bg_img_q: \t{}x{}'.format(self.bg_qimg.height(),self.bg_qimg.width()))
         self.tiff_image_pixmap = QPixmap(self.bg_qimg)
         self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToWidth(int(self.width/2) - 10)
         #self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
@@ -375,7 +359,6 @@ class SplitImageTool(QWidget):
         bg_img_q_size = np.array((self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
 
         self.scale_factor = bg_img_cv_size / bg_img_q_size
-        #print('scale factor:   {}'.format(self.scale_factor))
         self.tiff_image_label.setPixmap(self.tiff_image_pixmap)
 
     def updateBgImage(self):
@@ -423,7 +406,7 @@ class SplitImageTool(QWidget):
          pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array([[x_utm,y_utm]]))
 
          # Draw crosshairs
-         cv2.circle(bg_img,(pix_coords[0][0],height-pix_coords[0][1]),8,(255,0,0),thickness=-1)
+         cv2.circle(bg_img,(pix_coords[0][0],height-pix_coords[0][1]),4,(255,0,0),thickness=-1)
          cv2.line(bg_img, (pix_coords[0][0], 0), (pix_coords[0][0], height), (255,0,0),thickness=2)
          cv2.line(bg_img, (0, height-pix_coords[0][1]), (width, height-pix_coords[0][1]), (255,0,0),thickness=2)
 
@@ -512,10 +495,10 @@ class SplitImageTool(QWidget):
             current_pos = utm_to_pix(imgSize, self.bg_img_utm.T, np.array([[click_pos_utm[0], click_pos_utm[1]]]))
 
             for i in range(len(pix_coords)-1):
-                cv2.circle(bg_img,(pix_coords[i][0],height-pix_coords[i][1]),8,(0,0,255),thickness=-1)
-                cv2.line(bg_img, (pix_coords[i][0], height-pix_coords[i][1]), (pix_coords[i+1][0], height-pix_coords[i+1][1]), (0,0,255),thickness=3)
+                cv2.circle(bg_img,(pix_coords[i][0],height-pix_coords[i][1]),4,(0,0,255),thickness=-1)
+                cv2.line(bg_img, (pix_coords[i][0], height-pix_coords[i][1]), (pix_coords[i+1][0], height-pix_coords[i+1][1]), (0,0,255),thickness=2)
 
-            cv2.line(bg_img, (pix_coords[-2][0], height-pix_coords[-2][1]), (current_pos[0][0], height-current_pos[0][1]), (255,0,0),thickness=3)
+            cv2.line(bg_img, (pix_coords[-2][0], height-pix_coords[-2][1]), (current_pos[0][0], height-current_pos[0][1]), (255,0,0),thickness=2)
 
             height,width,channels = bg_img.shape
             bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
@@ -604,20 +587,21 @@ class SplitImageTool(QWidget):
     def new_class(self):
         self.update()
 
+    def visualizationCallback(self, id):
+        self.initBgImage()
+
     def resetVisualization(self):
         self.visualize_labels = False
         self.visualize_predictions = False
         self.visualize_heatmap = False
-        self.initBgImage()
 
     def predictionsCallback(self, state):
         if state == Qt.Checked:
             self.heatmap_button.setChecked(False)
             self.labels_button.setChecked(False)
-            self.visualize_labels = False
             self.visualize_predictions = True
             self.visualize_heatmap = False
-            self.initBgImage()
+            self.visualize_labels = False
         else:
             self.resetVisualization()
 
@@ -625,23 +609,22 @@ class SplitImageTool(QWidget):
         if state == Qt.Checked:
             self.predictions_button.setChecked(False)
             self.labels_button.setChecked(False)
-            self.visualize_labels = False
             self.visualize_predictions = False
             self.visualize_heatmap = True
-            self.initBgImage()
+            self.visualize_labels = False
         else:
             self.resetVisualization()
 
     def labelsCallback(self, state):
         if state == Qt.Checked:
-            self.predictions_button.setChecked(False)
             self.heatmap_button.setChecked(False)
-            self.visualize_labels = True
+            self.predictions_button.setChecked(False)
             self.visualize_predictions = False
             self.visualize_heatmap = False
-            self.initBgImage()
+            self.visualize_labels = True
         else:
             self.resetVisualization()
+
 
     def slider_callback(self):
         value = self.conf_thresh_slider.value()

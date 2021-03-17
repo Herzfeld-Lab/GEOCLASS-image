@@ -1,25 +1,53 @@
-import os
-import utm
+import sys, os, glob, argparse
+import math, random
+
+from numba import jit, njit
+
 import numpy as np
+import pandas as pd
+
 import cv2
-import math
-import xml.etree.ElementTree as ET
-import rasterio as rio
-import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
 from PIL import Image, ImageOps
+Image.MAX_IMAGE_PIXELS = None
+
+import xml.etree.ElementTree as ET
+
+from netCDF4 import Dataset
+
+from pyproj import Transformer, CRS
+
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
-import matplotlib.pyplot as plt
-import matplotlib.colors as colors
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-import random
-from netCDF4 import Dataset
-import glob
-import argparse
-import pyproj
-from pyproj import Transformer
-from pyproj import CRS
+
+@njit
+def draw_split_image_labels(img_mat, scale_factor, split_disp_size, labels, selected_classes, cmap):
+    for i,selected_class in enumerate(selected_classes):
+        if selected_class:
+            clas = labels[labels[:,4] == i]
+            c = cmap[i]
+            x = np.floor(clas[:,0]/scale_factor).reshape(-1,1).astype(np.int32)
+            y = np.floor(clas[:,1]/scale_factor).reshape(-1,1).astype(np.int32)
+            xy = np.concatenate((x,y),axis=1)
+            for splitImg in xy:
+                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],0] = c[0]
+                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],1] = c[1]
+                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],2] = c[2]
+
+@njit
+def draw_split_image_confs(img_mat, scale_factor, split_disp_size, labels, selected_classes, cmap):
+    for i,selected_class in enumerate(selected_classes):
+        if selected_class:
+            clas = labels[labels[:,4] == i]
+            x = np.floor(clas[:,0]/scale_factor).reshape(-1,1).astype(np.int32)
+            y = np.floor(clas[:,1]/scale_factor).reshape(-1,1).astype(np.int32)
+            conf = np.floor(clas[:,5]*100).reshape(-1,1).astype(np.int32)
+            xy = np.concatenate((x,y,conf),axis=1)
+            for splitImg in xy:
+                c = cmap[splitImg[2]]
+                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],0] = c[0]
+                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],1] = c[1]
+                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],2] = c[2]
+
 
 def to_netCDF(data, filepath):
 
@@ -71,6 +99,7 @@ def angle_between(v1, v2):
     v2_u = unit_vector(v2)
     return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
 
+@njit
 def get_img_sigma(img_mat):
     std = np.std(img_mat)
     max = img_mat.max()
@@ -80,11 +109,12 @@ def get_img_sigma(img_mat):
     else:
         return (img_mat.max())
 
+@njit
 def scaleImage(img, max):
     img = img/max
     img = img * 255
-    img[img > 255] = 255
-    return np.ceil(img).astype('uint8')
+    #img[img[:,:] > 255] = 255
+    return np.ceil(img).astype(np.uint8)
 
 def getImgPaths(topDir):
     return glob.glob(topDir + '/*.tif')
@@ -109,33 +139,6 @@ def utm_to_pix(imgSize,utmBounds,utmCoord):
 
     # Find step in UTM units corresponding to one pixel in image space
     step = imgSize.astype(float) / utmRange.astype(float)
-
-    # Scale UTM coordinates by step to find equivalent pixel-space location
-    pixCoord = (utmCoord - np.min(utmBounds,1)) * step
-    return pixCoord.astype(int)
-
-def utm_to_pix2(imgSize,utmBounds,utmCoord):
-    """
-    Scales UTM coordinates to fit within a given satellite background image's
-    pixel space
-
-    Args:
-        imgSize (nparray):      Size of image in pixels
-        utmBounds (nparray):    Boundaries of image in UTM (coordinates of top left and bottom right)
-        utmCoord: (nparray):    List of UTM coordinates to scale within image boundaries
-    Returns:
-        Scaled list of coordinates in image space (pixel space)
-    """
-    # Create closed polygon by appending first element to end of list
-    utmCoord = np.append(utmCoord, [utmCoord[0]], axis=0)
-
-    # Find range of image's UTM bounds
-    utmRange = np.max(utmBounds,1) - np.min(utmBounds,1)
-    print(utmRange)
-
-    # Find step in UTM units corresponding to one pixel in image space
-    step = imgSize.astype(float) / utmRange.astype(float)
-    print(step)
 
     # Scale UTM coordinates by step to find equivalent pixel-space location
     pixCoord = (utmCoord - np.min(utmBounds,1)) * step
