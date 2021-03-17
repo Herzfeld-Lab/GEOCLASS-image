@@ -1,0 +1,16 @@
+affine
+pillow
+opencv-python-headless
+rasterio
+torch
+torchvision
+shapely
+sklearn
+utm
+pyproj
+matplotlib
+pandas
+pyyaml
+scikit-image
+netCDF4
+numba

@@ -8,4 +8,4 @@ else
   echo "System not recognized - Please install on MacOS or Ubuntu Linux"
 fi
 
-sudo pip3 install affine pillow opencv-python-headless rasterio torch torchvision shapely sklearn utm pyproj matplotlib pandas pyyaml scikit-image netCDF4
+sudo pip3 install requirements.txt
