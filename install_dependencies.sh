@@ -8,4 +8,4 @@ else
   echo "System not recognized - Please install on MacOS or Ubuntu Linux"
 fi
 
-sudo pip3 install requirements.txt
+sudo pip3 install -r requirements.txt
