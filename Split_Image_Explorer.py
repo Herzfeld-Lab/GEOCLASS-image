@@ -637,12 +637,14 @@ class SplitImageTool(QWidget):
     def savePredictionsCallback(self):
         if self.predictions:
             self.predictionsCallback(Qt.Checked)
+            self.initBgImage()
             out_path = self.pred_label_path[:-4] + '_prediction.png'
             cv2.imwrite(out_path, cv2.cvtColor(self.bg_img_cv, cv2.COLOR_BGR2RGB))
 
     def saveHeatmapCallback(self):
         if self.predictions:
             self.heatmapCallback(Qt.Checked)
+            self.initBgImage()
             out_path = self.pred_label_path[:-4] + '_confidence_heatmap.png'
             cv2.imwrite(out_path, cv2.cvtColor(self.bg_img_cv, cv2.COLOR_BGR2RGB))
 
