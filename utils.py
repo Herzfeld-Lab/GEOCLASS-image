@@ -1,25 +1,23 @@
-import os
-import utm
+import sys, os, glob, argparse
+import math, random
+
+from numba import jit
+
 import numpy as np
+import pandas as pd
+
 import cv2
-import math
-import xml.etree.ElementTree as ET
-import rasterio as rio
-import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
 from PIL import Image, ImageOps
+Image.MAX_IMAGE_PIXELS = None
+
+import xml.etree.ElementTree as ET
+
+from netCDF4 import Dataset
+
+from pyproj import Transformer, CRS
+
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
-import matplotlib.pyplot as plt
-import matplotlib.colors as colors
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-import random
-from netCDF4 import Dataset
-import glob
-import argparse
-import pyproj
-from pyproj import Transformer
-from pyproj import CRS
 
 def to_netCDF(data, filepath):
 
@@ -71,6 +69,7 @@ def angle_between(v1, v2):
     v2_u = unit_vector(v2)
     return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
 
+@jit(nopython=True)
 def get_img_sigma(img_mat):
     std = np.std(img_mat)
     max = img_mat.max()
@@ -89,7 +88,7 @@ def scaleImage(img, max):
 def getImgPaths(topDir):
     return glob.glob(topDir + '/*.tif')
 
-def utm_to_pix(imgSize,utmBounds,utmCoord):
+def utm_to_pix(imgSize, utmBounds, utmCoord):
     """
     Scales UTM coordinates to fit within a given satellite background image's
     pixel space
@@ -99,7 +98,7 @@ def utm_to_pix(imgSize,utmBounds,utmCoord):
         utmBounds (nparray):    Boundaries of image in UTM (coordinates of top left and bottom right)
         utmCoord: (nparray):    List of UTM coordinates to scale within image boundaries
     Returns:
-        Scaled list of coordinates in image space (pixel space)
+        (nparray) Scaled list of coordinates in image space (pixel space)
     """
     # Create closed polygon by appending first element to end of list
     utmCoord = np.append(utmCoord, [utmCoord[0]], axis=0)
@@ -113,6 +112,17 @@ def utm_to_pix(imgSize,utmBounds,utmCoord):
     # Scale UTM coordinates by step to find equivalent pixel-space location
     pixCoord = (utmCoord - np.min(utmBounds,1)) * step
     return pixCoord.astype(int)
+
+def pix_to_utm(pixCoords, geoTiff, transformer):
+    # Loop through pixel coordinates and transform to UTM coordinates
+    utmCoords = np.zeros(pixCoords.shape)
+    for i, coord_pix in enumerate(pixCoords):
+        coord_in = geoTiff.transform*(coord_pix[1], coord_pix[0])
+        coord_UTM = np.array(transformer.transform(coord_in[0],coord_in[1]))
+        utmCoords[i] = coord_UTM
+
+    return utmCoords
+
 
 def utm_to_pix2(imgSize,utmBounds,utmCoord):
     """
@@ -161,7 +171,7 @@ def xml_to_latlon(xmlPath):
 
     return latlon
 
-def get_geotiff_bounds(geotiff, epsg_code):
+def get_geotiff_bounds_utm(geotiff, epsg_code):
     # Get transform from tiff image georeferencing data to UTM
     crs_in = CRS.from_wkt(geotiff.crs.wkt)
     crs_out = CRS.from_epsg(epsg_code)
@@ -178,7 +188,7 @@ def get_geotiff_bounds(geotiff, epsg_code):
     ur_out = np.array(transform.transform(ur_in[0],ur_in[1]))
 
     # Get UTM boundaries
-    bbox = np.array((ul_out,ur_out,lr_out,ll_out))
+    bbox = np.array([ul_out,ur_out,lr_out,ll_out])
     return bbox
 
 def plot_geotif_bbox(xmlPath, contourPath, bgImgPath, bgUTMPath):
@@ -228,6 +238,7 @@ def plot_geotif_bbox(xmlPath, contourPath, bgImgPath, bgUTMPath):
     #cv2.waitKey(0)
     #cv2.destroyAllWindows()
 
+@jit(nopython=True)
 def directional_vario(img, numLag, lagThresh = 0.8):
     """
     Implements the directional vario function in python. The variogram is computed

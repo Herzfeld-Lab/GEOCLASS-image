@@ -196,7 +196,7 @@ def rotate_and_crop_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM, t
 
     else:
         # Get transform from tiff image georeferencing data to UTM
-        bbox = get_geotiff_bounds(tiffImg, epsg_code)
+        bbox = get_geotiff_bounds_utm(tiffImg, epsg_code)
         ul_out,ur_out = bbox[0],bbox[1]
 
         # Get UTM boundaries

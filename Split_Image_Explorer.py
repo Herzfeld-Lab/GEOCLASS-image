@@ -1,26 +1,23 @@
-import sys
-from PyQt5.QtWidgets import *
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
-from PyQt5 import QtCore
-from PIL.ImageQt import ImageQt
 from utils import *
+from auto_rotate_geotiff import *
+
+from PyQt5.QtWidgets import QWidget, QApplication, QHBoxLayout, QVBoxLayout, QLabel, QCheckBox, QSlider, QLineEdit, QPushButton
+from PyQt5.QtGui import QPixmap, QFont, QImage
+from PyQt5.QtCore import Qt
+
+from PIL.ImageQt import ImageQt
+
 from Models import *
 from Dataset import *
+
 import rasterio as rio
-import numpy as np
-import utm
-from skimage import io, transform
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms, utils
-import random
-from auto_rotate_geotiff import *
-from shapely.geometry import Point
-from shapely.geometry.polygon import Polygon
+
 from scipy.spatial import KDTree
-import matplotlib.pyplot as plt
+
+from matplotlib.pyplot import get_cmap
+from matplotlib.colors import ListedColormap
+
 import yaml
-import glob
 
 class SplitImageTool(QWidget):
 
@@ -79,8 +76,8 @@ class SplitImageTool(QWidget):
             cmap = ListedColormap(colors)
             self.label_cmap = cmap
         else:
-            self.label_cmap = plt.get_cmap('tab20')
-        self.conf_cmap = plt.get_cmap('autumn')
+            self.label_cmap = get_cmap('tab20')
+        self.conf_cmap = get_cmap('autumn')
 
         self.setMouseTracking(True)
         self.initUI()
@@ -117,7 +114,7 @@ class SplitImageTool(QWidget):
             self.contour_np = np.load(self.cfg['contour_path'])
         else:
             self.has_contour = False
-            self.contour_np = get_geotiff_bounds(self.geotiff, self.utm_epsg_code)
+            self.contour_np = get_geotiff_bounds_utm(self.geotiff, self.utm_epsg_code)
         self.contour_polygon = Polygon(self.contour_np)
 
         self.tiff_image_matrix = self.geotiff.read(1)
@@ -595,7 +592,7 @@ class SplitImageTool(QWidget):
             self.initBgImage()
             self.getNewImage(0)
         return tiff_selector_callback
-
+    '''
     @pyqtSlot()
     def on_click(self):
         self.update()
@@ -603,6 +600,7 @@ class SplitImageTool(QWidget):
     @pyqtSlot()
     def new_class(self):
         self.update()
+    '''
 
     def resetVisualization(self):
         self.visualize_labels = False
