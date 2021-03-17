@@ -39,6 +39,7 @@ def angle_between(v1, v2):
     v2_u = unit_vector(v2)
     return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
 
+@njit
 def rot(image, xy, angle):
     im_rot = rotate(image,angle)
     org_center = (np.array(image.shape[:2][::-1])-1)/2.
@@ -269,6 +270,5 @@ def rotate_and_crop_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM, t
             cv2.line(img_mat_rot, tuple(contourPixel[i]), tuple(contourPixel[i+1]), (0,0,255), 2)
 
         img_mat_rot = cv2.flip(img_mat_rot,0)
-
 
     return img_mat_rot, UTM_bounds, transform_rot_1

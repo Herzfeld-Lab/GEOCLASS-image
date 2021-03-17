@@ -1,31 +1,18 @@
-import os
-import utm
-import numpy as np
-from os import path
-#import cv2
-import math
-import xml.etree.ElementTree as ET
 from utils import *
-from PIL import Image
-Image.MAX_IMAGE_PIXELS = None
+
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
+
 import rasterio as rio
 from rasterio.transform import Affine
-import pandas as pd
-import pyproj
-from pyproj import Transformer
-from pyproj import CRS
+
 import yaml
-import argparse
-import cv2
-from PIL import Image
-import json
+
 import warnings
 import tarfile
 import re
 import geopandas as gpd
-import glob
+
 # Parse command line flags
 parser = argparse.ArgumentParser()
 parser.add_argument("config", type=str)
