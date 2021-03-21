@@ -50,9 +50,11 @@ num_epochs = cfg['num_epochs']
 
 # Set dataset hyperparameters as specified by config file
 topDir = cfg['img_path']
+classEnum = cfg['class_enum']
 dataset_path = cfg['npy_path']
 train_path = cfg['train_path']
 valid_path = cfg['valid_path']
+
 
 # Initialize NN model as specified by config file
 print('----- Initializing Neural Network Model -----')
@@ -120,7 +122,11 @@ valid_dataset = SplitImageDataset(
     )
 
 print('Training set size: \t%d images'%(len(train_dataset)))
+for i in range(num_classes):
+    print('Class {}: {} - {} train images'.format(i,classEnum[i],len(train_coords[train_coords[:,4] == i])))
 print('Validation set size: \t%d images'%(len(valid_dataset)))
+for i in range(num_classes):
+    print('Class {}: {} - {} valid images'.format(i,classEnum[i],len(test_coords[test_coords[:,4] == i])))
 print('----- Initializing DataLoader -----')
 
 train_loader = DataLoader(
