@@ -538,10 +538,16 @@ class SplitImageTool(QWidget):
         elif event.key() == 68: #Right arrow key
             if self.visualize_predictions or self.visualize_heatmap:
                 index += 1
+                if index >= len(self.pred_labels):
+                    index = 0
                 while self.pred_labels[index,5] < self.conf_thresh or not self.selected_classes[int(self.pred_labels[index,4])]:
                     index += 1
+                    if index >= len(self.pred_labels):
+                        index = 0
             else:
                 index += 1
+            if index >= len(self.pred_labels):
+                index = 0
         elif event.key() == Qt.Key_Escape:  #Escape key (deselect batch polygon)
             self.batch_select_polygon = []
         elif event.key() == 76: #l key - add current split image to training dataset
