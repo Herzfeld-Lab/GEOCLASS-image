@@ -94,6 +94,8 @@ def find_contour(img_mat):
     kernel = np.ones((5,5),np.uint8)
     imgray = cv2.morphologyEx(imgray, cv2.MORPH_OPEN, kernel)
     imgray = cv2.morphologyEx(imgray, cv2.MORPH_CLOSE, kernel)
+    imgray = cv2.morphologyEx(imgray, cv2.MORPH_OPEN, kernel)
+    imgray = cv2.morphologyEx(imgray, cv2.MORPH_CLOSE, kernel)
     contours, hierarchy = cv2.findContours(imgray, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     return contours[0].squeeze()
 
