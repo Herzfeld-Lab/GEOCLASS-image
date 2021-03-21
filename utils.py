@@ -104,16 +104,15 @@ def get_img_sigma(img_mat):
     std = np.std(img_mat)
     max = img_mat.max()
     mean = np.mean(img_mat)
-    if max > mean+2.5*std:
-        return (mean + 2.5*std)
+    if max > mean+4*std:
+        return (mean + 4*std)
     else:
         return (img_mat.max())
 
-@njit
 def scaleImage(img, max):
     img = img/max
     img = img * 255
-    #img[img[:,:] > 255] = 255
+    img[img[:,:] > 255] = 255
     return np.ceil(img).astype(np.uint8)
 
 def getImgPaths(topDir):
@@ -152,17 +151,19 @@ def xml_to_latlon(xmlPath):
         UR = (float(xmlTree.findall('.//BAND_P/URLAT')[0].text),float(xmlTree.findall('.//BAND_P/URLON')[0].text))
         LL = (float(xmlTree.findall('.//BAND_P/LLLAT')[0].text),float(xmlTree.findall('.//BAND_P/LLLON')[0].text))
         LR = (float(xmlTree.findall('.//BAND_P/LRLAT')[0].text),float(xmlTree.findall('.//BAND_P/LRLON')[0].text))
-        GSD = (float(xmlTree.findall('.//IMAGE/MEANCOLLECTEDROWGSD')[0].text),float(xmlTree.findall('.//IMAGE/MEANCOLLECTEDCOLGSD')[0].text))
+        #GSD = (float(xmlTree.findall('.//IMAGE/MEANCOLLECTEDROWGSD')[0].text),float(xmlTree.findall('.//IMAGE/MEANCOLLECTEDCOLGSD')[0].text))
+        GSD = float(xmlTree.findall('.//IMAGE/MEANCOLLECTEDGSD')[0].text)
     else:
         UL = (float(xmlTree.findall('.//ULLAT')[0].text),float(xmlTree.findall('.//ULLON')[0].text))
         UR = (float(xmlTree.findall('.//URLAT')[0].text),float(xmlTree.findall('.//URLON')[0].text))
         LL = (float(xmlTree.findall('.//LLLAT')[0].text),float(xmlTree.findall('.//LLLON')[0].text))
         LR = (float(xmlTree.findall('.//LRLAT')[0].text),float(xmlTree.findall('.//LRLON')[0].text))
+        GSD = float(xmlTree.findall('./IMAGE/MEANCOLLECTEDGSD')[0].text)
         #GSD = (float(xmlTree.findall('./IMAGE/MEANCOLLECTEDROWGSD')[0].text),float(xmlTree.findall('./IMAGE/MEANCOLLECTEDCOLGSD')[0].text))
 
     latlon = [UL, UR, LR, LL]
 
-    return latlon
+    return latlon, GSD
 
 def get_geotiff_bounds(geotiff, epsg_code):
     # Get transform from tiff image georeferencing data to UTM
