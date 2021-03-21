@@ -19,6 +19,8 @@ from pyproj import Transformer, CRS
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 
+import time
+
 @njit
 def draw_split_image_labels(img_mat, scale_factor, split_disp_size, labels, selected_classes, cmap):
     for i,selected_class in enumerate(selected_classes):
@@ -232,6 +234,7 @@ def plot_geotif_bbox(xmlPath, contourPath, bgImgPath, bgUTMPath):
     #cv2.waitKey(0)
     #cv2.destroyAllWindows()
 
+#@njit
 def directional_vario(img, numLag, lagThresh = 0.8):
     """
     Implements the directional vario function in python. The variogram is computed
@@ -288,14 +291,93 @@ def directional_vario(img, numLag, lagThresh = 0.8):
 
     return vario
 
+@njit
+def fast_directional_vario(img, numLag, lagThresh = 0.8):
+    """
+    Implements the directional vario function in python. The variogram is computed
+    in 4 different directions: North/South, East/West, and the two diagonals. The
+    results are concatenated together as the rows of a numpy array and returned.
+    This function is identical to directional_vario, sped up using numba jit
+
+    Args:
+        img (nparray):      Image matrix to compute vario function on
+        numLag (int):       The number of different lag values to calculate variogram with
+        lagThresh (float):  Threshold for maximum lag value as a percentage of smallest
+                            image dimension
+    Returns:
+        nparray:            Array containing the directional variogram for each
+                            lag value for all 4 directions.
+    """
+
+    # If numLag is greater than smalles image dimension * lagThresh, ovverride
+    imSize = img.shape
+    minDim = imSize[0]*(imSize[0]<imSize[1]) + imSize[1]*(imSize[1]<imSize[0])
+    imRange = minDim * lagThresh
+    lagStep = int(math.floor(imRange / numLag))
+    #print(imSize, minDim, imRange, lagStep)
+
+    vario = np.zeros((4,numLag))
+
+    # For each value of lag, calculate directional variogram in given direction
+    for i,h in enumerate(range(1,numLag*lagStep,lagStep)):
+
+        # North/South direction
+        diff = img[0:-h,:minDim] - img[h:,:minDim]
+        numPairs = diff.shape[0]*diff.shape[1]
+        v_h = (1. / numPairs) * np.sum(diff*diff)
+        vario[0,i] = v_h
+
+
+        # East/West direction
+        diff = img[:,0:minDim-h] - img[:,h:minDim]
+        numPairs = diff.shape[0]*diff.shape[1]
+        v_h = (1. / numPairs) * np.sum(diff*diff)
+        vario[1,i] = v_h
+
+        # Approximate h in diagonal direction by dividing by tangent
+        h_diag = int(round(h / 1.41421356237))
+
+        # Diagonal (top left to bottom right)
+        diff = img[0:minDim-h_diag,0:minDim-h_diag] - img[h_diag:minDim,h_diag:minDim]
+        numPairs = diff.shape[0]*diff.shape[1]
+        v_h = (1. / numPairs) * np.sum(diff*diff)
+        vario[2,i] = v_h
+
+        # Diagonal (bottom left to top right)
+        diff = img[h_diag:minDim,0:minDim-h_diag] - img[0:minDim-h_diag,h_diag:minDim]
+        numPairs = diff.shape[0]*diff.shape[1]
+        v_h = (1. / numPairs) * np.sum(diff*diff)
+        vario[3,i] = v_h
+
+    return vario
+
 def batch_directional_vario(img_arr, numLag, lagThresh = 0.8):
 
     ret = np.zeros((img_arr.shape[0],4,numLag))
+    py = 0
+    c = 0
 
     for i,img in enumerate(img_arr):
 
+        a = time.perf_counter()
         ret[i] = directional_vario(img,numLag,lagThresh)
+        b = time.perf_counter()
+        py += b-a
 
+        a = time.perf_counter()
+        temp = fast_directional_vario(img,numLag,lagThresh)
+        b = time.perf_counter()
+        c += b-a
+
+        if not np.array_equal(ret[i], temp):
+            print('Caught an oopsie')
+            print('Python: ')
+            print(ret[i])
+            print('Jit: ')
+            print(temp)
+            break
+    print('Avg Batch Time Py: {}'.format(py/i))
+    print('Avg Batch Time C: {}'.format(c/i))
     return ret
 
 def batch_rotate_vario(vario):

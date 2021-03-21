@@ -13,6 +13,8 @@ from torchvision import transforms, utils
 import pandas as pd
 import random
 
+#def load_split_images(img_mat, max, winSize):
+
 class SplitImageDataset(Dataset):
 
     def __init__(self, imgPath, imgData, labels, transform=None, train=False):
@@ -94,7 +96,7 @@ class DirectionalVario(object):
         self.numLag = numLag
 
     def __call__(self, img):
-        return directional_vario(img, self.numLag)
+        return fast_directional_vario(img, self.numLag)
 
 class RandomShift(object):
 
