@@ -546,7 +546,7 @@ class SplitImageTool(QWidget):
                         index = 0
             else:
                 index += 1
-            if index >= len(self.pred_labels):
+            if index >= len(self.split_info):
                 index = 0
         elif event.key() == Qt.Key_Escape:  #Escape key (deselect batch polygon)
             self.batch_select_polygon = []

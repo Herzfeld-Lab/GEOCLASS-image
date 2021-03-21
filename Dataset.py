@@ -37,7 +37,7 @@ class SplitImageDataset(Dataset):
             img = rio.open(imagePath)
             imageMatrix = img.read(1)
 
-            max = get_img_sigma(imageMatrix[::10,::10])
+            max = imageMatrix.max()
 
             winSize = imageData['winsize_pix']
             for row in imageLabels[imageLabels[:,6] == imgNum]:
@@ -96,7 +96,7 @@ class DirectionalVario(object):
         self.numLag = numLag
 
     def __call__(self, img):
-        return fast_directional_vario(img, self.numLag)
+        return directional_vario(img, self.numLag)
 
 class RandomShift(object):
 
