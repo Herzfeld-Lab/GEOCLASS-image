@@ -120,6 +120,9 @@ def scaleImage(img, max):
 def getImgPaths(topDir):
     return glob.glob(topDir + '/*.tif')
 
+def get_dda_paths(topDir):
+    return glob.glob(topDir + '/*.txt')
+
 def utm_to_pix(imgSize,utmBounds,utmCoord):
     """
     Scales UTM coordinates to fit within a given satellite background image's
@@ -396,6 +399,68 @@ def batch_rotate_vario(vario):
             ret[i,:] = np.concatenate((v[1,:],v[0,:],v[3,:]))
 
     return ret
+
+def generate_config_adam(yaml_obj):
+    config_str = '''
+### MODEL PARAMETERS ###
+
+model:          {}
+num_classes:    {}
+vario_num_lag:  {}
+hidden_layers:  {}
+activation:     {}
+
+### DATASET PARAMETERS ###
+
+dda_path:           {}
+npy_path:           {}
+train_path:         {}
+valid_path:         {}
+class_enum:         {}
+utm_epsg_code:      {}
+track_chunk_size:   {}
+train_test_split:   {}
+
+### TRAINING PARAMETERS ###
+
+use_cuda:       {}
+num_epochs:     {}
+learning_rate:  {}
+batch_size:     {}
+optimizer:      {}
+
+### VARIO ALONG TRACK PARAMS ###
+
+step_size:      {}
+window_size:    {}
+window_step:    {}
+num_var:        {}
+num_dir:        {}
+        '''.format(yaml_obj['model'],
+                   yaml_obj['num_classes'],
+                   yaml_obj['vario_num_lag'],
+                   yaml_obj['hidden_layers'],
+                   yaml_obj['activation'],
+                   yaml_obj['dda_path'],
+                   yaml_obj['npy_path'],
+                   yaml_obj['train_path'],
+                   yaml_obj['valid_path'],
+                   yaml_obj['class_enum'],
+                   yaml_obj['utm_epsg_code'],
+                   yaml_obj['track_chunk_size'],
+                   yaml_obj['train_test_split'],
+                   yaml_obj['use_cuda'],
+                   yaml_obj['num_epochs'],
+                   yaml_obj['learning_rate'],
+                   yaml_obj['batch_size'],
+                   yaml_obj['optimizer'],
+                   yaml_obj['step_size'],
+                   yaml_obj['window_size'],
+                   yaml_obj['window_step'],
+                   yaml_obj['num_var'],
+                   yaml_obj['num_dir'])
+
+    return config_str
 
 def generate_config(yaml_obj):
     config_str = '''

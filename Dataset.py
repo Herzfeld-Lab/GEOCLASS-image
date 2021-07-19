@@ -47,7 +47,7 @@ class SplitImageDataset(Dataset):
                 rowlist = list(row)
                 rowlist.append(splitImg_np)
                 dataArray.append(rowlist)
-
+        # need labels for I2 data simalr to these, start pixel end pixel, etc...
         self.dataFrame = pd.DataFrame(dataArray, columns=['x_pix','y_pix','x_utm','y_utm','label','conf','img_source','img_mat'])
 
 
@@ -151,3 +151,86 @@ class AdjustContrast(object):
             Image.fromarray(sample).save('result.png')
 
         return sample
+
+class DDAiceDataset2(Dataset):
+
+    def __init__(self, dataInfo, pondParams, varioData, labels, transform=None, train=False):
+
+        self.train = train
+        self.transform = transform
+        ddaGroundEstPath = dataInfo[0] # path to ground estimate
+        chunk_labels = labels
+        pond_data = pondParams
+        variograms = varioData
+        data_array = np.array([pond_data,variograms,chunk_labels])
+
+        cols = ['lon','lat','utm_e','utm_n','dist','delta_time','pond','p1','p2','mindist','hdiff','nugget','photon_density','variogram','label']
+        self.dataFrame = pd.DataFrame(data_array, columns=cols)
+
+    def __len__(self):
+        return len(self.dataFrame)
+
+    def __getitem__(self,idx):
+
+        pond = self.dataFrame.iloc[idx,6]
+        p1 = self.dataFrame.iloc[idx,7]
+        p2 = self.dataFrame.iloc[idx,8]
+        mindist = self.dataFrame.iloc[idx,9]
+        hdiff = self.dataFrame.iloc[idx,10]
+        nugget = self.dataFrame.iloc[idx,11]
+        vario = self.dataFrame.iloc[idx,13]
+
+        chunk_arr = np.array([pond,p1,p2,mindist,hdiff,nugget])
+        chunk_tensor = torch.from_numpy(chunk_arr)
+        vario_tensor = torch.from_numpy(vario)
+
+        if self.train:
+            label = int(self.dataFrame.iloc[idx,14])
+            return (vario_tensor, label)
+        else:
+            return (vario_tensor)
+
+
+
+
+class DDAiceDataset(Dataset):
+
+    def __init__(self, ddaGroundEstimate, labels, transform=None, train=False):
+
+        self.train = train
+        self.transform = transform
+        trackData = ddaGroundEstimate
+        dataLabels = labels
+
+        colNames = ['lon','lat','elevation','distance','time','elev_stdev','density_mean','wtd_stdev','utm_e','utm_n','label']
+
+        self.dataFrame = pd.DataFrame(trackData, columns=colNames)
+
+    def __len__(self):
+        return len(self.dataFrame)
+
+    # idx = bin number for ground estimate
+    def __getitem__(self, idx):
+
+        elev_stdev = self.dataFrame.iloc[idx,5]
+        bin_density = self.dataFrame.iloc[idx,6]
+        wtd_stdev = self.dataFrame.iloc[idx,7]
+
+        chunk_arr = np.array([elev_stdev,bin_density,wtd_stdev])
+
+        chunkTensor = torch.from_numpy(chunk_arr)
+
+        if self.train:
+            label = int(self.dataFrame.iloc[idx,10])
+            return (chunkTensor, label)
+        else:
+            return chunkTensor
+
+
+
+
+
+
+
+
+

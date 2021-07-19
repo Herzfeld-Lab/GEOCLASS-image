@@ -177,6 +177,9 @@ print('----- Training -----')
 train_losses = []
 valid_losses = []
 
+# X = split image tensor
+# Y = label
+
 for epoch in range(num_epochs):
 
     print("EPOCH: {} ".format(epoch),end='',flush=True)

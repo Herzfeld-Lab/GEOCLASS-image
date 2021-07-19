@@ -210,7 +210,9 @@ for IMG_NUM,imgPath in enumerate(imgPaths):
 
             if splitImg.shape != tuple(winSize):
                 continue
-
+            # Saving all data for pandas data frame in Dataset.py
+            # I'd need data for each chunk on track - need enough elements to identify each chunk from any other I2 data, 
+            # The pix_coords_list data is used to access actual data at runtime - avoids loading giant data all at once
             if Point(UL_UTM[0],UL_UTM[1]).within(contourPolygon) and Point(LR_UTM[0],LR_UTM[1]).within(contourPolygon):
                 if splitImg[splitImg==0].shape[0] == 0:
                     pix_coords_list.append([i,j,UL_UTM[0],UL_UTM[1],-1,0,IMG_NUM])
