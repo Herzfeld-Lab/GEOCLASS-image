@@ -7,10 +7,10 @@ from torch.utils.data import DataLoader
 
 class DDAiceNet(nn.Module):
 
-	def __init__(self, numClasses, hiddenLayers = [3,3]):
+	def __init__(self, numClasses, inSize, hiddenLayers = [3,3]):
 		super(DDAiceNet, self).__init__()
 
-		self.input_size = 47
+		self.input_size = inSize
 		self.output_size = numClasses
 		self.hidden_size = [int(i * self.input_size) for i in hiddenLayers]
 
@@ -22,19 +22,15 @@ class DDAiceNet(nn.Module):
 		for i in range(len(hiddenLayers) - 1):
 			self.hidden.append(nn.Linear(self.hidden_size[i], self.hidden_size[i+1]))
 
-	def forward(self, alongTrackChunk):
+	def forward(self, varioTensor):
 
-		x = alongTrackChunk.view(alongTrackChunk.shape[0], -1)
+		x = varioTensor.view(varioTensor.shape[0], -1)
 
-		# Run forward pass through network on ...
-		print(x)
+		# Run forward pass through network on variogram tensor
 		x = self.input(x)
-		print(x)
 		x = self.lrelu(x)
-		print(x)
 		for i in range(len(self.hidden)):
 			x = self.hidden[i](x)
 			x = self.lrelu(x)
-		print(x)
 		x = self.output(x)
 		return x

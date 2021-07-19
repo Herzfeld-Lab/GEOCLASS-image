@@ -154,23 +154,19 @@ class AdjustContrast(object):
 
 class DDAiceDataset(Dataset):
 
-    def __init__(self, dataInfo, varioData, labels, transform=None, train=False):
+    def __init__(self, dataPath, dataInfo, dataLabeled, transform=None, train=False):
 
         self.train = train
         self.transform = transform
-        ddaGroundEstPath = dataInfo[0] # path to ground estimate
-        chunk_labels = labels
-        # pond_data = pondParams
-        variograms = varioData
-        # data_array = np.array([pond_data,variograms,chunk_labels])
-        data_array = np.array([variograms,chunk_labels],dtype='object')
+        ddaGroundEstPath = dataPath[0] # path to ground estimate
+        datasetInfo = dataInfo
+        variograms = dataLabeled
 
         # Work on configuring pandas data frame - numpy easier right now for 48 col array
-        
         # cols = ['lon','lat','utm_e','utm_n','dist','delta_time','pond','p1','p2','mindist','hdiff','nugget','photon_density','variogram','label']
         cols = ['variogram','label']
         # self.dataFrame = pd.DataFrame(chunk_labels)
-        self.dataFrame = chunk_labels
+        self.dataFrame = variograms
 
     def __len__(self):
         return len(self.dataFrame)
@@ -185,8 +181,6 @@ class DDAiceDataset(Dataset):
         # nugget = self.dataFrame.iloc[idx,11]
         vario = self.dataFrame[idx,0:47]
 
-        # chunk_arr = np.array([pond,p1,p2,mindist,hdiff,nugget])
-        # chunk_tensor = torch.from_numpy(chunk_arr)
         vario_tensor = torch.from_numpy(vario)
 
         if self.train:

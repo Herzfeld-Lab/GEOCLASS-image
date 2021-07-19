@@ -86,7 +86,8 @@ elif cfg['model'] == 'DDAiceNet':
     window_step = cfg['window_step']
     num_var = cfg['num_var']
     num_dir = cfg['num_dir']
-    model = DDAiceNet.DDAiceNet(num_classes)
+    input_size = cfg['vario_size']
+    model = DDAiceNet.DDAiceNet(num_classes,input_size)
     img_transforms_train = None
     img_transforms_valid = None
 
@@ -133,17 +134,17 @@ if cfg['model'] == 'VarioMLP' or cfg['model'] == 'Resnet18':
         )
 else:
     train_dataset = DDAiceDataset(
-        dataInfo = topDir,
-        varioData = dataset_info,
-        labels = train_coords,
+        dataPath = topDir,
+        dataInfo = dataset_info,
+        dataLabeled = train_coords,
         train = True,
         transform = None
         )
 
     valid_dataset = DDAiceDataset(
-        dataInfo = topDir,
-        varioData = dataset_info,
-        labels = test_coords,
+        dataPath = topDir,
+        dataInfo = dataset_info,
+        dataLabeled = test_coords,
         train = True,
         transform = None
         )
@@ -204,7 +205,7 @@ print('----- Training -----')
 train_losses = []
 valid_losses = []
 
-# X = split image tensor
+# X = tensor
 # Y = label
 
 for epoch in range(num_epochs):
@@ -213,10 +214,6 @@ for epoch in range(num_epochs):
 
     sum_loss = 0
     for batch_idx,(X,Y) in enumerate(train_loader):
-
-        print("batch index: ",batch_idx)
-        print("X: ", X)
-        print("Y: ", Y)
 
         if batch_idx % int((len(train_dataset) / batch_size)/10) == 0:
             print('.', end='',flush=True)
@@ -234,7 +231,6 @@ for epoch in range(num_epochs):
         Y_hat = model.forward(X)
 
         # Calculate training loss
-        print(Y_hat)
         loss = criterion(Y_hat, Y)
 
         # Perform backprop and zero gradient

@@ -63,10 +63,11 @@ def run_vario(ddaData, dataPath, step, winsize, winstep, nvar, ndir):
 	windows = list(zip(np.arange(np.min(distance),np.max(distance),window_step), np.arange(np.min(distance)+window_size,np.max(distance)-window_step,window_step)))
 	windows = np.array(windows)
 
-	parameters = np.array([])
-	parameters.shape = (0,13)
+	# initialize fillable arrays
 	vario_values_ret = np.zeros((len(windows),47))
-	# We will fill parameters with [lon, lat, distance, delta_time, pond, p1, p2, mindist, hdiff]
+	parameters = np.zeros((len(windows),13))
+	# We will fill parameters with [lon, lat, distance, delta_time, utm_e, utm_n, pond, p1, p2, mindist, hdiff]
+	# vario_value_ret gets variogram at each iteration
 
 	for w in range(0,len(windows)):
 		# Subset the elevation data
@@ -168,22 +169,12 @@ def run_vario(ddaData, dataPath, step, winsize, winstep, nvar, ndir):
 		lon_bar, lat_bar = np.mean(lon[window_bool]), np.mean(lat[window_bool]) 
 		dist_bar, delta_time_bar = np.mean(distance[window_bool]), np.mean(delta_time[window_bool])
 		utm_east_bar, utm_north_bar = np.mean(eastings[window_bool]), np.mean(northings[window_bool])
-		new_point = np.array([lon_bar, lat_bar, dist_bar, delta_time_bar, utm_east_bar, utm_north_bar, pond, p1, p2, mindist, hdiff, nugget, photon_density])
-		new_point.shape = (1,13)
-		parameters = np.append(parameters, new_point, axis=0)
+		parameters[w] = np.array([lon_bar, lat_bar, dist_bar, delta_time_bar, utm_east_bar, utm_north_bar, pond, p1, p2, mindist, hdiff, nugget, photon_density])
 
 	if os.path.isfile(dataPath+'/window_data.dat'): os.remove(dataPath+'/window_data.dat')
 	if os.path.isfile('invario.dat'): os.remove('invario.dat')
 	if os.path.isfile('fort.61'): os.remove('fort.61')
 
-	# logger.info('Format of varparams:\n[lon_bar, lat_bar, dist_bar, delta_time_bar, pond, p1, p2, mindist, hdiff, nugget, photon_density]')
-	# if photons: head = "Weighted Photons used\n"
-	# else: head = "Ground Estimate Used\n"
-	# head = head+"lon_bar, lat_bar, dist_bar, delta_time_bar, pond, p1, p2, mindist, hdiff, nugget, photon_density"
-	# np.savetxt(os.path.join(savedir, 'varparams.txt'), parameters, header=head)
-
-	# return (parameters, vario_values_ret)
-	# vario_values_ret = np.array(vario_values_ret,dtype='object')
 	return vario_values_ret
 
 
