@@ -16,7 +16,7 @@ with open(args.config, 'r') as ymlfile:
 warnings.filterwarnings('error')
 
 # Load config parameters
-topDir = cfg['dda_path']
+topDir = cfg['img_path']
 classEnum = cfg['class_enum']
 chunkSize = cfg['track_chunk_size']
 step = cfg['step_size']
@@ -51,9 +51,8 @@ for num, data_path in enumerate(ddaOuts):
 		else:
 			ground_est1 = data_path
 
-	# load labels for each bin of grnd estimate
-	if 'labels' in data_path:
-		bin_labels = np.loadtxt(fname=data_path,ndmin=1)
+
+
 
 if bin_labels is None:
 	along_track_data = ground_est0
@@ -70,14 +69,21 @@ info = {'filename': ddaOuts,
 print('**** Computing Variograms ****')
 split_path = args.config.split('/')
 dir_path = '/'.join([split_path[0],split_path[1]])
-pond_params, vario_data = run_vario(along_track_data, dir_path, step, winsize, winstep, nvar, ndir)
-lon = pond_params[:,0]
-lat = pond_params[:,1]
+# pond_params, vario_data = run_vario(along_track_data, dir_path, step, winsize, winstep, nvar, ndir)
+vario_data = run_vario(along_track_data, dir_path, step, winsize, winstep, nvar, ndir)
+bin_labels = np.random.randint(0,3,size=(vario_data.shape[0],1))
+print(vario_data.shape)
+print(bin_labels.shape)
+# vario_data = np.concatenate((vario_data.T,bin_labels),axis=1)
+vario_data = np.c_[vario_data,bin_labels]
 
 print('**** Saving Dataset ****')
 
 # full_data_array = np.array([info, along_track_data, pond_params, vario_data], dtype='object')
-full_data_array = np.array([info, pond_params, vario_data], dtype='object')
+# full_data_array = np.array([info, pond_params, vario_data], dtype='object')
+full_data_array = np.array([info, vario_data], dtype='object')
+print(vario_data.shape)
+print(vario_data[0])
 
 dataset_path = args.config[:-7] + '_still_testing'
 

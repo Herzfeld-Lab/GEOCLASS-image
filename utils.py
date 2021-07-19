@@ -412,7 +412,7 @@ activation:     {}
 
 ### DATASET PARAMETERS ###
 
-dda_path:           {}
+img_path:           {}
 npy_path:           {}
 train_path:         {}
 valid_path:         {}
@@ -441,7 +441,7 @@ num_dir:        {}
                    yaml_obj['vario_num_lag'],
                    yaml_obj['hidden_layers'],
                    yaml_obj['activation'],
-                   yaml_obj['dda_path'],
+                   yaml_obj['img_path'],
                    yaml_obj['npy_path'],
                    yaml_obj['train_path'],
                    yaml_obj['valid_path'],

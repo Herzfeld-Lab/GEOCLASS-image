@@ -79,8 +79,17 @@ elif cfg['model'] == 'Resnet18':
     img_transforms_train = None
     img_transforms_valid = None
 
-#elif cfg['model'] == YOUR MODEL HERE:
-#   YOUR PARAMETERS HERE
+elif cfg['model'] == 'DDAiceNet':
+    num_classes = cfg['num_classes']
+    step_size = cfg['step_size']
+    window_size = cfg['window_size']
+    window_step = cfg['window_step']
+    num_var = cfg['num_var']
+    num_dir = cfg['num_dir']
+    model = DDAiceNet.DDAiceNet(num_classes)
+    img_transforms_train = None
+    img_transforms_valid = None
+
 
 else:
     print("Error: Model \'{}\' not recognized".format(cfg['model']))
@@ -92,7 +101,8 @@ print(model)
 dataset = np.load(dataset_path, allow_pickle=True)
 dataset_info = dataset[0]
 dataset_coords = dataset[1]
-dataset_labeled = dataset_coords[dataset_coords[:,4] != -1]
+# dataset_labeled = dataset_coords[dataset_coords[:,4] != -1]
+dataset_labeled = dataset_coords[dataset_coords[:,47] != -1]
 
 train_size = int(cfg['train_test_split'] * dataset_labeled.shape[0])
 
@@ -105,28 +115,45 @@ test_coords = dataset_labeled[test_indeces, :]
 # Initialize Datasets and DataLoaders
 print('----- Initializing Dataset -----')
 
-train_dataset = SplitImageDataset(
-    imgPath = topDir,
-    imgData = dataset_info,
-    labels = train_coords,
-    train = True,
-    transform = img_transforms_train
-    )
+if cfg['model'] == 'VarioMLP' or cfg['model'] == 'Resnet18':
+    train_dataset = SplitImageDataset(
+        imgPath = topDir,
+        imgData = dataset_info,
+        labels = train_coords,
+        train = True,
+        transform = img_transforms_train
+        )
 
-valid_dataset = SplitImageDataset(
-    imgPath = topDir,
-    imgData = dataset_info,
-    labels = test_coords,
-    train = True,
-    transform = img_transforms_valid
-    )
+    valid_dataset = SplitImageDataset(
+        imgPath = topDir,
+        imgData = dataset_info,
+        labels = test_coords,
+        train = True,
+        transform = img_transforms_valid
+        )
+else:
+    train_dataset = DDAiceDataset(
+        dataInfo = topDir,
+        varioData = dataset_info,
+        labels = train_coords,
+        train = True,
+        transform = None
+        )
 
-print('Training set size: \t%d images'%(len(train_dataset)))
-for i in range(num_classes):
-    print('Class {}: {} - {} train images'.format(i,classEnum[i],len(train_coords[train_coords[:,4] == i])))
-print('Validation set size: \t%d images'%(len(valid_dataset)))
-for i in range(num_classes):
-    print('Class {}: {} - {} valid images'.format(i,classEnum[i],len(test_coords[test_coords[:,4] == i])))
+    valid_dataset = DDAiceDataset(
+        dataInfo = topDir,
+        varioData = dataset_info,
+        labels = test_coords,
+        train = True,
+        transform = None
+        )
+
+# print('Training set size: \t%d images'%(len(train_dataset)))
+# for i in range(num_classes):
+#     print('Class {}: {} - {} train images'.format(i,classEnum[i],len(train_coords[train_coords[:,4] == i])))
+# print('Validation set size: \t%d images'%(len(valid_dataset)))
+# for i in range(num_classes):
+#     print('Class {}: {} - {} valid images'.format(i,classEnum[i],len(test_coords[test_coords[:,4] == i])))
 print('----- Initializing DataLoader -----')
 
 train_loader = DataLoader(
@@ -187,6 +214,10 @@ for epoch in range(num_epochs):
     sum_loss = 0
     for batch_idx,(X,Y) in enumerate(train_loader):
 
+        print("batch index: ",batch_idx)
+        print("X: ", X)
+        print("Y: ", Y)
+
         if batch_idx % int((len(train_dataset) / batch_size)/10) == 0:
             print('.', end='',flush=True)
 
@@ -203,6 +234,7 @@ for epoch in range(num_epochs):
         Y_hat = model.forward(X)
 
         # Calculate training loss
+        print(Y_hat)
         loss = criterion(Y_hat, Y)
 
         # Perform backprop and zero gradient

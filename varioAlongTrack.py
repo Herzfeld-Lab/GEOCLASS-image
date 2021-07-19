@@ -65,6 +65,7 @@ def run_vario(ddaData, dataPath, step, winsize, winstep, nvar, ndir):
 
 	parameters = np.array([])
 	parameters.shape = (0,13)
+	vario_values_ret = np.zeros((len(windows),47))
 	# We will fill parameters with [lon, lat, distance, delta_time, pond, p1, p2, mindist, hdiff]
 
 	for w in range(0,len(windows)):
@@ -103,7 +104,7 @@ def run_vario(ddaData, dataPath, step, winsize, winstep, nvar, ndir):
 			print('failed to load a vario_outfile, probably because there were too many points contributing to a single vario value and numpy got confused')
 
 		# Delete 'vario_outfile' after it is read in
-		# os.remove(vario_outfile)
+		os.remove(vario_outfile)
 
 		# cuh    col 1 - lp2, step number
 		# cuh    col 2 - distclass, distance to center of class
@@ -123,7 +124,9 @@ def run_vario(ddaData, dataPath, step, winsize, winstep, nvar, ndir):
 		else: # variogram
 			vario_values = vario_results[:,3]
 
-		vario_values_ret = vario_values.copy()
+		########################################################################################################################
+		if vario_values.shape[0] == 47:
+			vario_values_ret[w] = vario_values
 		lags = vario_results[:,1]
 
 		# SMOOTHING of variogram values with linear filter
@@ -179,7 +182,9 @@ def run_vario(ddaData, dataPath, step, winsize, winstep, nvar, ndir):
 	# head = head+"lon_bar, lat_bar, dist_bar, delta_time_bar, pond, p1, p2, mindist, hdiff, nugget, photon_density"
 	# np.savetxt(os.path.join(savedir, 'varparams.txt'), parameters, header=head)
 
-	return (parameters, vario_values_ret)
+	# return (parameters, vario_values_ret)
+	# vario_values_ret = np.array(vario_values_ret,dtype='object')
+	return vario_values_ret
 
 
 	

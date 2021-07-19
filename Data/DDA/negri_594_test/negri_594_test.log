@@ -1,0 +1,63 @@
+2021-06-14 15:41:45,678 - INPUT PARAMETERS
+2021-06-14 15:41:45,678 - File name: DDA_main.py
+2021-06-14 15:41:45,678 - Directory: /Users/adamhayes/workspace/ice
+2021-06-14 15:41:45,678 - Run name: negri_594_test
+2021-06-14 15:41:45,678 - Output directory: output/negri_594_test
+2021-06-14 15:41:45,679 - Plots directory: output/negri_594_test/plots
+2021-06-14 15:41:45,679 - Instrument: atlas
+2021-06-14 15:41:45,679 - Input filepath: /Volumes/yosemite3/data/ATL03/R003/negri/processed_ATL03_20190805232841_05940403_003_01.h5
+2021-06-14 15:41:45,679 - Channel: gt1l (strong)
+2021-06-14 15:41:45,679 - Number of passes: 1
+2021-06-14 15:41:45,679 - Parallel Computing using multiprocessing?: True, 8 processors
+2021-06-14 15:41:45,679 - Time Start: 50283222.16754732
+2021-06-14 15:41:45,679 - Time End: 50283227.40814742
+2021-06-14 15:41:45,679 - Pixel size for histogram-based slabs: [50.0, 10.0]
+2021-06-14 15:41:45,679 - Curvature threshold for cloud filtering: -25.0
+2021-06-14 15:41:45,679 - Bin width for thresholding: [5.0]
+2021-06-14 15:41:45,679 - Gaussian RBF StDev: [3.0]
+2021-06-14 15:41:45,679 - Gaussian RBF cutoff: [1.0]
+2021-06-14 15:41:45,679 - Anisotropy factor: [1.0]
+2021-06-14 15:41:45,679 - Threshold quantile: [0.5]
+2021-06-14 15:41:45,679 - Threshold offset: [1.0]
+2021-06-14 15:41:45,679 - Resolution of interpolated ground: [5.0]
+2021-06-14 15:41:45,679 - Factor for resolution increase over rough surface: [2.0]
+2021-06-14 15:41:45,679 - Slab thickness: 200
+2021-06-14 15:41:45,679 - Standard deviation parameter: [1.75]
+2021-06-14 15:41:45,679 - Quantile for  crevasse depth: [0.5]
+2021-06-14 15:41:45,679 - DDA_Bifurcate (Melt Pond) Run?: False
+2021-06-14 15:41:45,680 - Horizontal Bin Size (DDA_Bif): 25.0
+2021-06-14 15:41:45,680 - Vertical Bin Size (DDA_Bif): 0.2
+2021-06-14 15:41:45,680 - Density weight for Lower Surface (DDA_Bif): 1.0
+2021-06-14 15:41:45,680 - Meltpond Quantile (DDA_Bif): 0.75
+2021-06-14 15:41:45,680 - Using Density Histograms? (DDA_Bif): False
+2021-06-14 15:41:45,680 - Plotting histograms? (DDA_Bif): False
+2021-06-14 15:41:45,680 - Minimum peak in histograms (DDA_Bif): 3.0
+2021-06-14 15:41:45,680 - Minimum prominence in histograms (DDA_Bif): 3.0
+2021-06-14 15:41:45,995 - Photon data read as: [dt, lon, lat, elev]
+2021-06-14 15:41:45,995 - Velocity data read as: [delta_time, x_waVelocity, y_waVelocity]
+2021-06-14 15:41:46,019 - Photon data appended with distance along track: [delta_time, lon, lat, elev, distance]
+2021-06-14 15:41:46,020 - Total track length: 37216.50662242153
+2021-06-14 15:41:46,020 - Default track start point used (0): 0.0
+2021-06-14 15:41:46,020 - Default track end point used (max_distance): 37216.50662242153
+2021-06-14 15:41:46,023 - Total track time: 50283227.40984744
+2021-06-14 15:41:46,023 - User selected delta time start point: 50283222.16754732
+2021-06-14 15:41:46,023 - User selected delta time end point used: 50283227.40814742
+2021-06-14 15:41:46,049 - Plot segment length: 1000
+2021-06-14 15:41:46,049 - Number of segments for plotting: 38
+2021-06-14 15:41:46,049 - Photon data saved as raw_photon_data.txt
+2021-06-14 15:41:46,049 - Format of photon data:
+[delta_time, longitude, latitude, elevation, distance]
+2021-06-14 15:41:46,750 - Time elapsed assigning slabs: 0.6655070781707764
+2021-06-14 15:41:46,873 - Beginning pass 0
+2021-06-14 15:41:47,049 - Time elapsed creating cKDTree: 0.15807676315307617
+2021-06-14 15:41:49,819 - Time elapsed finding neighbors within sigma*cutoff: 2.768328905105591
+2021-06-14 15:42:16,145 - Time elapsed calculating density for each point: 26.32492709159851
+2021-06-14 15:42:16,736 - Time elapsed computing density (parallel): 29.861143112182617 seconds
+2021-06-14 15:42:16,765 - Signal and noise data appended with density dimension: [delta_time, lon, lat, elev, distance, density]
+2021-06-14 15:42:19,602 - Time elapsed computing thresholds: 2.8230416774749756
+2021-06-14 15:42:19,706 - Save photon classification: [delta_time, lon, lat, elev, distance, density, class]
+2021-06-14 15:42:24,393 - Time elapsed interpolating ground: 4.685691833496094
+2021-06-14 15:42:24,394 - Final ground estimate saved as ground_estimate_pass0.txt
+2021-06-14 15:42:24,394 - Format of ground estimate:
+[bin_lon, bin_lat, bin_elev, bin_distance, bin_time, bin_elev_stdev, bin_density_mean, bin_weighted_stdev]
+2021-06-14 15:42:24,416 - Total time elapsed for algorithm: 38.83021807670593
