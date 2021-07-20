@@ -51,6 +51,10 @@ for num, data_path in enumerate(ddaOuts):
 		else:
 			ground_est1 = data_path
 
+	if 'window_labels' in data_path:
+		bin_labels = np.loadtxt(data_path)
+
+
 info = {'filename': ddaOuts,
 		'transform': transforms,
 		'class_enumeration': classEnum}
@@ -65,6 +69,8 @@ vario_data = run_vario(ground_est0, dir_path, step, winsize, winstep, nvar, ndir
 if bin_labels is None:
 	bin_labels = np.random.randint(0,3,size=(vario_data.shape[0],1))
 	# bin_labels = np.full(shape=(vario_data.shape[0],1), fill_value=-1)
+	vario_data = np.c_[vario_data,bin_labels]
+else:
 	vario_data = np.c_[vario_data,bin_labels]
 
 print('**** Saving Dataset ****')

@@ -81,11 +81,6 @@ elif cfg['model'] == 'Resnet18':
 
 elif cfg['model'] == 'DDAiceNet':
     num_classes = cfg['num_classes']
-    step_size = cfg['step_size']
-    window_size = cfg['window_size']
-    window_step = cfg['window_step']
-    num_var = cfg['num_var']
-    num_dir = cfg['num_dir']
     input_size = cfg['vario_size']
     model = DDAiceNet.DDAiceNet(num_classes,input_size)
     img_transforms_train = None

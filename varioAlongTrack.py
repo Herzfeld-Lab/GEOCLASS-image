@@ -105,15 +105,15 @@ def run_vario(ddaData, dataPath, step, winsize, winstep, nvar, ndir):
 			print('failed to load a vario_outfile, probably because there were too many points contributing to a single vario value and numpy got confused')
 
 		# Delete 'vario_outfile' after it is read in
-		os.remove(vario_outfile)
+		# os.remove(vario_outfile)
 
-		# cuh    col 1 - lp2, step number
-		# cuh    col 2 - distclass, distance to center of class
-		# cuh    col 3 - m1, mean
-		# cuh    col 4 - m2, variogram
-		# cuh    col 5 - m3, residual variogram
-		# cuh    col 6 - dismoy, average distance of pairs used in class
-		# cuh    col 7 - distot, number of pairs used in class
+		# col 1 - lp2, step number
+		# col 2 - distclass, distance to center of class
+		# col 3 - m1, mean
+		# col 4 - m2, variogram
+		# col 5 - m3, residual variogram
+		# col 6 - dismoy, average distance of pairs used in class
+		# col 7 - distot, number of pairs used in class
 
 		if len(vario_results.shape)<2 or vario_results.shape[0]<5:  # if there were fewer than 5 variogram values calculated
 			print('too few vario results to use')
