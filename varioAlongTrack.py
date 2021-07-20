@@ -19,10 +19,8 @@ def run_vario(ddaData, dataPath, step, winsize, winstep, nvar, ndir):
 	###########################
 	window_size = winsize
 	window_step = winstep
-	project_name = 'test'
 	ground_filename = ddaData
 	icom1 = 'idk'
-	icom2 = ground_filename
 	step = float(step) # resolution of the variogram (i.e. the spacing of the lags)
 	name = 'elevation'
 	nres = int(0.8*window_size/step) # Number of results to calculate (depends on window size and step size)
@@ -84,18 +82,14 @@ def run_vario(ddaData, dataPath, step, winsize, winstep, nvar, ndir):
 		np.savetxt(os.path.join(dataPath, 'window_data.dat'), window_data, fmt='%f')
 
 		# Create invario.dat file and specify where output should be saved
-		# temp_dir = dataPath + '/vario_dat'
-		# if not os.path.exists(temp_dir): os.makedirs(temp_dir)
 		vario_outfile = os.path.join(dataPath, 'win_{}_{}.vario'.format(start, end))
 		vario_infile = os.path.join(dataPath, 'window_data.dat')
-		# vario_infile = 'window_data.dat'
-		write_invario(vario_infile, vario_outfile, icom1, icom2, nvar, ndir, step, nres, name)
+		write_invario(vario_infile, vario_outfile, icom1, ground_filename, nvar, ndir, step, nres, name)
 
 		# Call vario
 		# the subprocess module calls vario and pipes the output to vario_process
 		vario_process = sp.Popen('./vario', shell=False, stderr=sp.PIPE, stdout=sp.PIPE)
 		out = vario_process.communicate()[1]
-		# if out!='': logger.info(out)
 
 		# Retrieve output from vario_out.dat
 		try:
@@ -152,10 +146,11 @@ def run_vario(ddaData, dataPath, step, winsize, winstep, nvar, ndir):
 
 		try:
 			# Calculating parameters
-			# p1 = (max1-min1)/(hmin1-hmax1)
-			# p2 = (max1-min1)/max1
-			p1=0
-			p2=0
+			if (hmin1 - hmax1) != 0:
+				p1 = (max1-min1)/(hmin1-hmax1)
+			else:
+				p1 = 0
+			p2 = (max1-min1)/max1
 			mindist = hmin1
 			hdiff = hmin1-hmax1
 			nugget = vario_values[0]
