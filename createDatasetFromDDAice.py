@@ -19,12 +19,11 @@ warnings.filterwarnings('error')
 topDir = cfg['img_path']
 classEnum = cfg['class_enum']
 chunkSize = cfg['track_chunk_size']
-step = cfg['step_size']
+lag = cfg['lag_dist']
 winsize = cfg['window_size']
 winstep = cfg['window_step']
 nvar = cfg['num_var']
 ndir = cfg['num_dir']
-vario_size = cfg['vario_size']
 
 print('**** Loading DDA-ice Data ****')
 
@@ -65,7 +64,7 @@ print('**** Computing Variograms ****')
 
 split_path = args.config.split('/')
 dir_path = '/'.join([split_path[0],split_path[1]])
-vario_data = run_vario(ground_est0, dir_path, step, winsize, winstep, nvar, ndir, vario_size)
+vario_data = run_vario(ground_est0, dir_path, lag, winsize, winstep, nvar, ndir)
 
 if bin_labels is None:
 	bin_labels = np.random.randint(0,3,size=(vario_data.shape[0],1))
@@ -74,6 +73,20 @@ if bin_labels is None:
 else:
 	print('Using labeled')
 	vario_data = np.c_[vario_data,bin_labels]
+
+vario_data_ls = []
+for i in range(len(bin_labels)):
+	if bin_labels[i] == 0:
+		n = np.random.uniform()
+		if n > 0.8:
+			vario_data_ls.append(vario_data[i])
+	else:
+		vario_data_ls.append(vario_data[i])
+
+vario_data = np.array(vario_data_ls)
+
+print(vario_data.shape)
+
 
 print('**** Saving Dataset ****')
 
@@ -90,9 +103,6 @@ np.save(dataset_path, full_data_array)
 f = open(args.config, 'w')
 f.write(generate_config_adam(cfg))
 f.close() 
-
-
-
 
 
 

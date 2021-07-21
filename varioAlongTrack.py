@@ -12,7 +12,7 @@ from scipy.ndimage.filters import convolve1d
 import utm
 import glob
 
-def run_vario(ddaData, dataPath, step, winsize, winstep, nvar, ndir, vario_size):
+def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir):
 
 	###########################
 	# SET CONSTANT PARAMETERS #
@@ -21,9 +21,9 @@ def run_vario(ddaData, dataPath, step, winsize, winstep, nvar, ndir, vario_size)
 	window_step = winstep
 	ground_filename = ddaData
 	icom1 = 'idk'
-	step = float(step) # resolution of the variogram (i.e. the spacing of the lags)
+	lag = float(lag) # resolution of the variogram (i.e. the spacing of the lags)
 	name = 'elevation'
-	nres = int(0.8*window_size/step) # Number of results to calculate (depends on window size and step size)
+	nres = int(0.8*window_size/lag) # Number of results to calculate (depends on window size and step size)
 	residual = False
 	photons = False
 	###########################
@@ -61,8 +61,8 @@ def run_vario(ddaData, dataPath, step, winsize, winstep, nvar, ndir, vario_size)
 	windows = list(zip(np.arange(np.min(distance),np.max(distance),window_step), np.arange(np.min(distance)+window_size,np.max(distance)-window_step,window_step)))
 	windows = np.array(windows)
 
-	winsize_bins = int(window_size / step)
-	stepsize_bins = int(window_step / step)
+	winsize_bins = int(window_size / lag)
+	stepsize_bins = int(window_step / lag)
 
 	# initialize fillable arrays
 	vario_values_ret = np.zeros((len(windows),vario_size))
@@ -92,7 +92,7 @@ def run_vario(ddaData, dataPath, step, winsize, winstep, nvar, ndir, vario_size)
 		# vario_outfile = os.path.join(dataPath, 'win_{}_{}.vario'.format(start, end))
 		vario_outfile = os.path.join(dataPath, 'win_{}.vario'.format(w))
 		vario_infile = os.path.join(dataPath, 'window_data.dat')
-		write_invario(vario_infile, vario_outfile, icom1, ground_filename, nvar, ndir, step, nres, name)
+		write_invario(vario_infile, vario_outfile, icom1, ground_filename, nvar, ndir, lag, nres, name)
 
 		# Call vario
 		# the subprocess module calls vario and pipes the output to vario_process
@@ -128,7 +128,7 @@ def run_vario(ddaData, dataPath, step, winsize, winstep, nvar, ndir, vario_size)
 			vario_values = vario_results[:,3]
 
 		########################################################################################################################
-		if vario_values.shape[0] == vario_size:
+		if vario_values.shape[0] == nres-1:
 			vario_values_ret[w] = vario_values
 		lags = vario_results[:,1]
 

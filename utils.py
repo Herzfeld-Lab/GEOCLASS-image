@@ -431,12 +431,11 @@ optimizer:      {}
 
 ### VARIO ALONG TRACK PARAMS ###
 
-step_size:      {}
+lag_dist:       {}
 window_size:    {}
 window_step:    {}
 num_var:        {}
 num_dir:        {}
-vario_size:     {}
         '''.format(yaml_obj['model'],
                    yaml_obj['num_classes'],
                    yaml_obj['vario_num_lag'],
@@ -455,12 +454,11 @@ vario_size:     {}
                    yaml_obj['learning_rate'],
                    yaml_obj['batch_size'],
                    yaml_obj['optimizer'],
-                   yaml_obj['step_size'],
+                   yaml_obj['lag_dist'],
                    yaml_obj['window_size'],
                    yaml_obj['window_step'],
                    yaml_obj['num_var'],
-                   yaml_obj['num_dir'],
-                   yaml_obj['vario_size'])
+                   yaml_obj['num_dir'])
 
     return config_str
 
