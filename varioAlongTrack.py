@@ -82,7 +82,8 @@ def run_vario(ddaData, dataPath, step, winsize, winstep, nvar, ndir):
 		np.savetxt(os.path.join(dataPath, 'window_data.dat'), window_data, fmt='%f')
 
 		# Create invario.dat file and specify where output should be saved
-		vario_outfile = os.path.join(dataPath, 'win_{}_{}.vario'.format(start, end))
+		# vario_outfile = os.path.join(dataPath, 'win_{}_{}.vario'.format(start, end))
+		vario_outfile = os.path.join(dataPath, 'win_{}.vario'.format(w))
 		vario_infile = os.path.join(dataPath, 'window_data.dat')
 		write_invario(vario_infile, vario_outfile, icom1, ground_filename, nvar, ndir, step, nres, name)
 
@@ -169,6 +170,9 @@ def run_vario(ddaData, dataPath, step, winsize, winstep, nvar, ndir):
 	if os.path.isfile(dataPath+'/window_data.dat'): os.remove(dataPath+'/window_data.dat')
 	if os.path.isfile('invario.dat'): os.remove('invario.dat')
 	if os.path.isfile('fort.61'): os.remove('fort.61')
+
+	print(parameters.shape)
+	print(vario_values_ret.shape)
 
 	return vario_values_ret
 
