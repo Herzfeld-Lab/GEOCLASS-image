@@ -98,7 +98,7 @@ dataset = np.load(dataset_path, allow_pickle=True)
 dataset_info = dataset[0]
 dataset_coords = dataset[1]
 # dataset_labeled = dataset_coords[dataset_coords[:,4] != -1]
-dataset_labeled = dataset_coords[dataset_coords[:,47] != -1]
+dataset_labeled = dataset_coords[dataset_coords[:,-1] != -1]
 
 train_size = int(cfg['train_test_split'] * dataset_labeled.shape[0])
 

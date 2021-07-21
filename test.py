@@ -53,6 +53,12 @@ elif cfg['model'] == 'Resnet18':
     num_classes = cfg['num_classes']
     model = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
     img_transforms_valid = None
+
+elif cfg['model'] == 'DDAiceNet':
+    num_classes = cfg['num_classes']
+    input_size = cfg['vario_size']
+    model = DDAiceNet.DDAiceNet(num_classes,input_size)
+    img_transforms_valid = None
 else:
     print("Error: Model \'%s\' not recognized"%(cfg['model']))
     exit(1)
@@ -79,13 +85,23 @@ dataset = np.load(dataset_path, allow_pickle=True)
 dataset_info = dataset[0]
 dataset_labels = dataset[1]
 
-valid_dataset = SplitImageDataset(
-    imgPath = topDir,
-    imgData = dataset_info,
-    labels = dataset_labels,
-    train = False,
-    transform = img_transforms_valid
-    )
+if cfg['model'] == 'VarioMLP' or cfg['model'] == 'Resnet18':
+    valid_dataset = SplitImageDataset(
+        imgPath = topDir,
+        imgData = dataset_info,
+        labels = dataset_labels,
+        train = False,
+        transform = img_transforms_valid
+        )
+else:
+    valid_dataset = DDAiceDataset(
+        dataPath = topDir,
+        dataInfo = dataset_info,
+        dataLabeled = dataset_labels,
+        train = False,
+        transform = None
+        )
+
 
 print('Test set size: \t%d images'%(len(valid_dataset)))
 

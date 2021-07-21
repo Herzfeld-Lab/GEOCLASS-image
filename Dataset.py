@@ -164,8 +164,11 @@ class DDAiceDataset(Dataset):
 
         # Work on configuring pandas data frame - numpy easier right now for 48 col array
         # cols = ['lon','lat','utm_e','utm_n','dist','delta_time','pond','p1','p2','mindist','hdiff','nugget','photon_density','variogram','label']
-        cols = ['variogram','label']
-        # self.dataFrame = pd.DataFrame(chunk_labels)
+        # labels = dataLabeled[:,47]
+        # variograms = dataLabeled[:,0:47]
+        # self.dataFrame = pd.DataFrame({'label': labels, 'variogram': list(variograms)}, columns=['label','variogram'])
+
+
         self.dataFrame = variograms
 
     def __len__(self):
@@ -173,21 +176,18 @@ class DDAiceDataset(Dataset):
 
     def __getitem__(self,idx):
 
-        # pond = self.dataFrame.iloc[idx,6]
-        # p1 = self.dataFrame.iloc[idx,7]
-        # p2 = self.dataFrame.iloc[idx,8]
-        # mindist = self.dataFrame.iloc[idx,9]
-        # hdiff = self.dataFrame.iloc[idx,10]
-        # nugget = self.dataFrame.iloc[idx,11]
-        vario = self.dataFrame[idx,0:47]
+
+        vario = self.dataFrame[idx,0:-1]
+        # vario = self.dataFrame.iloc[idx,1]
 
         vario_tensor = torch.from_numpy(vario)
 
         if self.train:
-            label = int(self.dataFrame[idx,47])
+            label = int(self.dataFrame[idx,-1])
+            # label = int(self.dataFrame[idx,0])
             return (vario_tensor, label)
         else:
-            return (vario_tensor)
+            return vario_tensor
 
 
 

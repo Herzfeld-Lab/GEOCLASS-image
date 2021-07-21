@@ -24,6 +24,7 @@ winsize = cfg['window_size']
 winstep = cfg['window_step']
 nvar = cfg['num_var']
 ndir = cfg['num_dir']
+vario_size = cfg['vario_size']
 
 print('**** Loading DDA-ice Data ****')
 
@@ -64,13 +65,14 @@ print('**** Computing Variograms ****')
 
 split_path = args.config.split('/')
 dir_path = '/'.join([split_path[0],split_path[1]])
-vario_data = run_vario(ground_est0, dir_path, step, winsize, winstep, nvar, ndir)
+vario_data = run_vario(ground_est0, dir_path, step, winsize, winstep, nvar, ndir, vario_size)
 
 if bin_labels is None:
 	bin_labels = np.random.randint(0,3,size=(vario_data.shape[0],1))
 	# bin_labels = np.full(shape=(vario_data.shape[0],1), fill_value=-1)
 	vario_data = np.c_[vario_data,bin_labels]
 else:
+	print('Using labeled')
 	vario_data = np.c_[vario_data,bin_labels]
 
 print('**** Saving Dataset ****')

@@ -12,7 +12,7 @@ from scipy.ndimage.filters import convolve1d
 import utm
 import glob
 
-def run_vario(ddaData, dataPath, step, winsize, winstep, nvar, ndir):
+def run_vario(ddaData, dataPath, step, winsize, winstep, nvar, ndir, vario_size):
 
 	###########################
 	# SET CONSTANT PARAMETERS #
@@ -61,19 +61,26 @@ def run_vario(ddaData, dataPath, step, winsize, winstep, nvar, ndir):
 	windows = list(zip(np.arange(np.min(distance),np.max(distance),window_step), np.arange(np.min(distance)+window_size,np.max(distance)-window_step,window_step)))
 	windows = np.array(windows)
 
+	winsize_bins = int(window_size / step)
+	stepsize_bins = int(window_step / step)
+
 	# initialize fillable arrays
-	vario_values_ret = np.zeros((len(windows),47))
+	vario_values_ret = np.zeros((len(windows),vario_size))
 	parameters = np.zeros((len(windows),13))
 	# We will fill parameters with [lon, lat, distance, delta_time, utm_e, utm_n, pond, p1, p2, mindist, hdiff]
 	# vario_value_ret gets variogram at each iteration
 
 	for w in range(0,len(windows)):
 		# Subset the elevation data
-		start = windows[w,0]
-		end = windows[w,1]
+		# start = windows[w,0]
+		# end = windows[w,1]
+		start = w * stepsize_bins
+		end = start + winsize_bins
 		window_bool = np.logical_and(distance>=start,distance<end)
-		window_data = np.array([eastings[window_bool],northings[window_bool],elevation[window_bool]]).T
+		# window_data = np.array([eastings[window_bool],northings[window_bool],elevation[window_bool]]).T
 
+		window_data = np.array([eastings[start:end],northings[start:end],elevation[start:end]]).T
+		
 		if len(window_data)<5: # if we have too few datapoints in a window
 			print('too few points in current window')
 			continue
@@ -100,7 +107,7 @@ def run_vario(ddaData, dataPath, step, winsize, winstep, nvar, ndir):
 			print('failed to load a vario_outfile, probably because there were too many points contributing to a single vario value and numpy got confused')
 
 		# Delete 'vario_outfile' after it is read in
-		# os.remove(vario_outfile)
+		os.remove(vario_outfile)
 
 		# col 1 - lp2, step number
 		# col 2 - distclass, distance to center of class
@@ -121,7 +128,7 @@ def run_vario(ddaData, dataPath, step, winsize, winstep, nvar, ndir):
 			vario_values = vario_results[:,3]
 
 		########################################################################################################################
-		if vario_values.shape[0] == 47:
+		if vario_values.shape[0] == vario_size:
 			vario_values_ret[w] = vario_values
 		lags = vario_results[:,1]
 
@@ -162,17 +169,17 @@ def run_vario(ddaData, dataPath, step, winsize, winstep, nvar, ndir):
 
 		# Append parameters with 
 		#[lon_bar, lat_bar, utm_east, utm_north, dist_bar, delta_time_bar, pond, p1, p2, mindist, hdiff, nugget, photon_density]
-		lon_bar, lat_bar = np.mean(lon[window_bool]), np.mean(lat[window_bool]) 
-		dist_bar, delta_time_bar = np.mean(distance[window_bool]), np.mean(delta_time[window_bool])
-		utm_east_bar, utm_north_bar = np.mean(eastings[window_bool]), np.mean(northings[window_bool])
-		parameters[w] = np.array([lon_bar, lat_bar, dist_bar, delta_time_bar, utm_east_bar, utm_north_bar, pond, p1, p2, mindist, hdiff, nugget, photon_density])
+		# lon_bar, lat_bar = np.mean(lon[window_bool]), np.mean(lat[window_bool]) 
+		# dist_bar, delta_time_bar = np.mean(distance[window_bool]), np.mean(delta_time[window_bool])
+		# utm_east_bar, utm_north_bar = np.mean(eastings[window_bool]), np.mean(northings[window_bool])
+		# parameters[w] = np.array([lon_bar, lat_bar, dist_bar, delta_time_bar, utm_east_bar, utm_north_bar, pond, p1, p2, mindist, hdiff, nugget, photon_density])
 
 	if os.path.isfile(dataPath+'/window_data.dat'): os.remove(dataPath+'/window_data.dat')
 	if os.path.isfile('invario.dat'): os.remove('invario.dat')
 	if os.path.isfile('fort.61'): os.remove('fort.61')
 
-	print(parameters.shape)
-	print(vario_values_ret.shape)
+	# print(parameters.shape)
+	# print(vario_values_ret.shape)
 
 	return vario_values_ret
 
