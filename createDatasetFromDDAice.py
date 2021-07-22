@@ -71,8 +71,8 @@ if bin_labels is None:
 	# bin_labels = np.full(shape=(vario_data.shape[0],1), fill_value=-1)
 	vario_data = np.c_[vario_data,bin_labels]
 else:
-	print('Using labeled')
 	vario_data = np.c_[vario_data,bin_labels]
+
 
 vario_data_ls = []
 for i in range(len(bin_labels)):
@@ -90,8 +90,6 @@ print(vario_data.shape)
 
 print('**** Saving Dataset ****')
 
-# full_data_array = np.array([info, along_track_data, pond_params, vario_data], dtype='object')
-# full_data_array = np.array([info, pond_params, vario_data], dtype='object')
 full_data_array = np.array([info, vario_data], dtype='object')
 
 dataset_path = args.config[:-7] + '_still_testing'

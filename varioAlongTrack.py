@@ -23,7 +23,7 @@ def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir):
 	icom1 = 'idk'
 	lag = float(lag) # resolution of the variogram (i.e. the spacing of the lags)
 	name = 'elevation'
-	nres = int(0.8*window_size/lag) # Number of results to calculate (depends on window size and step size)
+	nres = int(0.8*window_size/lag) # Number of results to calculate (depends on window size and lag size)
 	residual = False
 	photons = False
 	###########################
@@ -41,10 +41,6 @@ def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir):
 		lat = ground_data[:,2]
 		distance = ground_data[:,4] # distance along track in meters
 		elevation = ground_data[:,3] # corresponding photon elevation
-	elif photons == 'UTM':
-		X = ground_data[:, 0]
-		Y = ground_data[:, 1]
-		elevation = ground_data[:, 3]
 	else:
 		lon = ground_data[:,0]
 		lat = ground_data[:,1]
@@ -74,11 +70,11 @@ def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir):
 		# Subset the elevation data
 		# start = windows[w,0]
 		# end = windows[w,1]
-		start = w * stepsize_bins
-		end = start + winsize_bins
-		window_bool = np.logical_and(distance>=start,distance<end)
+		# window_bool = np.logical_and(distance>=start,distance<end)
 		# window_data = np.array([eastings[window_bool],northings[window_bool],elevation[window_bool]]).T
 
+		start = w * stepsize_bins
+		end = start + winsize_bins
 		window_data = np.array([eastings[start:end],northings[start:end],elevation[start:end]]).T
 		
 		if len(window_data)<5: # if we have too few datapoints in a window
@@ -127,9 +123,9 @@ def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir):
 		else: # variogram
 			vario_values = vario_results[:,3]
 
-		########################################################################################################################
 		if vario_values.shape[0] == nres-1:
 			vario_values_ret[w] = vario_values
+
 		lags = vario_results[:,1]
 
 		# SMOOTHING of variogram values with linear filter
