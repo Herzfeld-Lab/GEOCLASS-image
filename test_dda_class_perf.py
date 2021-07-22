@@ -40,7 +40,7 @@ def main():
 	valid_data = glob.glob(valid_label_dir + '/*.npy')
 	valid_paths = []
 	for file in valid_data:
-		path_full = valid_label_dir + file
+		path_full = file
 		valid_paths.append(path_full)
 
 	compare_labels(base_labels,valid_paths)

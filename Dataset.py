@@ -166,10 +166,10 @@ class DDAiceDataset(Dataset):
         # cols = ['lon','lat','utm_e','utm_n','dist','delta_time','pond','p1','p2','mindist','hdiff','nugget','photon_density','variogram','label']
         # labels = dataLabeled[:,47]
         # variograms = dataLabeled[:,0:47]
-        # self.dataFrame = pd.DataFrame({'label': labels, 'variogram': list(variograms)}, columns=['label','variogram'])
-
+        # dataDict = {'label': labels, 'variogram': variograms}
 
         self.dataFrame = variograms
+        # self.dataFrame = dataDict
 
     def __len__(self):
         return len(self.dataFrame)
@@ -178,13 +178,13 @@ class DDAiceDataset(Dataset):
 
 
         vario = self.dataFrame[idx,0:-1]
-        # vario = self.dataFrame.iloc[idx,1]
+        # vario = self.dataFrame['variogram'][idx]
 
         vario_tensor = torch.from_numpy(vario)
 
         if self.train:
             label = int(self.dataFrame[idx,-1])
-            # label = int(self.dataFrame[idx,0])
+            # label = int(self.dataFrame['label'][idx])
             return (vario_tensor, label)
         else:
             return vario_tensor
