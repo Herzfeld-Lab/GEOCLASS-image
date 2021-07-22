@@ -29,6 +29,7 @@ print('**** Loading DDA-ice Data ****')
 
 transforms = None
 bin_labels = None
+ground_est0 = []
 ddaOuts = get_dda_paths(topDir)
 
 for num, data_path in enumerate(ddaOuts):
@@ -47,7 +48,7 @@ for num, data_path in enumerate(ddaOuts):
 
 	if 'ground' in data_path:
 		if '0' in data_path:
-			ground_est0 = data_path
+			ground_est0.append(data_path)
 		else:
 			ground_est1 = data_path
 
@@ -56,15 +57,29 @@ for num, data_path in enumerate(ddaOuts):
 
 
 info = {'filename': ddaOuts,
+		'ground_files': ground_est0,
 		'transform': transforms,
 		'class_enumeration': classEnum}
+
 
 # compute variograms and pond parameters
 print('**** Computing Variograms ****')
 
 split_path = args.config.split('/')
 dir_path = '/'.join([split_path[0],split_path[1]])
-vario_data = run_vario(ground_est0, dir_path, lag, winsize, winstep, nvar, ndir)
+
+# check for multiple ground estimate files
+if len(ground_est0) == 1:
+	ground_est0 = ground_est0[0]
+	vario_data = run_vario(ground_est0, dir_path, lag, winsize, winstep, nvar, ndir)
+else:
+	# compute variograms for each track individually, then combine results
+	vario_dat = []
+	for data in ground_est0:
+		vario_dat.append(run_vario(data, dir_path, lag, winsize, winstep, nvar, ndir))
+	vario_data = np.vstack((vario_dat))
+
+
 
 if bin_labels is None:
 	bin_labels = np.random.randint(0,3,size=(vario_data.shape[0],1))
