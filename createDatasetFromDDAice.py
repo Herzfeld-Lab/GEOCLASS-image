@@ -76,7 +76,9 @@ else:
 	# compute variograms for each track individually, then combine results
 	vario_dat = []
 	for data in ground_est0:
-		vario_dat.append(run_vario(data, dir_path, lag, winsize, winstep, nvar, ndir))
+		temp=run_vario(data, dir_path, lag, winsize, winstep, nvar, ndir)
+		vario_dat.append(temp)
+		# vario_dat.append(run_vario(data, dir_path, lag, winsize, winstep, nvar, ndir))
 	vario_data = np.vstack((vario_dat))
 
 
@@ -86,21 +88,21 @@ if bin_labels is None:
 	# bin_labels = np.full(shape=(vario_data.shape[0],1), fill_value=-1)
 	vario_data = np.c_[vario_data,bin_labels]
 else:
+	print(vario_data.shape)
+	print(bin_labels.shape)
 	vario_data = np.c_[vario_data,bin_labels]
 
 
-vario_data_ls = []
-for i in range(len(bin_labels)):
-	if bin_labels[i] == 0:
-		n = np.random.uniform()
-		if n > 0.8:
-			vario_data_ls.append(vario_data[i])
-	else:
-		vario_data_ls.append(vario_data[i])
+# vario_data_ls = []
+# for i in range(len(bin_labels)):
+# 	if bin_labels[i] == 0:
+# 		n = np.random.uniform()
+# 		if n > 0.8:
+# 			vario_data_ls.append(vario_data[i])
+# 	else:
+# 		vario_data_ls.append(vario_data[i])
 
-vario_data = np.array(vario_data_ls)
-
-print(vario_data.shape)
+# vario_data = np.array(vario_data_ls)
 
 
 print('**** Saving Dataset ****')

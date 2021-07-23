@@ -61,7 +61,7 @@ def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir):
 	stepsize_bins = int(window_step / lag)
 
 	# initialize fillable arrays
-	vario_values_ret = np.zeros((len(windows),vario_size))
+	vario_values_ret = np.zeros((len(windows),nres-1))
 	parameters = np.zeros((len(windows),13))
 	# We will fill parameters with [lon, lat, distance, delta_time, utm_e, utm_n, pond, p1, p2, mindist, hdiff]
 	# vario_value_ret gets variogram at each iteration
