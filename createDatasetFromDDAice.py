@@ -93,16 +93,16 @@ else:
 	vario_data = np.c_[vario_data,bin_labels]
 
 
-# vario_data_ls = []
-# for i in range(len(bin_labels)):
-# 	if bin_labels[i] == 0:
-# 		n = np.random.uniform()
-# 		if n > 0.8:
-# 			vario_data_ls.append(vario_data[i])
-# 	else:
-# 		vario_data_ls.append(vario_data[i])
+vario_data_ls = []
+for i in range(len(bin_labels)):
+	if bin_labels[i] == 0:
+		n = np.random.uniform()
+		if n > 0.5:
+			vario_data_ls.append(vario_data[i])
+	else:
+		vario_data_ls.append(vario_data[i])
 
-# vario_data = np.array(vario_data_ls)
+vario_data = np.array(vario_data_ls)
 
 
 print('**** Saving Dataset ****')

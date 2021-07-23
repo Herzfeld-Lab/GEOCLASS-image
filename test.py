@@ -56,7 +56,7 @@ elif cfg['model'] == 'Resnet18':
 
 elif cfg['model'] == 'DDAiceNet':
     num_classes = cfg['num_classes']
-    input_size = cfg['vario_size']
+    input_size = 23
     model = DDAiceNet.DDAiceNet(num_classes,input_size)
     img_transforms_valid = None
 else:

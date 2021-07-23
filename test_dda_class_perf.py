@@ -35,8 +35,8 @@ def compare_labels(fileTrain, fileValid, num_classes = 4):
 
 def main():
 
-	base_labels = '/Users/adamhayes/workspace/NN_Class/Config/dda_test_negri_valid/dda_test_negri_valid_still_testing.npy'
-	valid_label_dir = '/Users/adamhayes/workspace/NN_Class/Output/dda_test_negri_21-07-2021_16:14/labels'
+	base_labels = '/Users/adamhayes/workspace/NN_Class/Config/dda_test_both_negri_jak/dda_test_both_still_testing.npy'
+	valid_label_dir = '/Users/adamhayes/workspace/NN_Class/Output/dda_test_both_negri_jak_23-07-2021_16:04/labels'
 	valid_data = glob.glob(valid_label_dir + '/*.npy')
 	valid_paths = []
 	for file in valid_data:

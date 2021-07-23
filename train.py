@@ -55,7 +55,6 @@ dataset_path = cfg['npy_path']
 train_path = cfg['train_path']
 valid_path = cfg['valid_path']
 
-
 # Initialize NN model as specified by config file
 print('----- Initializing Neural Network Model -----')
 
@@ -81,7 +80,7 @@ elif cfg['model'] == 'Resnet18':
 
 elif cfg['model'] == 'DDAiceNet':
     num_classes = cfg['num_classes']
-    input_size = cfg['vario_size']
+    input_size = 23
     model = DDAiceNet.DDAiceNet(num_classes,input_size)
     img_transforms_train = None
     img_transforms_valid = None
