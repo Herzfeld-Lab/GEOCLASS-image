@@ -76,9 +76,7 @@ else:
 	# compute variograms for each track individually, then combine results
 	vario_dat = []
 	for data in ground_est0:
-		temp=run_vario(data, dir_path, lag, winsize, winstep, nvar, ndir)
-		vario_dat.append(temp)
-		# vario_dat.append(run_vario(data, dir_path, lag, winsize, winstep, nvar, ndir))
+		vario_dat.append(run_vario(data, dir_path, lag, winsize, winstep, nvar, ndir))
 	vario_data = np.vstack((vario_dat))
 
 
