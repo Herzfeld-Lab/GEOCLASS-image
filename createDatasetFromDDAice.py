@@ -24,6 +24,7 @@ winsize = cfg['window_size']
 winstep = cfg['window_step']
 nvar = cfg['num_var']
 ndir = cfg['num_dir']
+nres = int(0.8*winsize/lag)
 
 print('**** Loading DDA-ice Data ****')
 
@@ -71,12 +72,12 @@ dir_path = '/'.join([split_path[0],split_path[1]])
 # check for multiple ground estimate files
 if len(ground_est0) == 1:
 	ground_est0 = ground_est0[0]
-	vario_data = run_vario(ground_est0, dir_path, lag, winsize, winstep, nvar, ndir)
+	vario_data = run_vario(ground_est0, dir_path, lag, winsize, winstep, nvar, ndir, nres)
 else:
 	# compute variograms for each track individually, then combine results
 	vario_dat = []
 	for data in ground_est0:
-		vario_dat.append(run_vario(data, dir_path, lag, winsize, winstep, nvar, ndir))
+		vario_dat.append(run_vario(data, dir_path, lag, winsize, winstep, nvar, ndir, nres))
 	vario_data = np.vstack((vario_dat))
 
 
@@ -110,6 +111,7 @@ full_data_array = np.array([info, vario_data], dtype='object')
 dataset_path = args.config[:-7] + '_still_testing'
 
 cfg['npy_path'] = dataset_path + '.npy'
+cfg['nres'] = nres
 
 np.save(dataset_path, full_data_array)
 

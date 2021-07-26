@@ -12,7 +12,7 @@ from scipy.ndimage.filters import convolve1d
 import utm
 import glob
 
-def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir):
+def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir, nres):
 
 	###########################
 	# SET CONSTANT PARAMETERS #
@@ -23,9 +23,9 @@ def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir):
 	icom1 = 'idk'
 	lag = float(lag) # resolution of the variogram (i.e. the spacing of the lags)
 	name = 'elevation'
-	nres = int(0.8*window_size/lag) # Number of results to calculate (depends on window size and lag size)
 	residual = False
 	photons = False
+	# nres = Number of results to calculate (depends on window size and lag size)
 	###########################
 
 	# Load the output data from the surface detector code, likely in the following format

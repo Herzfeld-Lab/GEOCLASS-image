@@ -56,8 +56,8 @@ elif cfg['model'] == 'Resnet18':
 
 elif cfg['model'] == 'DDAiceNet':
     num_classes = cfg['num_classes']
-    input_size = 23
-    model = DDAiceNet.DDAiceNet(num_classes,input_size)
+    input_size = cfg['nres']
+    model = DDAiceNet.DDAiceNet(num_classes,input_size-1)
     img_transforms_valid = None
 else:
     print("Error: Model \'%s\' not recognized"%(cfg['model']))
