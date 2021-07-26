@@ -126,9 +126,6 @@ def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir, nres):
 		else: # variogram
 			vario_values = vario_results[:,3]
 
-		# if vario_values.shape[0] == nres-1:
-		# 	vario_values_ret[w] = vario_values
-
 		lags = vario_results[:,1]
 
 		# SMOOTHING of variogram values with linear filter
