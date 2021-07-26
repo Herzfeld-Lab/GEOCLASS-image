@@ -1,6 +1,10 @@
 
 import numpy as np
 import os, glob
+from sklearn.metrics import confusion_matrix
+import seaborn as sn
+import pandas as pd
+import matplotlib.pyplot as plt
 
 
 def compare_labels(fileTrain, fileValid, num_classes = 4):
@@ -19,6 +23,8 @@ def compare_labels(fileTrain, fileValid, num_classes = 4):
 		bools = train_labels==valid_labels
 		num_correct = bools[bools==True].shape[0]
 
+		cm = confusion_matrix(train_labels,valid_labels)
+
 		print('Total Correct: {} out of {}'.format(num_correct,len(train_labels)))
 
 		for i in range(num_classes):
@@ -32,11 +38,22 @@ def compare_labels(fileTrain, fileValid, num_classes = 4):
 			print('Total in Class {}: {} Total correct: {} Percent correct: {}'.format(i, tot, nc, pc))
 
 		print('\n')
+		print('Confusion Matrix: ')
+		df_cm = pd.DataFrame(cm, index = [i for i in "0123"],
+                  columns = [i for i in "0123"])
+		print(df_cm)
+		# plt.figure(figsize = (10,7))
+		# sn.heatmap(df_cm, annot=True)
+		# plt.show()
+		print('\n')
+
+
 
 def main():
 
-	base_labels = '/Users/adamhayes/workspace/NN_Class/Config/dda_test_both_negri_jak/dda_test_both_still_testing.npy'
-	valid_label_dir = '/Users/adamhayes/workspace/NN_Class/Output/dda_test_both_negri_jak_23-07-2021_16:04/labels'
+	base_labels = '/Users/adamhayes/ws_home/NN_Class/Config/dda_test_both_negri_jak/dda_test_both_still_testing.npy'
+	valid_label_dir = '/Users/adamhayes/ws_home/NN_Class/Output/dda_test_both_negri_jak_26-07-2021_11:02/labels'
+
 	valid_data = glob.glob(valid_label_dir + '/*.npy')
 	valid_paths = []
 	for file in valid_data:

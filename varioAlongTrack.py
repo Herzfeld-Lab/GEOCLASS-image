@@ -96,6 +96,9 @@ def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir, nres):
 		out = vario_process.communicate()[1]
 
 		# Retrieve output from vario_out.dat
+		# if os.path.getsize(vario_outfile) == 0:
+		# 	os.remove(vario_outfile)
+		# 	continue
 		try:
 			vario_results = np.loadtxt(vario_outfile)
 		except ValueError as e:
