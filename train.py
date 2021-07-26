@@ -133,6 +133,7 @@ else:
         dataPath = topDir,
         dataInfo = dataset_info,
         dataLabeled = train_coords,
+        cutoff = input_size-1,
         train = True,
         transform = None
         )
@@ -141,6 +142,7 @@ else:
         dataPath = topDir,
         dataInfo = dataset_info,
         dataLabeled = test_coords,
+        cutoff = input_size-1,
         train = True,
         transform = None
         )
@@ -204,12 +206,17 @@ valid_losses = []
 # X = tensor
 # Y = label
 
+print(len(train_dataset))
+
 for epoch in range(num_epochs):
 
     print("EPOCH: {} ".format(epoch),end='',flush=True)
 
     sum_loss = 0
     for batch_idx,(X,Y) in enumerate(train_loader):
+        print("batch_idx: ",batch_idx)
+        print("X: ",X)
+        print("Y: ",Y)
 
         if batch_idx % int((len(train_dataset) / batch_size)/10) == 0:
             print('.', end='',flush=True)

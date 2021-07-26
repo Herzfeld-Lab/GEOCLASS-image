@@ -154,18 +154,19 @@ class AdjustContrast(object):
 
 class DDAiceDataset(Dataset):
 
-    def __init__(self, dataPath, dataInfo, dataLabeled, transform=None, train=False):
+    def __init__(self, dataPath, dataInfo, dataLabeled, cutoff, transform=None, train=False):
 
         self.train = train
         self.transform = transform
+        self.cutoff = cutoff
         ddaGroundEstPath = dataPath[0] # path to ground estimate
         datasetInfo = dataInfo
         variograms = dataLabeled
 
         # Work on configuring pandas data frame - numpy easier right now for 48 col array
         # cols = ['lon','lat','utm_e','utm_n','dist','delta_time','pond','p1','p2','mindist','hdiff','nugget','photon_density','variogram','label']
-        # labels = dataLabeled[:,47]
-        # variograms = dataLabeled[:,0:47]
+        # labels = dataLabeled[:,cutoff]
+        # variograms = dataLabeled[:,0:cutoff]
         # dataDict = {'label': labels, 'variogram': variograms}
 
         self.dataFrame = variograms
