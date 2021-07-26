@@ -126,8 +126,8 @@ def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir, nres):
 		else: # variogram
 			vario_values = vario_results[:,3]
 
-		if vario_values.shape[0] == nres-1:
-			vario_values_ret[w] = vario_values
+		# if vario_values.shape[0] == nres-1:
+		# 	vario_values_ret[w] = vario_values
 
 		lags = vario_results[:,1]
 
@@ -135,6 +135,9 @@ def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir, nres):
 		coef = np.array([.0625,0.25,0.375,0.25,0.625])
 		coef = coef/coef.sum() # normalize
 		vario_values = convolve1d(vario_values, coef, mode='nearest')
+
+		if vario_values.shape[0] == nres-1:
+			vario_values_ret[w] = vario_values
 
 		pond = np.max(vario_values)
 		pond_lag = lags[np.argmax(vario_values)]
