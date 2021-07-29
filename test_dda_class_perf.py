@@ -52,7 +52,7 @@ def compare_labels(fileTrain, fileValid, num_classes = 4):
 def main():
 
 	base_labels = '/Users/adamhayes/ws_home/NN_Class/Config/dda_test_both_negri_jak/dda_test_both_still_testing.npy'
-	valid_label_dir = '/Users/adamhayes/ws_home/NN_Class/Output/dda_test_both_negri_jak_26-07-2021_11:02/labels'
+	valid_label_dir = '/Users/adamhayes/ws_home/NN_Class/Output/dda_test_both_negri_jak_29-07-2021_13-10/labels'
 
 	valid_data = glob.glob(valid_label_dir + '/*.npy')
 	valid_paths = []
@@ -61,8 +61,6 @@ def main():
 		valid_paths.append(path_full)
 
 	compare_labels(base_labels,valid_paths)
-
-
 
 
 

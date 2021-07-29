@@ -402,6 +402,14 @@ def batch_rotate_vario(vario):
 
     return ret
 
+def class_label_breakdown(labels, classes):
+
+    print("Class Breakdown: ")
+
+    for num,name in enumerate(classes):
+        tot = labels[labels==num].shape[0]
+        print("Total chunks in class {}: {}".format(name,tot))
+
 def generate_config_adam(yaml_obj):
     config_str = '''
 ### MODEL PARAMETERS ###

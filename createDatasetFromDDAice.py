@@ -69,6 +69,9 @@ print('**** Computing Variograms ****')
 split_path = args.config.split('/')
 dir_path = '/'.join([split_path[0],split_path[1]])
 
+for elem in ground_est0:
+	print(elem)
+
 # check for multiple ground estimate files
 if len(ground_est0) == 1:
 	ground_est0 = ground_est0[0]
@@ -87,8 +90,6 @@ if bin_labels is None:
 	# bin_labels = np.full(shape=(vario_data.shape[0],1), fill_value=-1)
 	vario_data = np.c_[vario_data,bin_labels]
 else:
-	print(vario_data.shape)
-	print(bin_labels.shape)
 	vario_data = np.c_[vario_data,bin_labels]
 
 
@@ -96,8 +97,14 @@ vario_data_ls = []
 for i in range(len(bin_labels)):
 	if bin_labels[i] == 0:
 		n = np.random.uniform()
-		if n > 0.5:
+		if n > 0.83:
 			vario_data_ls.append(vario_data[i])
+
+	elif bin_labels[i] == 3:
+		n2 = np.random.uniform()
+		if n2 > 0.6:
+			vario_data_ls.append(vario_data[i])
+
 	else:
 		vario_data_ls.append(vario_data[i])
 
@@ -105,6 +112,8 @@ vario_data = np.array(vario_data_ls)
 
 
 print('**** Saving Dataset ****')
+
+class_label_breakdown(vario_data[:,nres-1],classEnum)
 
 full_data_array = np.array([info, vario_data], dtype='object')
 
