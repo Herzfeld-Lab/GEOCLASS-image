@@ -121,7 +121,9 @@ def getImgPaths(topDir):
     return glob.glob(topDir + '/*.tif')
 
 def get_dda_paths(topDir):
-    return glob.glob(topDir + '/*.txt')
+    files = glob.glob(topDir + '/*.txt')
+    files.sort()
+    return files
 
 def utm_to_pix(imgSize,utmBounds,utmCoord):
     """

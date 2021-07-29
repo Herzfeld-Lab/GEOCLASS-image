@@ -214,9 +214,6 @@ for epoch in range(num_epochs):
 
     sum_loss = 0
     for batch_idx,(X,Y) in enumerate(train_loader):
-        print("batch_idx: ",batch_idx)
-        print("X: ",X)
-        print("Y: ",Y)
 
         if batch_idx % int((len(train_dataset) / batch_size)/10) == 0:
             print('.', end='',flush=True)

@@ -98,6 +98,7 @@ else:
         dataPath = topDir,
         dataInfo = dataset_info,
         dataLabeled = dataset_labels,
+        cutoff = input_size-1,
         train = False,
         transform = None
         )
