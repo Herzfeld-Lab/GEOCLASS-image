@@ -5,10 +5,12 @@ import plotly.express as px
 import plotly.graph_objects as go
 from progress.bar import IncrementalBar
 import argparse
+from utils import *
 
 # Parse command line flags
 parser = argparse.ArgumentParser()
 parser.add_argument("config", type=str)
+parser.add_argument("--label_only", type=str, default=None)
 args = parser.parse_args()
 
 # Read config file
@@ -121,10 +123,11 @@ def get_data():
 
 def main():
 
-	# get ground estimate / weighted photon data
-	dataList = get_data()
-	# plot all dda vario window chunks
-	plot_chunks(dataList)
+	if args.label_only is None:
+		# get ground estimate / weighted photon data
+		dataList = get_data()
+		# plot all dda vario window chunks
+		plot_chunks(dataList)
 	# execute user labeling feature
 	classLabels = label_images()
 	# save labels to input data directory
