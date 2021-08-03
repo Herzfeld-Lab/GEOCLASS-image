@@ -81,13 +81,8 @@ else:
 	vario_data = np.vstack((vario_dat))
 
 
-
-if bin_labels is None:
-	# bin_labels = np.random.randint(0,3,size=(vario_data.shape[0],1))
-	bin_labels = np.full(shape=(vario_data.shape[0],1), fill_value=-1)
-	vario_data = np.c_[vario_data,bin_labels]
-else:
-	vario_data = np.c_[vario_data,bin_labels]
+bin_labels = np.full(shape=(vario_data.shape[0],1), fill_value=-1)
+vario_data = np.c_[vario_data,bin_labels]
 
 subset = False
 if subset == True:
