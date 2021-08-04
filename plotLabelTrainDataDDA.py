@@ -89,7 +89,7 @@ def label_images():
 	imgs.sort(key = sortFunc)
 
 	classArray = []
-	for image in imgs:
+	for seg,image in enumerate(imgs):
 		img = cv.imread(image)
 
 		if img is None:
@@ -98,7 +98,10 @@ def label_images():
 		cv.imshow("Display Window", img)
 		lab = cv.waitKey(0)
 
-		classArray.append(int(chr(lab)))
+		if lab == 127:
+			classArray.append(-1)
+		else:
+			classArray.append(int(chr(lab)))
 
 	return np.array(classArray)
 
@@ -120,25 +123,6 @@ def get_data():
 	return list(zip_arr)
 
 
-def subset_data(classLabels):
-	vario_data_ls = []
-	for i in range(len(bin_labels)):
-		if bin_labels[i] == 0:
-			n = np.random.uniform()
-			if n > 0.83:
-				vario_data_ls.append(vario_data[i])
-
-		elif bin_labels[i] == 3:
-			n2 = np.random.uniform()
-			if n2 > 0.6:
-				vario_data_ls.append(vario_data[i])
-
-		else:
-			vario_data_ls.append(vario_data[i])
-
-	vario_data = np.array(vario_data_ls)
-
-
 def main():
 
 	if args.label_only is None:
@@ -154,6 +138,7 @@ def main():
 	class_label_breakdown(classLabels,classEnum)
 	# add window labels to main data file
 	current_data[1][:,nres-1] = classLabels
+	# save new dataset w/ valid segment labels
 	np.save(dataset_path, current_data)
 
 
