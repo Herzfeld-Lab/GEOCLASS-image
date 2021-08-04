@@ -120,6 +120,24 @@ def get_data():
 	return list(zip_arr)
 
 
+def subset_data(classLabels):
+	vario_data_ls = []
+	for i in range(len(bin_labels)):
+		if bin_labels[i] == 0:
+			n = np.random.uniform()
+			if n > 0.83:
+				vario_data_ls.append(vario_data[i])
+
+		elif bin_labels[i] == 3:
+			n2 = np.random.uniform()
+			if n2 > 0.6:
+				vario_data_ls.append(vario_data[i])
+
+		else:
+			vario_data_ls.append(vario_data[i])
+
+	vario_data = np.array(vario_data_ls)
+
 
 def main():
 
