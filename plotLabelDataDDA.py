@@ -11,6 +11,7 @@ from utils import *
 parser = argparse.ArgumentParser()
 parser.add_argument("config", type=str)
 parser.add_argument("--label_only", type=str, default=None)
+parser.add_argument("--plot_only", type=str, default=None)
 args = parser.parse_args()
 
 # Read config file
@@ -42,12 +43,13 @@ def plot_chunks(dataTuples):
 
 	seg = 0
 	for track,elem in enumerate(dataTuples):
+		# print(elem[0].split('/')[-1].split('_')[0])
 		ground_estimate = np.loadtxt(elem[0])
 		weight_photons = np.loadtxt(elem[1])
 
 		dist = ground_estimate[:,3]
-		mindist = dist[0]
-		maxdist = dist[len(dist)-1]
+		mindist = np.min(dist)
+		maxdist = np.max(dist)
 
 		starts = np.arange(mindist,maxdist-winsize,winstep)
 		ends = np.arange(mindist+winsize,maxdist,winstep)
@@ -68,10 +70,11 @@ def plot_chunks(dataTuples):
 			pltDict2 = {'dist': ground_segment[:, 3], 'elevation': ground_segment[:, 2]}
 			ylim = [np.min(ground_segment[:, 2]) - 10, np.max(ground_segment[:, 2]) + 10]
 
-			f1 = px.scatter(pltDict, x='dist', y='elevation',color='density',opacity=opac)
+			f1 = px.scatter(pltDict, x='dist', y='elevation', color='density', opacity=opac)
 			f2 = px.line(pltDict2, x='dist', y='elevation')
 			f2.update_traces(line=dict(color="Black", width=linesize))
-			fig = go.Figure(data=f1.data + f2.data, layout_yaxis_range=ylim)
+			lo = go.Layout(title=go.layout.Title(text='track {}, chunk {}'.format(track,seg)))
+			fig = go.Figure(data=f1.data + f2.data, layout_yaxis_range=ylim, layout=lo)
 			fig.update_layout(autosize=False,width=width_px,height=height_px)
 			# fig.data = fig.data[::-1]
 			fig.write_image(os.path.join(plot_directory, 'segment_{}.png'.format(seg)))
@@ -97,6 +100,9 @@ def label_images():
 
 		cv.imshow("Display Window", img)
 		lab = cv.waitKey(0)
+
+		if seg % 100 == 0 and seg > 0:
+			class_label_breakdown(np.array(classArray),classEnum)
 
 		if lab == 127:
 			classArray.append(-1)
@@ -130,16 +136,18 @@ def main():
 		dataList = get_data()
 		# plot all dda vario window chunks
 		plot_chunks(dataList)
-	# execute user labeling feature
-	classLabels = label_images()
-	# save labels to input data directory
-	np.savetxt(os.path.join(mainDir, 'window_labels_auto.txt'), classLabels)
-	# print class/label breakdown
-	class_label_breakdown(classLabels,classEnum)
-	# add window labels to main data file
-	current_data[1][:,nres-1] = classLabels
-	# save new dataset w/ valid segment labels
-	np.save(dataset_path, current_data)
+
+	if args.plot_only is None:
+		# execute user labeling feature
+		classLabels = label_images()
+		# save labels to input data directory
+		np.savetxt(os.path.join(mainDir, 'window_labels_auto.txt'), classLabels)
+		# print class/label breakdown
+		class_label_breakdown(classLabels,classEnum)
+		# add window labels to main data file
+		current_data[1][:,nres-1] = classLabels
+		# save new dataset w/ valid segment labels
+		np.save(dataset_path, current_data)
 
 
 if __name__ == '__main__':

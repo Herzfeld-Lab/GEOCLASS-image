@@ -9,29 +9,33 @@ import matplotlib.pyplot as plt
 
 def compare_labels(fileTrain, fileValid, num_classes = 4):
 
-	train_labels = np.load(fileTrain, allow_pickle=True)[1]
-	train_labels = train_labels[:,-1]
+	valid_labels = np.load(fileTrain, allow_pickle=True)[1]
+	valid_labels = valid_labels[:,-1]
 
 	for fp in fileValid:
 
 		epoch = fp.split('/')[-1]
 		print('Epoch checkpoint: ', epoch)
 
-		valid_labels = np.load(fp, allow_pickle=True)[1]
-		valid_labels = valid_labels[:,4]
+		pred_labels = np.load(fp, allow_pickle=True)[1]
+		pred_labels = pred_labels[:,4]
 
-		bools = train_labels==valid_labels
+		bools = valid_labels==pred_labels
 		num_correct = bools[bools==True].shape[0]
+		num_tot = valid_labels[valid_labels!=-1].shape[0]
 
-		cm = confusion_matrix(train_labels,valid_labels)
+		# valid_labels = np.ma.masked_where(valid_labels==-1,valid_labels)
+		# pred_labels = np.ma.masked_where(pred_labels==-1,pred_labels)
 
-		print('Total Correct: {} out of {}'.format(num_correct,len(train_labels)))
+		cm = confusion_matrix(valid_labels,pred_labels,labels=[i for i in range(num_classes)])
+
+		print('Total Correct: {} out of {}'.format(num_correct, num_tot))
 
 		for i in range(num_classes):
 
-			idxs = train_labels == i
+			idxs = valid_labels == i
 			tot = idxs[idxs==True].shape[0]
-			class_bools = train_labels[idxs] == valid_labels[idxs]
+			class_bools = valid_labels[idxs] == pred_labels[idxs]
 			nc = class_bools[class_bools==True].shape[0]
 			pc = nc / tot
 
@@ -51,8 +55,8 @@ def compare_labels(fileTrain, fileValid, num_classes = 4):
 
 def main():
 
-	base_labels = '/Users/adamhayes/ws_home/NN_Class/Config/dda_test_both_negri_jak/dda_test_both_still_testing.npy'
-	valid_label_dir = '/Users/adamhayes/ws_home/NN_Class/Output/dda_test_both_negri_jak_29-07-2021_13-10/labels'
+	base_labels = '/Users/adamhayes/ws_home/NN_Class/Config/dda_test_both_negri_jak_valid/dda_test_both_valid_still_testing.npy'
+	valid_label_dir = '/Users/adamhayes/ws_home/NN_Class/Output/dda_test_both_negri_jak_12-08-2021_16-00/labels'
 
 	valid_data = glob.glob(valid_label_dir + '/*.npy')
 	valid_paths = []
@@ -75,12 +79,12 @@ if __name__ == '__main__':
 
 
 """
-	idxs0 = train_labels == 0
+	idxs0 = valid_labels == 0
 	idxs1 = train_labels == 1
 	idxs2 = train_labels == 2
 	idxs3 = train_labels == 3
 
-	bools0 = train_labels[idxs0] == valid_labels[idxs0]
+	bools0 = train_labels[idxs0] == pred_labels[idxs0]
 	num0correct = bools0[bools0==True].shape[0]
 
 	bools1 = train_labels[idxs1] == valid_labels[idxs1]

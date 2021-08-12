@@ -61,8 +61,8 @@ def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir, nres):
 	stepsize_bins = int(window_step / lag)
 
 	# initialize fillable arrays
-	# vario_values_ret = np.zeros((len(windows),nres-1))
-	vario_values_ret = []
+	vario_values_ret = np.zeros((len(windows),nres-1))
+	# vario_values_ret = []
 	parameters = np.zeros((len(windows),13))
 	# We will fill parameters with [lon, lat, distance, delta_time, utm_e, utm_n, pond, p1, p2, mindist, hdiff]
 	# vario_value_ret gets variogram at each iteration
@@ -100,7 +100,7 @@ def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir, nres):
 
 		# Retrieve output from vario_out.dat
 		if os.path.getsize(vario_outfile) == 0:
-			print(w)
+			print('The vario file for Window segment {} is empty...')
 			os.remove(vario_outfile)
 			continue
 		try:
@@ -138,8 +138,9 @@ def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir, nres):
 		vario_values = convolve1d(vario_values, coef, mode='nearest')
 
 		if vario_values.shape[0] == nres-1:
-			# vario_values_ret[w] = vario_values
-			vario_values_ret.append(vario_values)
+			vario_values_ret[w] = vario_values
+		else:
+			vario_values_ret[w,:vario_values.shape[0]] = vario_values 
 
 		pond = np.max(vario_values)
 		pond_lag = lags[np.argmax(vario_values)]
