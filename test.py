@@ -55,9 +55,10 @@ elif cfg['model'] == 'Resnet18':
     img_transforms_valid = None
 
 elif cfg['model'] == 'DDAiceNet':
+    ddaBool = True
     num_classes = cfg['num_classes']
-    input_size = cfg['nres']
-    model = DDAiceNet.DDAiceNet(num_classes,input_size-1)
+    nres = cfg['nres']
+    model = DDAiceNet.DDAiceNet(num_classes,nres-1)
     img_transforms_valid = None
 else:
     print("Error: Model \'%s\' not recognized"%(cfg['model']))
@@ -98,7 +99,7 @@ else:
         dataPath = topDir,
         dataInfo = dataset_info,
         dataLabeled = dataset_labels,
-        cutoff = input_size-1,
+        cutoff = nres-1,
         train = False,
         transform = None
         )
@@ -169,8 +170,12 @@ for batch_idx,X in enumerate(valid_loader):
 #dataset[0]['filename'] = topDir
 
 split_info = dataset[1]
-split_info[:,4] = labels
-split_info[:,5] = confs
+if ddaBool:
+    split_info[:,nres-1] = labels
+    split_info[:,nres] = confs
+else:
+    split_info[:,4] = labels
+    split_info[:,5] = confs
 #split_info = np.concatenate((split_info, np.array(confs).reshape(len(confs),1)),1)
 
 print(dataset[1].shape)

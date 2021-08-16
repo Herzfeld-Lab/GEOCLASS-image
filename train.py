@@ -79,9 +79,10 @@ elif cfg['model'] == 'Resnet18':
     img_transforms_valid = None
 
 elif cfg['model'] == 'DDAiceNet':
+    ddaBool = True
     num_classes = cfg['num_classes']
-    input_size = cfg['nres']
-    model = DDAiceNet.DDAiceNet(num_classes,input_size-1)
+    nres = cfg['nres']
+    model = DDAiceNet.DDAiceNet(num_classes,nres-1)
     img_transforms_train = None
     img_transforms_valid = None
 
@@ -96,9 +97,11 @@ print(model)
 dataset = np.load(dataset_path, allow_pickle=True)
 dataset_info = dataset[0]
 dataset_coords = dataset[1]
-# dataset_labeled = dataset_coords[dataset_coords[:,4] != -1]
-dataset_labeled = dataset_coords[dataset_coords[:,-1] != -1]
-
+if ddaBool:
+    dataset_labeled = dataset_coords[dataset_coords[:,nres-1] != -1]
+else:
+    dataset_labeled = dataset_coords[dataset_coords[:,4] != -1]
+    
 train_size = int(cfg['train_test_split'] * dataset_labeled.shape[0])
 
 train_indeces = np.random.choice(range(dataset_labeled.shape[0]), train_size, replace=False)
@@ -131,7 +134,7 @@ else:
         dataPath = topDir,
         dataInfo = dataset_info,
         dataLabeled = train_coords,
-        cutoff = input_size-1,
+        cutoff = nres-1,
         train = True,
         transform = None
         )
@@ -140,7 +143,7 @@ else:
         dataPath = topDir,
         dataInfo = dataset_info,
         dataLabeled = test_coords,
-        cutoff = input_size-1,
+        cutoff = nres-1,
         train = True,
         transform = None
         )

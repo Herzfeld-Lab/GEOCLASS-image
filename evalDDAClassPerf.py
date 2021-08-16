@@ -9,7 +9,7 @@ import argparse
 import yaml
 
 
-def compare_labels(valid_labels, test_data, num_classes = 4):
+def compare_labels(valid_labels, test_data, nres, num_classes = 4):
 
 	# valid_labels = np.load(fileTrain, allow_pickle=True)[1]
 	# valid_labels = valid_labels[:,-1]
@@ -19,15 +19,13 @@ def compare_labels(valid_labels, test_data, num_classes = 4):
 		epoch = fp.split('/')[-1]
 		print('Epoch checkpoint: ', epoch)
 
-		pred_labels = np.load(fp, allow_pickle=True)[1]
-		pred_labels = pred_labels[:,4]
+		pred_label_data = np.load(fp, allow_pickle=True)[1]
+		pred_labels = pred_label_data[:,nres-1]
+		conf = pred_label_data[:,nres]
 
 		bools = valid_labels==pred_labels
 		num_correct = bools[bools==True].shape[0]
 		num_tot = valid_labels[valid_labels!=-1].shape[0]
-
-		# valid_labels = np.ma.masked_where(valid_labels==-1,valid_labels)
-		# pred_labels = np.ma.masked_where(pred_labels==-1,pred_labels)
 
 		cm = confusion_matrix(valid_labels,pred_labels,labels=[i for i in range(num_classes)])
 
@@ -77,7 +75,7 @@ def main():
 	base_labels = dataset[:,nres-1]
 	test_data = glob.glob(args.labels + '/*.npy')
 
-	compare_labels(base_labels,test_data)
+	compare_labels(base_labels,test_data,nres)
 
 
 

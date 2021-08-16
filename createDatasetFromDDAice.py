@@ -82,11 +82,11 @@ else:
 
 print('Shape of variogram data: {}'.format(vario_data.shape))
 
-bin_labels = np.full(shape=(vario_data.shape[0],1), fill_value=-1)
-vario_data = np.c_[vario_data,bin_labels]
-
-
 print('**** Saving Dataset ****')
+
+bin_labels = np.full(shape=(vario_data.shape[0],1), fill_value=-1)
+confidence = np.full(shape=(vario_data.shape[0],1), fill_value=0)
+vario_data = np.c_[vario_data,bin_labels,confidence]
 
 full_data_array = np.array([info, vario_data], dtype='object')
 
