@@ -184,6 +184,7 @@ cm    NRES eingefuegt
       CHARACTER*4 FMT(20)                                                       
       character*50 infile,out1,out2,out3,out4,out5,out6,
      1 out7,out8,out9
+
  
 C**********************************************************************C        
 C                                                                      C        
@@ -263,28 +264,26 @@ C
       IF (K1.LE.0.)   K1 = 1                                                    
 cuh
       read (27,'(a)') infile	
-      read (27,'(a)') out1
-      if (idir.ge.2) read (27,'(a)') out2
-      if (idir.ge.3) read (27,'(a)') out3
-      if (idir.ge.4) read (27,'(a)') out4
-      if (idir.ge.5) read (27,'(a)') out5
-      if (idir.ge.8) read (27,'(a)') out6
-      if (idir.ge.8) read (27,'(a)') out7
-      if (idir.ge.8) read (27,'(a)') out8
-      if (idir.ge.9) read (27,'(a)') out9
+      if (idir.eq.1) read (27,'(a)') out1
+      if (idir.eq.2) read (27,'(a)') out2
+      if (idir.eq.3) read (27,'(a)') out3
+      if (idir.eq.4) read (27,'(a)') out4
+      if (idir.eq.5) read (27,'(a)') out5
+      if (idir.eq.8) read (27,'(a)') out6
+      if (idir.eq.8) read (27,'(a)') out7
+      if (idir.eq.8) read (27,'(a)') out8
+      if (idir.eq.9) read (27,'(a)') out9
 
-       
-cm      PRINT 1, ICOM,(NAME(I),I=1,NVAR)
                           
-        open (unit=41,file=out1,status='new')
-	if (idir.ge.2)	open (unit=42,file=out2,status='new')
-	if (idir.ge.3)	open (unit=43,file=out3,status='new')
-	if (idir.ge.4)	open (unit=44,file=out4,status='new')
-	if (idir.ge.5)	open (unit=45,file=out5,status='new')
-	if (idir.ge.8)	open (unit=46,file=out6,status='new')
-	if (idir.ge.8)	open (unit=47,file=out7,status='new')
-	if (idir.ge.8)	open (unit=48,file=out8,status='new')
-        if (idir.eq.9)  open (unit=49,file=out9,status='new')
+      if (idir.eq.1) open (unit=41,file=out1,status='new')
+      if (idir.eq.2) open (unit=42,file=out2,status='new')
+      if (idir.eq.3) open (unit=43,file=out3,status='new')
+      if (idir.eq.4) open (unit=44,file=out4,status='new')
+      if (idir.eq.5) open (unit=45,file=out5,status='new')
+      if (idir.eq.8) open (unit=46,file=out6,status='new')
+      if (idir.eq.8) open (unit=47,file=out7,status='new')
+      if (idir.eq.8) open (unit=48,file=out8,status='new')
+      if (idir.eq.9) open (unit=49,file=out9,status='new')
 
 
 cuh      PRINT 5, ILOG,IACM,IDIR,STEP,BORNL,BORNU,K1,ALPHA  

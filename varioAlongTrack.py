@@ -4,13 +4,12 @@ This is a wrapper for the fortran vario function
 
 import numpy as np
 from optparse import OptionParser
-import os
+import os, glob, re
 import subprocess as sp
 from shutil import rmtree
 from scipy import vectorize
 from scipy.ndimage.filters import convolve1d
 import utm
-import glob
 
 def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir, nres):
 
@@ -46,8 +45,8 @@ def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir, nres):
 		lat = ground_data[:,1]
 		distance = ground_data[:,3] # distance along track in meters
 		elevation = ground_data[:,2] # corresponding interpolated elevation
-		delta_time = np.empty(np.shape(lon))
-		delta_time[:] = np.nan
+		delta_time = ground_data[:,4]
+		density = ground_data[:,6]
 
 	# Calculate eastings and northings based on lon-lat data
 	eastings, northings, _, _ = utm.from_latlon(lat,lon)
@@ -62,7 +61,6 @@ def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir, nres):
 
 	# initialize fillable arrays
 	vario_values_ret = np.zeros((len(windows),nres-1))
-	# vario_values_ret = []
 	parameters = np.zeros((len(windows),13))
 	# We will fill parameters with [lon, lat, distance, delta_time, utm_e, utm_n, pond, p1, p2, mindist, hdiff]
 	# vario_value_ret gets variogram at each iteration
@@ -77,6 +75,11 @@ def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir, nres):
 		start = w * stepsize_bins
 		end = start + winsize_bins
 		window_data = np.array([eastings[start:end],northings[start:end],elevation[start:end]]).T
+		# ground_data_window = ground_data[ground_data[:,3]>=windows[w,0]]
+		# ground_data_window = ground_data_window[ground_data_window[:,3]<=windows[w,1]]
+		# dens = density[start:end]
+		# print(dens.shape)
+		# break
 		
 		if len(window_data)<5: # if we have too few datapoints in a window
 			print('too few points in current window')
@@ -182,7 +185,10 @@ def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir, nres):
 	# if os.path.isfile(dataPath+'/window_data.dat'): os.remove(dataPath+'/window_data.dat')
 	if os.path.isfile('window_data.dat'): os.remove('window_data.dat')
 	if os.path.isfile('invario.dat'): os.remove('invario.dat')
-	if os.path.isfile('fort.61'): os.remove('fort.61')
+	pattern = re.compile('fort.\w\w')
+	files = [f for f in os.listdir('.') if os.path.isfile(f)]
+	for f in files:
+		if pattern.match(f): os.remove(f)
 
 	return np.array(vario_values_ret)
 
