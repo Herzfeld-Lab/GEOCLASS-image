@@ -53,7 +53,7 @@ for num, data_path in enumerate(ddaOuts):
 		else:
 			ground_est1 = data_path
 
-	if 'window_labels' in data_path:
+	if 'window_labels_auto' in data_path:
 		bin_labels = np.loadtxt(data_path)
 
 
@@ -84,9 +84,10 @@ print('Shape of variogram data: {}'.format(vario_data.shape))
 
 print('**** Saving Dataset ****')
 
-bin_labels = np.full(shape=(vario_data.shape[0],1), fill_value=-1)
+# bin_labels = np.full(shape=(vario_data.shape[0],1), fill_value=-1)
 confidence = np.full(shape=(vario_data.shape[0],1), fill_value=0)
-vario_data = np.c_[vario_data,bin_labels,confidence]
+# vario_data = np.c_[vario_data,bin_labels,confidence]
+vario_data = np.c_[vario_data,bin_labels]
 
 full_data_array = np.array([info, vario_data], dtype='object')
 

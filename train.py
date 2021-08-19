@@ -207,8 +207,6 @@ valid_losses = []
 # X = tensor
 # Y = label
 
-print(len(train_dataset))
-
 for epoch in range(num_epochs):
 
     print("EPOCH: {} ".format(epoch),end='',flush=True)

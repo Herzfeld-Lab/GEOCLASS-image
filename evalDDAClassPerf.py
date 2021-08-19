@@ -21,7 +21,7 @@ def compare_labels(valid_labels, test_data, nres, num_classes = 4):
 
 		pred_label_data = np.load(fp, allow_pickle=True)[1]
 		pred_labels = pred_label_data[:,nres-1]
-		conf = pred_label_data[:,nres]
+		# conf = pred_label_data[:,nres]
 
 		bools = valid_labels==pred_labels
 		num_correct = bools[bools==True].shape[0]

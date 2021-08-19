@@ -172,7 +172,7 @@ for batch_idx,X in enumerate(valid_loader):
 split_info = dataset[1]
 if ddaBool:
     split_info[:,nres-1] = labels
-    split_info[:,nres] = confs
+    # split_info[:,nres] = confs
 else:
     split_info[:,4] = labels
     split_info[:,5] = confs
