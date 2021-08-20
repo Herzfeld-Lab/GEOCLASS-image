@@ -98,7 +98,7 @@ dataset = np.load(dataset_path, allow_pickle=True)
 dataset_info = dataset[0]
 dataset_coords = dataset[1]
 if ddaBool:
-    dataset_labeled = dataset_coords[dataset_coords[:,nres-1] != -1]
+    dataset_labeled = dataset_coords[dataset_coords[:,0] != -1]
 else:
     dataset_labeled = dataset_coords[dataset_coords[:,4] != -1]
     
@@ -134,7 +134,6 @@ else:
         dataPath = topDir,
         dataInfo = dataset_info,
         dataLabeled = train_coords,
-        cutoff = nres-1,
         train = True,
         transform = None
         )
@@ -143,7 +142,6 @@ else:
         dataPath = topDir,
         dataInfo = dataset_info,
         dataLabeled = test_coords,
-        cutoff = nres-1,
         train = True,
         transform = None
         )

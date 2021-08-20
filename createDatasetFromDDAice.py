@@ -80,7 +80,7 @@ else:
 		vario_dat.append(run_vario(data, dir_path, lag, winsize, winstep, nvar, ndir, nres))
 	vario_data = np.vstack((vario_dat))
 
-print('Shape of variogram data: {}'.format(vario_data.shape))
+
 
 print('**** Saving Dataset ****')
 
@@ -88,7 +88,10 @@ if bin_labels is None:
 	bin_labels = np.full(shape=(vario_data.shape[0],1), fill_value=-1)
 confidence = np.full(shape=(vario_data.shape[0],1), fill_value=0)
 # vario_data = np.c_[vario_data,bin_labels,confidence]
-vario_data = np.c_[vario_data,bin_labels]
+vario_data = np.c_[bin_labels,confidence,vario_data]
+# vario_data = np.c_[vario_data,bin_labels]
+
+print('Shape of variogram data: {}'.format(vario_data.shape))
 
 full_data_array = np.array([info, vario_data], dtype='object')
 

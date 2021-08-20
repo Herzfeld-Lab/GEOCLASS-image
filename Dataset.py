@@ -154,11 +154,10 @@ class AdjustContrast(object):
 
 class DDAiceDataset(Dataset):
 
-    def __init__(self, dataPath, dataInfo, dataLabeled, cutoff, transform=None, train=False):
+    def __init__(self, dataPath, dataInfo, dataLabeled, transform=None, train=False):
 
         self.train = train
         self.transform = transform
-        self.cutoff = cutoff
         ddaGroundEstPath = dataPath[0] # path to ground estimate
         datasetInfo = dataInfo
         variograms = dataLabeled
@@ -178,13 +177,13 @@ class DDAiceDataset(Dataset):
     def __getitem__(self,idx):
 
 
-        vario = self.dataFrame[idx,0:-1]
+        vario = self.dataFrame[idx,2:]
         # vario = self.dataFrame['variogram'][idx]
 
         vario_tensor = torch.from_numpy(vario)
 
         if self.train:
-            label = int(self.dataFrame[idx,-1])
+            label = int(self.dataFrame[idx,0])
             # label = int(self.dataFrame['label'][idx])
             return (vario_tensor, label)
         else:

@@ -20,8 +20,8 @@ def compare_labels(valid_labels, test_data, nres, num_classes = 4):
 		print('Epoch checkpoint: ', epoch)
 
 		pred_label_data = np.load(fp, allow_pickle=True)[1]
-		pred_labels = pred_label_data[:,nres-1]
-		# conf = pred_label_data[:,nres]
+		pred_labels = pred_label_data[:,0]
+		conf = pred_label_data[:,1]
 
 		bools = valid_labels==pred_labels
 		num_correct = bools[bools==True].shape[0]
@@ -72,7 +72,7 @@ def main():
 	nres = cfg['nres']
 
 	dataset = np.load(npy_data, allow_pickle=True)[1]
-	base_labels = dataset[:,nres-1]
+	base_labels = dataset[:,0]
 	test_data = glob.glob(args.labels + '/*.npy')
 
 	compare_labels(base_labels,test_data,nres)
