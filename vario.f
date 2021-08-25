@@ -584,7 +584,7 @@ cuh          PRINT 3
          DO 153 LP2 = KI,KIN                                                    
 
 cuh
-	      distclass=step*real(class)   
+            distclass=step*real(class)   
               CLASS = CLASS + 1   
                                           
             IF (EFF (LP2,J).LT.2) GO                          TO 149
@@ -597,17 +597,17 @@ cuh
                VARMAX = AMAX1 (VARMAX,M2,M3)                                    
                VARMIN = AMIN1 (VARMIN,M2,M3)                                                                          
 cuhuhuh   
-         	 kkv= lp1 +40
-        	 kkr= lp1 +60
+             kkv= lp1 +40
+             kkr= lp1 +60
 
 cuh            do not print results for the first "half" distance class 
 
                if (distclass.lt.(0.9*step)) goto 153
 
 cuh               PRINT 4,BINF,BSUB,EFF (LP2,J),M1,M2,M3,DISMOY              
-	write (kkv,'(i5,5f20.6,i7)') lp2,distclass,m1,m2,m3,dismoy,
+      write (kkv,'(i5,5f20.6,i7)') lp2,distclass,m1,m2,m3,dismoy,
      &          eff(lp2,j)
-	write (kkr,'(3f20.6,i7)') distclass,m3,dismoy,eff(lp2,j)
+      write (kkr,'(3f20.6,i7)') distclass,m3,dismoy,eff(lp2,j)
 
   149       continue                          
   153       CONTINUE   

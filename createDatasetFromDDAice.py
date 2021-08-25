@@ -30,7 +30,7 @@ print('**** Loading DDA-ice Data ****')
 
 transforms = None
 bin_labels = None
-ground_est0 = []
+ground_est0, weight_photons0 = [],[]
 ddaOuts = get_dda_paths(topDir)
 
 for num, data_path in enumerate(ddaOuts):
@@ -43,7 +43,7 @@ for num, data_path in enumerate(ddaOuts):
 
 	if 'weighted' in data_path:
 		if '0' in data_path:
-			weight_photons0 = data_path
+			weight_photons0.append(data_path)
 		else:
 			weight_photons1 = data_path
 
@@ -72,23 +72,31 @@ dir_path = '/'.join([split_path[0],split_path[1]])
 # check for multiple ground estimate files
 if len(ground_est0) == 1:
 	ground_est0 = ground_est0[0]
-	vario_data = run_vario(ground_est0, dir_path, lag, winsize, winstep, nvar, ndir, nres)
+	weight_photons0 = weight_photons0[0]
+	vario_data_ge = run_vario(ground_est0, dir_path, lag, winsize, winstep, nvar, ndir, nres)
+	vario_data_wp = run_vario(weight_photons0, dir_path, lag, winsize, winstep, nvar, ndir, nres, True)
 else:
 	# compute variograms for each track individually, then combine results
-	vario_dat = []
+	ge_dat, wp_dat = [],[]
 	for data in ground_est0:
-		vario_dat.append(run_vario(data, dir_path, lag, winsize, winstep, nvar, ndir, nres))
-	vario_data = np.vstack((vario_dat))
+		ge_dat.append(run_vario(data, dir_path, lag, winsize, winstep, nvar, ndir, nres))
+	vario_data_ge = np.vstack((ge_dat))
+
+	for data in weight_photons0:
+		wp_dat.append(run_vario(data, dir_path, lag, winsize, winstep, nvar, ndir, nres, True))
+	vario_data_wp = np.vstack((wp_dat))
+
+
 
 
 
 print('**** Saving Dataset ****')
 
 if bin_labels is None:
-	bin_labels = np.full(shape=(vario_data.shape[0],1), fill_value=-1)
-confidence = np.full(shape=(vario_data.shape[0],1), fill_value=0)
-# vario_data = np.c_[vario_data,bin_labels,confidence]
-vario_data = np.c_[bin_labels,confidence,vario_data]
+	bin_labels = np.full(shape=(vario_data_ge.shape[0],1), fill_value=-1)
+confidence = np.full(shape=(vario_data_ge.shape[0],1), fill_value=0)
+
+vario_data = np.c_[bin_labels,confidence,vario_data_ge,vario_data_wp]
 # vario_data = np.c_[vario_data,bin_labels]
 
 print('Shape of variogram data: {}'.format(vario_data.shape))

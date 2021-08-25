@@ -11,7 +11,7 @@ from scipy import vectorize
 from scipy.ndimage.filters import convolve1d
 import utm
 
-def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir, nres):
+def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir, nres, photons = False):
 
 	###########################
 	# SET CONSTANT PARAMETERS #
@@ -23,7 +23,6 @@ def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir, nres):
 	lag = float(lag) # resolution of the variogram (i.e. the spacing of the lags)
 	name = 'elevation'
 	residual = False
-	photons = False
 	# nres = Number of results to calculate (depends on window size and lag size)
 	###########################
 
@@ -40,6 +39,7 @@ def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir, nres):
 		lat = ground_data[:,2]
 		distance = ground_data[:,4] # distance along track in meters
 		elevation = ground_data[:,3] # corresponding photon elevation
+		print(ground_filename)
 	else:
 		lon = ground_data[:,0]
 		lat = ground_data[:,1]
@@ -67,14 +67,14 @@ def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir, nres):
 
 	for w in range(0,len(windows)):
 		# Subset the elevation data
-		# start = windows[w,0]
-		# end = windows[w,1]
-		# window_bool = np.logical_and(distance>=start,distance<end)
-		# window_data = np.array([eastings[window_bool],northings[window_bool],elevation[window_bool]]).T
+		start = windows[w,0]
+		end = windows[w,1]
+		window_bool = np.logical_and(distance>=start,distance<end)
+		window_data = np.array([eastings[window_bool],northings[window_bool],elevation[window_bool]]).T
 
-		start = w * stepsize_bins
-		end = start + winsize_bins
-		window_data = np.array([eastings[start:end],northings[start:end],elevation[start:end]]).T
+		# start = w * stepsize_bins
+		# end = start + winsize_bins
+		# window_data = np.array([eastings[start:end],northings[start:end],elevation[start:end]]).T
 		# ground_data_window = ground_data[ground_data[:,3]>=windows[w,0]]
 		# ground_data_window = ground_data_window[ground_data_window[:,3]<=windows[w,1]]
 		# dens = density[start:end]
@@ -103,14 +103,15 @@ def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir, nres):
 
 		# Retrieve output from vario_out.dat
 		if os.path.getsize(vario_outfile) == 0:
-			print('The vario file for Window segment {} is empty...')
+			print('The vario file for Window segment {} is empty...'.format(w))
 			os.remove(vario_outfile)
 			continue
 		try:
-			vario_results = np.loadtxt(vario_outfile)
+			vario_results = np.genfromtxt(vario_outfile)
 		except ValueError as e:
 			print('Vario results error: {}'.format(e))
 			print('failed to load a vario_outfile, probably because there were too many points contributing to a single vario value and numpy got confused')
+			continue
 
 		# Delete 'vario_outfile' after it is read in
 		os.remove(vario_outfile)
@@ -122,6 +123,9 @@ def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir, nres):
 		# col 5 - m3, residual variogram
 		# col 6 - dismoy, average distance of pairs used in class
 		# col 7 - distot, number of pairs used in class
+
+		if vario_results.shape[0] != 23:
+			print(vario_results.shape)
 
 		if len(vario_results.shape)<2 or vario_results.shape[0]<5:  # if there were fewer than 5 variogram values calculated
 			print('too few vario results to use')
