@@ -39,7 +39,6 @@ def run_vario(ddaData, dataPath, lag, winsize, winstep, nvar, ndir, nres, photon
 		lat = ground_data[:,2]
 		distance = ground_data[:,4] # distance along track in meters
 		elevation = ground_data[:,3] # corresponding photon elevation
-		print(ground_filename)
 	else:
 		lon = ground_data[:,0]
 		lat = ground_data[:,1]

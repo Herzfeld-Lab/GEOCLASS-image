@@ -82,7 +82,8 @@ elif cfg['model'] == 'DDAiceNet':
     ddaBool = True
     num_classes = cfg['num_classes']
     nres = cfg['nres']
-    model = DDAiceNet.DDAiceNet(num_classes,nres-1)
+    hidden_layers = cfg['hidden_layers']
+    model = DDAiceNet.DDAiceNet(num_classes,(nres-1)*2, hiddenLayers=hidden_layers)
     img_transforms_train = None
     img_transforms_valid = None
 

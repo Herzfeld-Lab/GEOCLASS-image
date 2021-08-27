@@ -605,9 +605,9 @@ cuh            do not print results for the first "half" distance class
                if (distclass.lt.(0.9*step)) goto 153
 
 cuh               PRINT 4,BINF,BSUB,EFF (LP2,J),M1,M2,M3,DISMOY              
-      write (kkv,'(i5,5f20.6,i7)') lp2,distclass,m1,m2,m3,dismoy,
+      write (kkv,'(i5,5f20.6,i10)') lp2,distclass,m1,m2,m3,dismoy,
      &          eff(lp2,j)
-      write (kkr,'(3f20.6,i7)') distclass,m3,dismoy,eff(lp2,j)
+      write (kkr,'(3f20.6,i10)') distclass,m3,dismoy,eff(lp2,j)
 
   149       continue                          
   153       CONTINUE   
