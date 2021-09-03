@@ -168,6 +168,7 @@ class DDAiceDataset(Dataset):
         # variograms = dataLabeled[:,0:cutoff]
         # dataDict = {'label': labels, 'variogram': variograms}
 
+        # data format: [label, conf, ge varios (nres-1) columns, wp varios (nres-1) columns]
         self.dataFrame = variograms
         # self.dataFrame = dataDict
 
@@ -188,43 +189,6 @@ class DDAiceDataset(Dataset):
             return (vario_tensor, label)
         else:
             return vario_tensor
-
-
-
-
-class DDAiceDatasetOld(Dataset):
-
-    def __init__(self, ddaGroundEstimate, labels, transform=None, train=False):
-
-        self.train = train
-        self.transform = transform
-        trackData = ddaGroundEstimate
-        dataLabels = labels
-
-        colNames = ['lon','lat','elevation','distance','time','elev_stdev','density_mean','wtd_stdev','utm_e','utm_n','label']
-
-        self.dataFrame = pd.DataFrame(trackData, columns=colNames)
-
-    def __len__(self):
-        return len(self.dataFrame)
-
-    # idx = bin number for ground estimate
-    def __getitem__(self, idx):
-
-        elev_stdev = self.dataFrame.iloc[idx,5]
-        bin_density = self.dataFrame.iloc[idx,6]
-        wtd_stdev = self.dataFrame.iloc[idx,7]
-
-        chunk_arr = np.array([elev_stdev,bin_density,wtd_stdev])
-
-        chunkTensor = torch.from_numpy(chunk_arr)
-
-        if self.train:
-            label = int(self.dataFrame.iloc[idx,10])
-            return (chunkTensor, label)
-        else:
-            return chunkTensor
-
 
 
 
