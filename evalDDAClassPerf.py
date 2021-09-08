@@ -9,7 +9,7 @@ import argparse
 import yaml
 
 
-def compare_labels(valid_labels, test_data, nres, num_classes = 4):
+def compare_labels(valid_labels, test_data, nres, conf_thresh, num_classes):
 
 	# valid_labels = np.load(fileTrain, allow_pickle=True)[1]
 	# valid_labels = valid_labels[:,-1]
@@ -23,7 +23,10 @@ def compare_labels(valid_labels, test_data, nres, num_classes = 4):
 		pred_labels = pred_label_data[:,0]
 		conf = pred_label_data[:,1]
 
-		bools = valid_labels==pred_labels
+		valid_labels_temp = valid_labels[conf > conf_thresh]
+		pred_labels_temp = pred_labels[conf > conf_thresh]
+
+		bools = valid_labels_temp==pred_labels_temp
 		num_correct = bools[bools==True].shape[0]
 		num_tot = valid_labels[valid_labels!=-1].shape[0]
 
@@ -35,7 +38,9 @@ def compare_labels(valid_labels, test_data, nres, num_classes = 4):
 
 			idxs = valid_labels == i
 			tot = idxs[idxs==True].shape[0]
-			class_bools = valid_labels[idxs] == pred_labels[idxs]
+
+			idxs2 = valid_labels_temp == i
+			class_bools = valid_labels_temp[idxs2] == pred_labels_temp[idxs2]
 			nc = class_bools[class_bools==True].shape[0]
 			pc = nc / tot
 
@@ -43,8 +48,8 @@ def compare_labels(valid_labels, test_data, nres, num_classes = 4):
 
 		print('\n')
 		print('Confusion Matrix: ')
-		df_cm = pd.DataFrame(cm, index = [i for i in "0123"],
-				  columns = [i for i in "0123"])
+		df_cm = pd.DataFrame(cm, index = [str(i) for i in range(num_classes)],
+				  columns = [str(i) for i in range(num_classes)])
 		print(df_cm)
 		# plt.figure(figsize = (10,7))
 		# sn.heatmap(df_cm, annot=True)
@@ -70,12 +75,16 @@ def main():
 
 	npy_data = cfg['npy_path']
 	nres = cfg['nres']
+	num_classes = cfg['num_classes']
 
 	dataset = np.load(npy_data, allow_pickle=True)[1]
 	base_labels = dataset[:,0]
 	test_data = glob.glob(args.labels + '/*.npy')
 
-	compare_labels(base_labels,test_data,nres)
+	# relevent params
+	conf_thresh = 0.8
+
+	compare_labels(base_labels,test_data,nres,conf_thresh,num_classes)
 
 
 
