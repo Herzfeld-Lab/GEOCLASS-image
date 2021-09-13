@@ -16,7 +16,9 @@ class DDAiceNet(nn.Module):
 
 		self.input = nn.Linear(self.input_size, self.hidden_size[0])
 		self.lrelu = nn.LeakyReLU()
+		self.elu = nn.ELU()
 		self.output = nn.Linear(self.hidden_size[-1], self.output_size)
+		# self.lnorm = nn.LayerNorm(self.hidden_size[0])
 
 		self.hidden = nn.ModuleList()
 		for i in range(len(hiddenLayers) - 1):
@@ -25,6 +27,7 @@ class DDAiceNet(nn.Module):
 	def forward(self, varioTensor):
 
 		x = varioTensor.view(varioTensor.shape[0], -1)
+		# print(varioTensor.shape)
 
 		# Run forward pass through network on variogram tensor
 		x = self.input(x)
