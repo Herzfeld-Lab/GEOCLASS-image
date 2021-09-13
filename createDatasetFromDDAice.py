@@ -56,10 +56,8 @@ for num, data_path in enumerate(ddaOuts):
 	if 'window_labels_auto' in data_path:
 		bin_labels = np.loadtxt(data_path)
 
-
-info = {'filename': ddaOuts,
-		'ground_files': ground_est0,
-		'transform': transforms,
+info = {'data_location': topDir,
+		'num_tracks': len(ground_est0),
 		'class_enumeration': classEnum}
 
 
