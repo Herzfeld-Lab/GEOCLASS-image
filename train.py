@@ -23,6 +23,7 @@ signal.signal(signal.SIGINT, signal_handler)
 def save_losses():
     np.save(output_dir+'/losses/'+checkpoint_str+"_train_losses",np.array(train_losses))
     np.save(output_dir+'/losses/'+checkpoint_str+"_valid_losses",np.array(valid_losses))
+    # plt.ylim([0,1])
     plt.plot(train_losses, label='training loss')
     plt.plot(valid_losses, label='validation loss')
     plt.xlabel('Training epochs')
@@ -30,6 +31,16 @@ def save_losses():
     plt.title('Training vs Validation Loss')
     plt.legend()
     plt.savefig(output_dir+'/losses/'+checkpoint_str+'_losses.png')
+
+def save_params():
+    params={'Hidden Layers': hidden_layers,
+            'Learning Rate': learning_rate,
+            'Batch Size': batch_size,
+            'Num Epochs': num_epochs}
+    saveFile = output_dir + '/params.txt'
+    with open(saveFile, 'w') as f:
+        for key,value in params.items():
+            f.write('%s:%s\n' % (key, value))
 
 
 # Parse command line flags
@@ -47,6 +58,7 @@ with open(args.config, 'r') as ymlfile:
 learning_rate = float(cfg['learning_rate'])
 batch_size = cfg['batch_size']
 num_epochs = cfg['num_epochs']
+hidden_layers = cfg['hidden_layers']
 
 # Set dataset hyperparameters as specified by config file
 topDir = cfg['img_path']
@@ -82,7 +94,6 @@ elif cfg['model'] == 'DDAiceNet':
     ddaBool = True
     num_classes = cfg['num_classes']
     nres = cfg['nres']
-    hidden_layers = cfg['hidden_layers']
     model = DDAiceNet.DDAiceNet(num_classes,(nres-1)*2, hiddenLayers=hidden_layers)
     img_transforms_train = None
     img_transforms_valid = None
@@ -197,6 +208,7 @@ os.mkdir(output_dir+'/labels')
 os.mkdir(output_dir+'/losses')
 print('Output saved at %s'%(output_dir))
 
+save_params()
 
 print('----- Training -----')
 
