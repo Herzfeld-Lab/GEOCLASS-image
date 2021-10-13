@@ -137,7 +137,8 @@ class SplitImageTool(QWidget):
 
     def initUI(self):
 
-        self.master_layout = QHBoxLayout()
+        self.master_layout = QVBoxLayout()
+        self.content_layout = QHBoxLayout()
         self.left_layout = QVBoxLayout()
         self.visualization_widgets = QVBoxLayout()
         self.conf_slider_container = QHBoxLayout()
@@ -267,16 +268,22 @@ class SplitImageTool(QWidget):
         self.tiff_selector_buttons = QHBoxLayout()
 
         for tiffNum in range(len(self.dataset_info['filename'])):
-            button = QPushButton('{}...'.format(self.dataset_info['filename'][tiffNum].split('/')[-1][:13]), self)
+            button = QPushButton('{}...'.format(self.dataset_info['filename'][tiffNum].split('/')[-1][:4]), self)
             button.clicked.connect(self.makeTiffSelectorCallbacks(tiffNum))
             self.tiff_selector_buttons.addWidget(button)
 
-        self.left_layout.addLayout(self.tiff_selector_buttons)
+        #self.left_layout.addLayout(self.tiff_selector_buttons)
         self.left_layout.addLayout(self.visualization_widgets)
         self.left_layout.addLayout(self.class_buttons)
 
-        self.master_layout.addLayout(self.left_layout)
-        self.master_layout.addWidget(self.tiff_image_label)
+        self.content_layout.addLayout(self.left_layout)
+        self.content_layout.addWidget(self.tiff_image_label)
+
+        self.master_layout.addLayout(self.tiff_selector_buttons)
+        self.master_layout.addLayout(self.content_layout)
+
+        #self.master_layout.addLayout(self.left_layout)
+        #self.master_layout.addWidget(self.tiff_image_label)
 
     def addClassButton(self, i, className, container):
         buttonContainer = QHBoxLayout()
@@ -284,7 +291,7 @@ class SplitImageTool(QWidget):
         labelButton = QPushButton('{}: {}'.format(i, className), self)
 
         r,g,b,a = np.array(self.label_cmap(i))*255
-        labelButton.setStyleSheet("background-color:rgb({},{},{});".format(r,g,b));
+        labelButton.setStyleSheet("background-color:rgb({},{},{}); color: rgb({},{},{});".format(r,g,b,255-r,255-g,255-b));
         #labelButton.setAlignment(Qt.AlignLeft)
         labelButton.clicked.connect(self.makeClassLabelCallbacks(i))
 
@@ -552,7 +559,7 @@ class SplitImageTool(QWidget):
             self.batch_select_polygon = []
         elif event.key() == 76: #l key - add current split image to training dataset
             modifiers = QApplication.keyboardModifiers()
-            if modifiers == Qt.ShiftModifier:
+            if modifiers == Qt.ShiftModifier: # shift + l -> add all labeled split images that meet the curent confidence threshold and class selection to the training dataset
                 #images_to_label = self.pred_labels[self.pred_labels[:,5] > self.conf_thresh]
                 for i in range(len(self.selected_classes)):
                     if self.selected_classes[i]:
