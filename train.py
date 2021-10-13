@@ -153,6 +153,7 @@ if args.load_checkpoint:
 
 # Initialize cuda
 if args.cuda:
+    print('----- Initializing CUDA -----')
     torch.cuda.set_device(0)
     device = torch.device("cuda:0")
     model.cuda()
@@ -208,10 +209,12 @@ for epoch in range(num_epochs):
         optimizer.step()
         optimizer.zero_grad()
 
-        sum_loss = sum_loss + criterion(Y_hat, Y)
+        sum_loss = sum_loss + float(criterion(Y_hat, Y))
 
         #print("EPOCH: %d\t BATCH: %d\tTRAIN LOSS = %f"%(epoch,batch_idx,loss.item()))
-    train_losses.append(sum_loss.item()/batch_idx)
+    train_losses.append(sum_loss/batch_idx)
+
+    print('running validation')
 
     #Valid
     loss = 0
@@ -229,11 +232,12 @@ for epoch in range(num_epochs):
         Y_hat = model.forward(X)
 
         # Calculate training loss
-        loss = loss + criterion(Y_hat, Y)
+        loss = loss + float(criterion(Y_hat, Y))
 
-    valid_losses.append(loss.item()/batch_idx)
+    valid_losses.append(loss/batch_idx)
     print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
 
+    print('saving checkpoint')
     # Save checkpoint
     checkpoint_str = "epoch_" + str(epoch)
     if valid_losses[-1] == np.array(valid_losses).min():
