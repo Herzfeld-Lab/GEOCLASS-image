@@ -34,10 +34,10 @@ current_data = np.load(dataset_path, allow_pickle=True)
 # Set plotting cosmetic constants
 winsize = 150
 winstep = 50
-width_px = 1500
-height_px = 750
-linesize = 3
-opac = 0.6
+width_px = 1200 # 1500 OG
+height_px = 750 # 750 OG
+linesize = 2
+opac = 0.5
 
 def plot_chunks(dataTuples):
 
@@ -58,6 +58,7 @@ def plot_chunks(dataTuples):
 
 		min_dens = np.min(weight_photons[:, 5])
 		max_dens = np.max(weight_photons[:, 5])
+		color_range = [i for i in range(int(min_dens),int(max_dens)+1)]
 
 		# Progress bar output to terminal for plotting status
 		bar = IncrementalBar('Plotting Track {}'.format(track+1), max=len(start), suffix='%(percent)d%%')
@@ -70,13 +71,18 @@ def plot_chunks(dataTuples):
 			pltDict2 = {'dist': ground_segment[:, 3], 'elevation': ground_segment[:, 2]}
 			ylim = [np.min(ground_segment[:, 2]) - 10, np.max(ground_segment[:, 2]) + 10]
 
-			f1 = px.scatter(pltDict, x='dist', y='elevation', color='density', opacity=opac)
-			f2 = px.line(pltDict2, x='dist', y='elevation')
-			f2.update_traces(line=dict(color="Black", width=linesize))
-			lo = go.Layout(title=go.layout.Title(text='track {}, chunk {}'.format(track,seg)))
-			fig = go.Figure(data=f1.data + f2.data, layout_yaxis_range=ylim, layout=lo)
+			fig = px.scatter(pltDict, x='dist', y='elevation', color='density', color_continuous_scale=px.colors.sequential.Turbo,
+			 range_color=[int(min_dens),int(max_dens)], opacity=opac, title='track {}, chunk {}'.format(track,seg), range_y = ylim)
+			fig.add_trace(go.Scatter(x=pltDict2['dist'], y=pltDict2['elevation'],mode='lines',line=go.scatter.Line(color='black',width=linesize),showlegend=False))
 			fig.update_layout(autosize=False,width=width_px,height=height_px)
-			# fig.data = fig.data[::-1]
+
+			# f1 = px.scatter(pltDict, x='dist', y='elevation', color='density', opacity=opac, color_continuous_scale=px.colors.sequential.Jet)
+			# f1 = px.scatter(pltDict, x='dist', y='elevation', color='density', range_color=[int(min_dens),int(max_dens+1)], opacity=opac)
+			# f2 = px.line(pltDict2, x='dist', y='elevation')
+			# f2.update_traces(line=dict(color="Black", width=linesize))
+			# lo = go.Layout(title=go.layout.Title(text='track {}, chunk {}'.format(track,seg)))
+			# fig = go.Figure(data=f1.data + f2.data, layout_yaxis_range=ylim, layout=lo)
+			# fig.update_layout(autosize=False,width=width_px,height=height_px, colorscale_sequential=px.colors.sequential.Turbo)
 			fig.write_image(os.path.join(plot_directory, 'segment_{}.png'.format(seg)))
 			seg += 1
 			bar.next()

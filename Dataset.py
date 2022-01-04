@@ -8,7 +8,7 @@ from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 import torch
 from skimage import io, transform
-from torch.utils.data import Dataset, DataLoader
+s, DataLoader
 from torchvision import transforms, utils
 import pandas as pd
 import random
