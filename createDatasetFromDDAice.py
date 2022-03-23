@@ -65,7 +65,7 @@ info = {'data_location': topDir,
 print('**** Computing Variograms ****')
 
 split_path = args.config.split('/')
-dir_path = '/'.join([split_path[0],split_path[1]])
+# dir_path = '/'.join([split_path[0],split_path[1]])
 
 # check for multiple ground estimate files
 if len(ground_est0) == 1:
