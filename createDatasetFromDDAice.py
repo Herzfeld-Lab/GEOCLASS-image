@@ -71,17 +71,17 @@ dir_path = '/'.join([split_path[0],split_path[1]])
 if len(ground_est0) == 1:
 	ground_est0 = ground_est0[0]
 	weight_photons0 = weight_photons0[0]
-	vario_data_ge = run_vario(ground_est0, dir_path, lag, winsize, winstep, nvar, ndir, nres)
-	vario_data_wp = run_vario(weight_photons0, dir_path, lag, winsize, winstep, nvar, ndir, nres, True)
+	vario_data_ge = run_vario(ground_est0, lag, winsize, winstep, ndir, nres)
+	vario_data_wp = run_vario(weight_photons0, lag, winsize, winstep, ndir, nres, photons=True)
 else:
 	# compute variograms for each track individually, then combine results
 	ge_dat, wp_dat = [],[]
 	for data in ground_est0:
-		ge_dat.append(run_vario(data, dir_path, lag, winsize, winstep, nvar, ndir, nres))
+		ge_dat.append(run_vario(data, lag, winsize, winstep, ndir, nres))
 	vario_data_ge = np.vstack((ge_dat))
 
 	for data in weight_photons0:
-		wp_dat.append(run_vario(data, dir_path, lag, winsize, winstep, nvar, ndir, nres, True))
+		wp_dat.append(run_vario(data, lag, winsize, winstep, ndir, nres, photons=True))
 	vario_data_wp = np.vstack((wp_dat))
 
 
