@@ -11,7 +11,7 @@ import itertools
 import haversine as hs
 from haversine import Unit
 
-def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, nvar = 1, photons = False, residual = False):
+def run_vario(ddaData, lag, windowSize, windowStep, ndir, nvar = 1, photons = False, residual = False):
 
 	# TODO: clean up unnecessary code
 	# TODO: write parameter descriptions 

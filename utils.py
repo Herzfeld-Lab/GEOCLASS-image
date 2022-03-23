@@ -446,7 +446,6 @@ window_size:    {}
 window_step:    {}
 num_var:        {}
 num_dir:        {}
-nres:           {}
         '''.format(yaml_obj['model'],
                    yaml_obj['num_classes'],
                    yaml_obj['vario_num_lag'],
@@ -469,8 +468,7 @@ nres:           {}
                    yaml_obj['window_size'],
                    yaml_obj['window_step'],
                    yaml_obj['num_var'],
-                   yaml_obj['num_dir'],
-                   yaml_obj['nres'])
+                   yaml_obj['num_dir'])
 
     return config_str
 
