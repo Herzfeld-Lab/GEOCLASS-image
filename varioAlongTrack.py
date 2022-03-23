@@ -3,13 +3,13 @@ This is a wrapper for the fortran vario function
 '''
 
 import numpy as np
-from optparse import OptionParser
 import os, glob, re
-import subprocess as sp
-from shutil import rmtree
-from scipy import vectorize
 from scipy.ndimage.filters import convolve1d
 import utm
+from sklearn.metrics import pairwise_distances
+import itertools
+import haversine as hs
+from haversine import Unit
 
 def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, nvar = 1, photons = False, residual = False):
 
