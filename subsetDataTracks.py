@@ -9,7 +9,7 @@ This allows us to include only the crevassed areas of a data track for classific
 
 Note: a single full track will include enough undisturbed snow segments to suffice, subset all other tracks
 
-In Terminal: python3 <data> -s <start distance> -e <end distance>
+In Terminal: python3 subsetDataTracks.py <data> -s <start distance> -e <end distance>
 
 <data> needs to be path to either ground_estimate or weighted_photons file output from DDA-ice-1
 -s and -e are start/end distances (along-track) in meters
@@ -41,13 +41,15 @@ else:
 	if 'ground_estimate' in args.data:
 		temp = data_track[data_track[:,3] >= start]
 		final = temp[temp[:,3] <= end]
+		dist_idx = 3
 	elif 'weighted_photons' in args.data:
 		temp = data_track[data_track[:,4] >= start]
 		final = temp[temp[:,4] <= end]
+		dist_idx = 4
 	else:
 		raise NameError('Only valid inputs are ground_estimate and weighted_photons')
 
-	if np.min(final[:,3]) < start or np.max(final[:,3]) > end:
+	if np.min(final[:,dist_idx]) < start or np.max(final[:,dist_idx]) > end:
 		raise ValueError('Track was not properly subsetted... Distances are off...')
 
 	np.savetxt(location, final)
