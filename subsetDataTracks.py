@@ -2,19 +2,24 @@ import numpy as np
 import os, argparse
 
 """
-This is a script that takes in a DDA result: ground_estimate or weighted_photons 
-and subsets them based on distances in order to use them for train/test data for DDA Classification.
+This is a script that takes in a DDA result: ground_estimate or weighted_photons and subsets 
+them based on along-track distances in order to use them for train/test data for DDA Classification.
 
 This allows us to include only the crevassed areas of a data track for classification purposes.
 
 Note: a single full track will include enough undisturbed snow segments to suffice, subset all other tracks
+
+In Terminal: python3 <data> -s <start distance> -e <end distance>
+
+<data> needs to be path to either ground_estimate or weighted_photons file output from DDA-ice-1
+-s and -e are start/end distances (along-track) in meters
 """
 
 # parse command line arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("data", type=str) # either ground_estimate or weighted_photons track
-parser.add_argument("-s", type=str, default=None)
-parser.add_argument("-e", type=str, default=None)
+parser.add_argument("-s", type=str, default=None) # distance in meters
+parser.add_argument("-e", type=str, default=None) # distance in meters
 args = parser.parse_args()
 
 # prompts for name and location to store result data 
