@@ -29,7 +29,8 @@ plot_directory = mainDir + '/vario_window_plots'
 if not os.path.exists(plot_directory): os.makedirs(plot_directory)
 
 # load current data, created from createDatasetFromeDDAice.py
-current_data = np.load(dataset_path, allow_pickle=True)
+if dataset_path is not None:
+	current_data = np.load(dataset_path, allow_pickle=True)
 
 # Set plotting cosmetic constants
 winsize = 150
