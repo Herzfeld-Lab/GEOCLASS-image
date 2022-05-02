@@ -24,6 +24,7 @@ winsize = cfg['window_size']
 winstep = cfg['window_step']
 nvar = cfg['num_var']
 ndir = cfg['num_dir']
+nres = int(winsize / lag)
 
 print('**** Loading DDA-ice Data ****')
 
@@ -70,17 +71,17 @@ split_path = args.config.split('/')
 if len(ground_est0) == 1:
 	ground_est0 = ground_est0[0]
 	weight_photons0 = weight_photons0[0]
-	vario_data_ge = run_vario(ground_est0, lag, winsize, winstep, ndir)
-	vario_data_wp = run_vario(weight_photons0, lag, winsize, winstep, ndir, photons=True)
+	vario_data_ge = run_vario(ground_est0, lag, winsize, winstep, ndir, nres)
+	vario_data_wp = run_vario(weight_photons0, lag, winsize, winstep, ndir, nres, photons=True)
 else:
 	# compute variograms for each track individually, then combine results
 	ge_dat, wp_dat = [],[]
 	for data in ground_est0:
-		ge_dat.append(run_vario(data, lag, winsize, winstep, ndir))
+		ge_dat.append(run_vario(data, lag, winsize, winstep, ndir, nres))
 	vario_data_ge = np.vstack((ge_dat))
 
 	for data in weight_photons0:
-		wp_dat.append(run_vario(data, lag, winsize, winstep, ndir, photons=True))
+		wp_dat.append(run_vario(data, lag, winsize, winstep, ndir, nres, photons=True))
 	vario_data_wp = np.vstack((wp_dat))
 
 

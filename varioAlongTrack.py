@@ -11,7 +11,7 @@ import itertools
 import haversine as hs
 from haversine import Unit
 
-def run_vario(ddaData, lag, windowSize, windowStep, ndir, nvar = 1, photons = False, residual = False):
+def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, nvar = 1, photons = False, residual = False):
 
 	# TODO: clean up unnecessary code
 	# TODO: write parameter descriptions 
@@ -26,7 +26,7 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nvar = 1, photons = Fa
 
 
 	lag = float(lag) # resolution of the variogram (i.e. the spacing of the lags)
-	nres = int(windowSize / lag) # Number of results to calculate (depends on window size and lag size)
+	# nres = int(windowSize / lag) # Number of results to calculate (depends on window size and lag size)
 	###########################
 
 	# Load the output data from the surface detector code, likely in the following format
