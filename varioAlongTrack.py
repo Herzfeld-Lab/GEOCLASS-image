@@ -62,7 +62,7 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, nvar = 1, photon
 	stepsize_bins = int(windowStep / lag)
 
 	# initialize fillable arrays
-	vario_values_ret = np.zeros((len(windows),nres-1))
+	vario_values_ret = np.zeros((len(windows),nres))
 	parameters = np.zeros((len(windows),13))
 	# We will fill parameters with [lon, lat, distance, delta_time, utm_e, utm_n, pond, p1, p2, mindist, hdiff]
 	# vario_value_ret gets variogram at each iteration
@@ -73,15 +73,13 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, nvar = 1, photon
 		end = windows[w,1]
 		
 		window_bool = np.logical_and(distance>=start,distance<end)
-		# window_data = np.array([eastings[window_bool],northings[window_bool],elevation[window_bool]]).T
-		window_data = np.array([lat[window_bool],lon[window_bool],elevation[window_bool]]).T
+		window_data = np.array([eastings[window_bool],northings[window_bool],elevation[window_bool]]).T
+		# window_data = np.array([lat[window_bool],lon[window_bool],elevation[window_bool]]).T
 		if len(window_data)<5: # if we have too few datapoints in a window
 			print('too few points in current window')
 			continue
 
 		vario_results = compute_varios(window_data, ndir, lag, nres, nvar)
-		print(vario_results)
-		break
 
 		# col 1 - lp2, step number
 		# col 2 - distclass, distance to center of class
@@ -91,30 +89,31 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, nvar = 1, photon
 		# col 6 - dismoy, average distance of pairs used in class
 		# col 7 - distot, number of pairs used in class
 
-		if vario_results.shape[0] != 23:
-			print(vario_results.shape)
+		if len(vario_results) != nres:
+			print('Less than nres # of vario values computed: {}'.format(len(vario_results)))
 
-		if len(vario_results.shape)<2 or vario_results.shape[0]<5:  # if there were fewer than 5 variogram values calculated
+		if len(vario_results)<5:  # if there were fewer than 5 variogram values calculated
 			print('too few vario results to use')
 			continue
 
+		# if residual==True: # residual variogram
+		# 	vario_values = vario_results[:,4]
+		# else: # variogram
+		# 	vario_values = vario_results[:,3]
 
-		if residual==True: # residual variogram
-			vario_values = vario_results[:,4]
-		else: # variogram
-			vario_values = vario_results[:,3]
-
-		lags = vario_results[:,1]
+		# lags = vario_results[:,1]
 
 		# SMOOTHING of variogram values with linear filter
 		coef = np.array([.0625,0.25,0.375,0.25,0.625])
 		coef = coef/coef.sum() # normalize
-		vario_values = convolve1d(vario_values, coef, mode='nearest')
+		vario_values = convolve1d(vario_results, coef, mode='nearest')
 
-		if vario_values.shape[0] == nres-1:
-			vario_values_ret[w] = vario_values
-		else:
-			vario_values_ret[w,:vario_values.shape[0]] = vario_values 
+		vario_values_ret[w] = vario_values
+
+		# if vario_values.shape[0] == nres-1:
+		# 	vario_values_ret[w] = vario_values
+		# else:
+		# 	vario_values_ret[w,:vario_values.shape[0]] = vario_values 
 
 
 
