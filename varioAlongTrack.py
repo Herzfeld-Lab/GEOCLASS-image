@@ -130,16 +130,19 @@ def compute_varios(windowData, ndir, lag, nres, nvar):
 	def get_pairs(sepDist):
 		ls = []
 		for i,row in enumerate(pdist):
-			# print(row)
-			idxs = np.argwhere(row < sepDist).flatten()
-			ls.append([(i,j) for j in idxs if j > i])
+			idxs1 = np.argwhere(row < sepDist).flatten()
+			idxs2 = np.argwhere(row >= sepDist-5.0).flatten()
+			temp = set(idxs2)
+			idxs = [pair for pair in idxs1 if pair in temp]
+			# idxs = list(set(idxs1) & set(idxs2))
+			ls.append([(i,j) for j in idxs if j > i and pdist[i,j]!=0.0])
 
 		return list(itertools.chain(*ls))
 
-	def semivariogram():
+	def semivariogram(pairs):
 		varSum = 0
 		for (x,y) in pairs:
-			varSum += (windowData[x, 2] - windowData[y, 2])**2
+			varSum += ((windowData[x, 2] - windowData[y, 2])**2)
 		varSum /= (2 * len(pairs))
 		return varSum
 
@@ -152,17 +155,15 @@ def compute_varios(windowData, ndir, lag, nres, nvar):
 	################  functionality begins  ##################
 	##########################################################
 	# get all pairwise distances between points in the window
-	pdist = pairwise_distances(windowData[:,0:2], metric=haversine_dist)
-	# print(pdist)
+	pdist = pairwise_distances(windowData[:,0:2])
 	vario_values = []
-	for i in range(1,nres+1):
+	for k in range(1,nres+1):
 		# get pairs of points separated by <= lag*i meters
-		pairs = get_pairs(lag*i)
-		vario_values.append(semivariogram())
-
-
-	
-
+		pairs = get_pairs(lag*k)
+		if(len(pairs) == 0.0):
+			vario_values.append(0.0)
+			continue
+		vario_values.append(semivariogram(pairs))
 
 	return vario_values
 
