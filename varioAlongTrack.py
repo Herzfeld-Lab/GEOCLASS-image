@@ -10,6 +10,7 @@ from sklearn.metrics import pairwise_distances
 import itertools
 import haversine as hs
 from haversine import Unit
+from datetime import datetime
 
 def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, nvar = 1, photons = False, residual = False):
 
@@ -23,8 +24,6 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, nvar = 1, photon
 
 	###########################
 
-
-
 	lag = float(lag) # resolution of the variogram (i.e. the spacing of the lags)
 	# nres = int(windowSize / lag) # Number of results to calculate (depends on window size and lag size)
 	###########################
@@ -33,8 +32,13 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, nvar = 1, photon
 	# [bin_lon, bin_lat, bin_elev, bin_distance, bin_elev_stdev, bin_density_mean, bin_weighted_stdev]
 	ground_data = np.loadtxt(ddaData)
 
+	# print relevant info
+	filename = ddaData.split('/')[-1]
+	current = datetime.now().strftime("%H:%M:%S")
+	print('Time: {}, Data: {}'.format(current,filename))
+
 	if photons==True:
-		print('Treating data as weighted photon output rather than interpolated surface estimate.')
+		# print('Treating data as weighted photon output rather than interpolated surface estimate.')
 		# Format of photon data:
 		# [delta_time, longitude, latitude, elevation, distance]
 		delta_time = ground_data[:,0]
