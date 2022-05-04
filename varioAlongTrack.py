@@ -67,6 +67,7 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, nvar = 1, photon
 	# We will fill parameters with [lon, lat, distance, delta_time, utm_e, utm_n, pond, p1, p2, mindist, hdiff]
 	# vario_value_ret gets variogram at each iteration
 
+	# PARALLELIZATION:
 	# use forloop to divide up data into list of window_data objects
 	# call pool.starmap() on this iterable list
 	# move compute_varios() inside this function (to inherit parameters)
