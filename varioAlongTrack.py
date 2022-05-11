@@ -12,16 +12,21 @@ import haversine as hs
 from haversine import Unit
 from datetime import datetime
 
-def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, nvar = 1, photons = False, residual = False):
+def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, photons = False, residual = False):
 
 	# TODO: clean up unnecessary code
-	# TODO: write parameter descriptions 
 
 	###########################
 	## PARAMETER DEFINITIONS ##
-	
-	# ddaData = path to dda produced ground_estimate or weighted_photon dataset
-
+	###########################
+	# :ddaData: --> path to dda produced ground_estimate or weighted_photon dataset
+	# :lag: --> distances between pairs of points at which variograms are computed
+	# :windowSize: --> size of alog-track data chunk (in meters) to compute variograms on
+	# :windowStep: --> magnitude of which to shift window (in meters) at every iteration of variogram computation
+	# :ndir: --> number of directions to compute variograms (default = 1)
+	# :nres: --> number of variogram values computed from each data window
+	# :photons: --> Bool which identifies if data is photons or interpolated ground estimate
+	# :residual: --> Bool to determine whether to run residual variograms or base variograms
 	###########################
 
 	lag = float(lag) # resolution of the variogram (i.e. the spacing of the lags)
@@ -38,10 +43,9 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, nvar = 1, photon
 	print('Time: {}, Data: {}'.format(current,filename))
 
 	if photons==True:
-		# print('Treating data as weighted photon output rather than interpolated surface estimate.')
 		# Format of photon data:
 		# [delta_time, longitude, latitude, elevation, distance]
-		delta_time = ground_data[:,0]
+		# delta_time = ground_data[:,0]
 		lon = ground_data[:,1]
 		lat = ground_data[:,2]
 		distance = ground_data[:,4] # distance along track in meters
@@ -51,8 +55,8 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, nvar = 1, photon
 		lat = ground_data[:,1]
 		distance = ground_data[:,3] # distance along track in meters
 		elevation = ground_data[:,2] # corresponding interpolated elevation
-		delta_time = ground_data[:,4]
-		density = ground_data[:,6]
+		# delta_time = ground_data[:,4]
+		# density = ground_data[:,6]
 
 	# Calculate eastings and northings based on lon-lat data
 	eastings, northings, _, _ = utm.from_latlon(lat,lon)
@@ -62,14 +66,8 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, nvar = 1, photon
 	windows = list(zip(np.arange(np.min(distance),np.max(distance),windowStep), np.arange(np.min(distance)+windowSize,np.max(distance)-windowStep,windowStep)))
 	windows = np.array(windows)
 
-	winsize_bins = int(windowSize / lag)
-	stepsize_bins = int(windowStep / lag)
-
-	# initialize fillable arrays
+	# initialize return array
 	vario_values_ret = np.zeros((len(windows),nres))
-	parameters = np.zeros((len(windows),13))
-	# We will fill parameters with [lon, lat, distance, delta_time, utm_e, utm_n, pond, p1, p2, mindist, hdiff]
-	# vario_value_ret gets variogram at each iteration
 
 	# PARALLELIZATION:
 	# use forloop to divide up data into list of window_data objects
@@ -89,15 +87,7 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, nvar = 1, photon
 			print('too few points in current window')
 			continue
 
-		vario_results = compute_varios(window_data, ndir, lag, nres, nvar)
-
-		# col 1 - lp2, step number
-		# col 2 - distclass, distance to center of class
-		# col 3 - m1, mean
-		# col 4 - m2, variogram
-		# col 5 - m3, residual variogram
-		# col 6 - dismoy, average distance of pairs used in class
-		# col 7 - distot, number of pairs used in class
+		vario_results = compute_varios(window_data, ndir, lag, nres)
 
 		if len(vario_results) != nres:
 			print('Less than nres # of vario values computed: {}'.format(len(vario_results)))
@@ -106,13 +96,6 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, nvar = 1, photon
 			print('too few vario results to use')
 			continue
 
-		# if residual==True: # residual variogram
-		# 	vario_values = vario_results[:,4]
-		# else: # variogram
-		# 	vario_values = vario_results[:,3]
-
-		# lags = vario_results[:,1]
-
 		# SMOOTHING of variogram values with linear filter
 		coef = np.array([.0625,0.25,0.375,0.25,0.625])
 		coef = coef/coef.sum() # normalize
@@ -120,18 +103,11 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, nvar = 1, photon
 
 		vario_values_ret[w] = vario_values
 
-		# if vario_values.shape[0] == nres-1:
-		# 	vario_values_ret[w] = vario_values
-		# else:
-		# 	vario_values_ret[w,:vario_values.shape[0]] = vario_values 
-
-
-
 	return np.array(vario_values_ret)
 
 
 
-def compute_varios(windowData, ndir, lag, nres, nvar):
+def compute_varios(windowData, ndir, lag, nres):
 
 	"""
 	window data: [east (utm), north (utm), elevation]
