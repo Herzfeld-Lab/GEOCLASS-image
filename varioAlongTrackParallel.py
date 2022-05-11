@@ -138,7 +138,7 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, photons = False,
 
 
 	with Pool() as pool:
-		vario_values_ret = pool.starmap(compute_varios, data_windows_all)
+		vario_values_ret = pool.map(compute_varios, data_windows_all)
 
 	return np.array(vario_values_ret)
 
