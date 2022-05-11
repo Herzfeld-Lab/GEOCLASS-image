@@ -1,9 +1,5 @@
-'''
-This is a wrapper for the fortran vario function
-'''
 
 import numpy as np
-import os, glob, re
 from scipy.ndimage.filters import convolve1d
 import utm
 from sklearn.metrics import pairwise_distances
@@ -15,7 +11,7 @@ from multiprocessing import Pool
 
 def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, photons = False, residual = False):
 
-	# TODO: clean up unnecessary code
+	# TODO: add few more comments
 
 	###########################
 	## PARAMETER DEFINITIONS ##
@@ -53,10 +49,6 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, photons = False,
 			varSum /= (2 * len(pairs))
 			return varSum
 
-		def haversine_dist(arr1, arr2):
-			# print(arr1)
-			return hs.haversine(arr1,arr2, unit=Unit.METERS)
-
 		##### Functionality begins #####
 		# get all pairwise distances between points in the window
 		pdist = pairwise_distances(windowData[:,0:2])
@@ -91,7 +83,6 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, photons = False,
 	if photons==True:
 		# Format of photon data:
 		# [delta_time, longitude, latitude, elevation, distance]
-		# delta_time = ground_data[:,0]
 		lon = ground_data[:,1]
 		lat = ground_data[:,2]
 		distance = ground_data[:,4] # distance along track in meters
@@ -101,8 +92,6 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, photons = False,
 		lat = ground_data[:,1]
 		distance = ground_data[:,3] # distance along track in meters
 		elevation = ground_data[:,2] # corresponding interpolated elevation
-		# delta_time = ground_data[:,4]
-		# density = ground_data[:,6]
 
 	# Calculate eastings and northings based on lon-lat data
 	eastings, northings, _, _ = utm.from_latlon(lat,lon)
@@ -113,14 +102,7 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, photons = False,
 	windows = np.array(windows)
 
 	# initialize return array
-	# vario_values_ret = np.zeros((len(windows),nres))
 	data_windows_all = []
-
-	# PARALLELIZATION:
-	# use forloop to divide up data into list of window_data objects -- done
-	# call pool.starmap() on this iterable list
-	# move compute_varios() inside this function (to inherit parameters) -- done
-	# compute_varios() should still only take in a window_data segment (not whole thing)
 
 	for w in range(0,len(windows)):
 		# Subset the elevation data

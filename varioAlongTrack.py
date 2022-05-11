@@ -1,9 +1,5 @@
-'''
-This is a wrapper for the fortran vario function
-'''
 
 import numpy as np
-import os, glob, re
 from scipy.ndimage.filters import convolve1d
 import utm
 from sklearn.metrics import pairwise_distances
