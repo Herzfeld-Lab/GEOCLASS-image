@@ -17,7 +17,7 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, photons = False,
 	## PARAMETER DEFINITIONS ##
 	###########################
 	# :ddaData: --> path to dda produced ground_estimate or weighted_photon dataset
-	# :lag: --> distances between pairs of points at which variograms are computed
+	# :lag: --> # resolution of the variogram (i.e. the spacing of the lags)
 	# :windowSize: --> size of alog-track data chunk (in meters) to compute variograms on
 	# :windowStep: --> magnitude of which to shift window (in meters) at every iteration of variogram computation
 	# :ndir: --> number of directions to compute variograms (default = 1)
@@ -65,7 +65,7 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, photons = False,
 
 		return np.array(vario_values)
 
-	lag = float(lag) # resolution of the variogram (i.e. the spacing of the lags)
+	lag = float(lag) 
 	
 	# smoothing coefficients
 	coef = np.array([.0625,0.25,0.375,0.25,0.625])
@@ -73,7 +73,7 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, photons = False,
 
 	# Load the output data from the surface detector code, likely in the following format
 	# [bin_lon, bin_lat, bin_elev, bin_distance, bin_elev_stdev, bin_density_mean, bin_weighted_stdev]
-	ground_data = np.loadtxt(ddaData)
+	track_data = np.loadtxt(ddaData)
 
 	# print relevant info
 	filename = ddaData.split('/')[-1]
@@ -83,15 +83,15 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, photons = False,
 	if photons==True:
 		# Format of photon data:
 		# [delta_time, longitude, latitude, elevation, distance]
-		lon = ground_data[:,1]
-		lat = ground_data[:,2]
-		distance = ground_data[:,4] # distance along track in meters
-		elevation = ground_data[:,3] # corresponding photon elevation
+		lon = track_data[:,1]
+		lat = track_data[:,2]
+		distance = track_data[:,4] # distance along track in meters
+		elevation = track_data[:,3] # corresponding photon elevation
 	else:
-		lon = ground_data[:,0]
-		lat = ground_data[:,1]
-		distance = ground_data[:,3] # distance along track in meters
-		elevation = ground_data[:,2] # corresponding interpolated elevation
+		lon = track_data[:,0]
+		lat = track_data[:,1]
+		distance = track_data[:,3] # distance along track in meters
+		elevation = track_data[:,2] # corresponding interpolated elevation
 
 	# Calculate eastings and northings based on lon-lat data
 	eastings, northings, _, _ = utm.from_latlon(lat,lon)

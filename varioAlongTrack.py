@@ -31,7 +31,7 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, photons = False,
 
 	# Load the output data from the surface detector code, likely in the following format
 	# [bin_lon, bin_lat, bin_elev, bin_distance, bin_elev_stdev, bin_density_mean, bin_weighted_stdev]
-	ground_data = np.loadtxt(ddaData)
+	track_data = np.loadtxt(ddaData)
 
 	# print relevant info
 	filename = ddaData.split('/')[-1]
@@ -41,18 +41,18 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, photons = False,
 	if photons==True:
 		# Format of photon data:
 		# [delta_time, longitude, latitude, elevation, distance]
-		# delta_time = ground_data[:,0]
-		lon = ground_data[:,1]
-		lat = ground_data[:,2]
-		distance = ground_data[:,4] # distance along track in meters
-		elevation = ground_data[:,3] # corresponding photon elevation
+		# delta_time = track_data[:,0]
+		lon = track_data[:,1]
+		lat = track_data[:,2]
+		distance = track_data[:,4] # distance along track in meters
+		elevation = track_data[:,3] # corresponding photon elevation
 	else:
-		lon = ground_data[:,0]
-		lat = ground_data[:,1]
-		distance = ground_data[:,3] # distance along track in meters
-		elevation = ground_data[:,2] # corresponding interpolated elevation
-		# delta_time = ground_data[:,4]
-		# density = ground_data[:,6]
+		lon = track_data[:,0]
+		lat = track_data[:,1]
+		distance = track_data[:,3] # distance along track in meters
+		elevation = track_data[:,2] # corresponding interpolated elevation
+		# delta_time = track_data[:,4]
+		# density = track_data[:,6]
 
 	# Calculate eastings and northings based on lon-lat data
 	eastings, northings, _, _ = utm.from_latlon(lat,lon)
