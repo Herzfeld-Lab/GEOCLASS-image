@@ -22,7 +22,6 @@ def main():
 	lag = cfg['lag_dist']
 	winsize = cfg['window_size']
 	winstep = cfg['window_step']
-	nvar = cfg['num_var']
 	ndir = cfg['num_dir']
 	nres = int(winsize / lag)
 
