@@ -19,7 +19,7 @@ from pyproj import Transformer, CRS
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 
-import time
+import time, utm
 
 @njit
 def draw_split_image_labels(img_mat, scale_factor, split_disp_size, labels, selected_classes, cmap):
@@ -444,7 +444,6 @@ optimizer:      {}
 lag_dist:       {}
 window_size:    {}
 window_step:    {}
-num_var:        {}
 num_dir:        {}
 nres:           {}
         '''.format(yaml_obj['model'],
@@ -468,7 +467,6 @@ nres:           {}
                    yaml_obj['lag_dist'],
                    yaml_obj['window_size'],
                    yaml_obj['window_step'],
-                   yaml_obj['num_var'],
                    yaml_obj['num_dir'],
                    yaml_obj['nres'])
 
