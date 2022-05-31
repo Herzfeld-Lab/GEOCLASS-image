@@ -35,8 +35,8 @@ if dataset_path is not None:
 # Set plotting cosmetic constants
 winsize = 150
 winstep = 50
-width_px = 1200 # 1500 OG
-height_px = 750 # 750 OG
+width_px = 1000 # 1200 OG
+height_px = 650 # 750 OG
 linesize = 2
 opac = 0.5
 
@@ -152,7 +152,7 @@ def main():
 		# print class/label breakdown
 		class_label_breakdown(classLabels,classEnum)
 		# add window labels to main data file
-		current_data[1][:,nres-1] = classLabels
+		current_data[1][:,0] = classLabels
 		# save new dataset w/ valid segment labels
 		np.save(dataset_path, current_data)
 
