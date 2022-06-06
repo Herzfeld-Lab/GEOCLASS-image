@@ -13,6 +13,8 @@ import random
 from Models import *
 import yaml
 import signal
+from sklearn.utils.class_weight import compute_class_weight
+import warnings
 
 # Handle Ctrl-C event (manual stop training)
 def signal_handler(sig, frame):
@@ -177,6 +179,24 @@ valid_loader = DataLoader(
     batch_size=1,
     shuffle=False
     )
+
+# TODO: make get_labels() function
+weighted = False
+if weighted:
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore")
+        y1 = train_dataset.get_labels().to_list()
+        y2 = valid_dataset.get_labels().to_list()
+        y = y1 + y2
+        print('Class 0: {}'.format(y.count(0.0)))
+        print('Class 1: {}'.format(y.count(1.0)))
+        print('Class 2: {}'.format(y.count(2.0)))
+
+        class_wts = compute_class_weight('balanced',np.unique(y),y)
+        class_wts = torch.from_numpy(class_wts).float()
+        criterion = torch.nn.CrossEntropyLoss(weight=class_wts)
+        optimizer = optim.Adam(model.parameters(),lr=learning_rate)
+        scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
 
 # Initialize loss critereron and gradient descent optimizer
 criterion = torch.nn.CrossEntropyLoss()
