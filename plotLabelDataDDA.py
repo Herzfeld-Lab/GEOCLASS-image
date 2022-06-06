@@ -23,6 +23,7 @@ mainDir = cfg['img_path']
 dataset_path = cfg['npy_path']
 nres = cfg['nres']
 classEnum = cfg['class_enum']
+numClasses = len(classEnum)
 
 # set up plot directory
 plot_directory = mainDir + '/vario_window_plots'
@@ -111,7 +112,8 @@ def label_images():
 		if seg % 100 == 0 and seg > 0:
 			class_label_breakdown(np.array(classArray),classEnum)
 
-		if lab == 127:
+		# 127 = delete key (Mac), int(chr(48)) = 0
+		if lab == 127 or lab < 48 or lab >= (48 + numClasses):
 			classArray.append(-1)
 		else:
 			classArray.append(int(chr(lab)))
