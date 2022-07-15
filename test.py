@@ -13,6 +13,8 @@ from datetime import datetime
 import random
 from Models import *
 import yaml
+import warnings
+from sklearn.utils.class_weight import compute_class_weight
 
 # Parse command line flags
 parser = argparse.ArgumentParser()
@@ -59,7 +61,7 @@ elif cfg['model'] == 'DDAiceNet':
     num_classes = cfg['num_classes']
     nres = cfg['nres']
     hidden_layers = cfg['hidden_layers']
-    model = DDAiceNet.DDAiceNet(num_classes,(nres-1)*2, hiddenLayers=hidden_layers)
+    model = DDAiceNet.DDAiceNet(num_classes, nres*2, hiddenLayers=hidden_layers)
     img_transforms_valid = None
 else:
     print("Error: Model \'%s\' not recognized"%(cfg['model']))
@@ -115,9 +117,25 @@ valid_loader = DataLoader(
     shuffle=False
 )
 
+weighted = True
+if weighted:
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore")
+        y = list(valid_dataset.get_labels())
+        print('Class 0: {}'.format(y.count(0.0)))
+        print('Class 1: {}'.format(y.count(1.0)))
+        print('Class 2: {}'.format(y.count(2.0)))
+        print('Class 3: {}'.format(y.count(3.0)))
+
+        class_wts = compute_class_weight('balanced',np.unique(y),y)
+        class_wts = torch.from_numpy(class_wts).float()
+        criterion = torch.nn.CrossEntropyLoss(weight=class_wts)
+        optimizer = optim.Adam(model.parameters(),lr=learning_rate)
+        scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
+
 # Initialize loss critereron and gradient descent optimizer
-criterion = torch.nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(),lr=learning_rate)
+# criterion = torch.nn.CrossEntropyLoss()
+# optimizer = optim.Adam(model.parameters(),lr=learning_rate)
 #optimizer = optim.SGD(model.parameters(), lr=5e-4, momentum=0.9)
 
 # Initialize cuda

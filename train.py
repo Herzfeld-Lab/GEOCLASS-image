@@ -96,7 +96,7 @@ elif cfg['model'] == 'DDAiceNet':
     ddaBool = True
     num_classes = cfg['num_classes']
     nres = cfg['nres']
-    model = DDAiceNet.DDAiceNet(num_classes,(nres-1)*2, hiddenLayers=hidden_layers)
+    model = DDAiceNet.DDAiceNet(num_classes,nres*2, hiddenLayers=hidden_layers)
     img_transforms_train = None
     img_transforms_valid = None
 
@@ -181,16 +181,17 @@ valid_loader = DataLoader(
     )
 
 # TODO: make get_labels() function
-weighted = False
+weighted = True
 if weighted:
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore")
-        y1 = train_dataset.get_labels().to_list()
-        y2 = valid_dataset.get_labels().to_list()
+        y2 = list(valid_dataset.get_labels())
+        y1 = list(train_dataset.get_labels())
         y = y1 + y2
         print('Class 0: {}'.format(y.count(0.0)))
         print('Class 1: {}'.format(y.count(1.0)))
         print('Class 2: {}'.format(y.count(2.0)))
+        print('Class 3: {}'.format(y.count(3.0)))
 
         class_wts = compute_class_weight('balanced',np.unique(y),y)
         class_wts = torch.from_numpy(class_wts).float()
@@ -199,8 +200,8 @@ if weighted:
         scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
 
 # Initialize loss critereron and gradient descent optimizer
-criterion = torch.nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(),lr=learning_rate)
+# criterion = torch.nn.CrossEntropyLoss()
+# optimizer = optim.Adam(model.parameters(),lr=learning_rate)
 
 # Load model checkpoint
 if args.load_checkpoint:
@@ -222,10 +223,10 @@ date_str = now.strftime("%d-%m-%Y_%H:%M")
 config_str = args.config.split('/')[1]
 output_dir = 'Output/%s_%s'%(config_str, date_str)
 checkpoint_str = ''
-os.mkdir(output_dir)
-os.mkdir(output_dir+'/checkpoints')
-os.mkdir(output_dir+'/labels')
-os.mkdir(output_dir+'/losses')
+if not os.path.exists(output_dir): os.mkdir(output_dir)
+if not os.path.exists(output_dir+'/checkpoints'): os.mkdir(output_dir+'/checkpoints')
+if not os.path.exists(output_dir+'/labels'): os.mkdir(output_dir+'/labels')
+if not os.path.exists(output_dir+'/losses'): os.mkdir(output_dir+'/losses')
 print('Output saved at %s'%(output_dir))
 
 save_params()
