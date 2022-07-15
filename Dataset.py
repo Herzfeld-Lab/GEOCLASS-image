@@ -8,7 +8,7 @@ from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 import torch
 from skimage import io, transform
-s, DataLoader
+from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 import pandas as pd
 import random
@@ -176,8 +176,6 @@ class DDAiceDataset(Dataset):
         return len(self.dataFrame)
 
     def __getitem__(self,idx):
-
-
         vario = self.dataFrame[idx,2:]
         # vario = self.dataFrame['variogram'][idx]
 
@@ -189,6 +187,9 @@ class DDAiceDataset(Dataset):
             return (vario_tensor, label)
         else:
             return vario_tensor
+
+    def get_labels(self):
+        return self.dataFrame[:,0]
 
 
 
