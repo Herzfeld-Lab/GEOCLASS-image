@@ -1,3 +1,5 @@
 
 .DS_Store
 DDAiceCNN.py
+.pyc
+Models/__pycache__/DDAiceNet.cpython-39.pyc
