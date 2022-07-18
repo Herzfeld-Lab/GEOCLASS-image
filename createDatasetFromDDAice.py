@@ -46,6 +46,8 @@ def main():
 			else:
 				ground_est1 = data_path
 
+		# TODO: need better option here to check with user every time
+		# b/c problem when old labels are there, but you want to make new ones
 		if 'window_labels_auto' in data_path:
 			bin_labels = np.loadtxt(data_path)
 
