@@ -180,7 +180,6 @@ valid_loader = DataLoader(
     shuffle=False
     )
 
-# TODO: make get_labels() function
 weighted = True
 if weighted:
     with warnings.catch_warnings():
