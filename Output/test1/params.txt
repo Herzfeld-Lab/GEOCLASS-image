@@ -1,4 +1,0 @@
-Hidden Layers:[3, 5, 2]
-Learning Rate:1e-06
-Batch Size:8
-Num Epochs:1000
