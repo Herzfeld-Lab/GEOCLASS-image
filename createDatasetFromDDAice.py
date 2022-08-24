@@ -29,22 +29,16 @@ def main():
 
 	transforms = None
 	bin_labels = None
-	ground_est0, weight_photons0 = [],[]
+	ground_est, weight_photons = [],[]
 	ddaOuts = get_dda_paths(topDir)
 
 	for num, data_path in enumerate(ddaOuts):
 
 		if 'weighted' in data_path:
-			if '0' in data_path:
-				weight_photons0.append(data_path)
-			else:
-				weight_photons1 = data_path
+			weight_photons.append(data_path)
 
 		if 'ground' in data_path:
-			if '0' in data_path:
-				ground_est0.append(data_path)
-			else:
-				ground_est1 = data_path
+			ground_est.append(data_path)
 
 		# TODO: need better option here to check with user every time
 		# b/c problem when old labels are there, but you want to make new ones
@@ -52,7 +46,7 @@ def main():
 			bin_labels = np.loadtxt(data_path)
 
 	info = {'data_location': topDir,
-			'num_tracks': len(ground_est0),
+			'num_tracks': len(ground_est),
 			'class_enumeration': classEnum}
 
 
@@ -63,19 +57,19 @@ def main():
 	# dir_path = '/'.join([split_path[0],split_path[1]])
 
 	# check for multiple ground estimate files
-	if len(ground_est0) == 1:
-		ground_est0 = ground_est0[0]
-		weight_photons0 = weight_photons0[0]
-		vario_data_ge = run_vario(ground_est0, lag, winsize, winstep, ndir, nres)
-		vario_data_wp = run_vario(weight_photons0, lag, winsize, winstep, ndir, nres, photons=True)
+	if len(ground_est) == 1:
+		ground_est = ground_est[0]
+		weight_photons = weight_photons[0]
+		vario_data_ge = run_vario(ground_est, lag, winsize, winstep, ndir, nres)
+		vario_data_wp = run_vario(weight_photons, lag, winsize, winstep, ndir, nres, photons=True)
 	else:
 		# compute variograms for each track individually, then combine results
 		ge_dat, wp_dat = [],[]
-		for data in ground_est0:
+		for data in ground_est:
 			ge_dat.append(run_vario(data, lag, winsize, winstep, ndir, nres))
 		vario_data_ge = np.vstack((ge_dat))
 
-		for data in weight_photons0:
+		for data in weight_photons:
 			wp_dat.append(run_vario(data, lag, winsize, winstep, ndir, nres, photons=True))
 		vario_data_wp = np.vstack((wp_dat))
 
