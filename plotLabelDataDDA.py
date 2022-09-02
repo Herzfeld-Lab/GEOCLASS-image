@@ -45,9 +45,19 @@ def plot_chunks(dataTuples):
 
 	seg = 0
 	for track,elem in enumerate(dataTuples):
+		print(elem)
 		# print(elem[0].split('/')[-1].split('_')[0])
 		ground_estimate = np.loadtxt(elem[0])
 		weight_photons = np.loadtxt(elem[1])
+
+		if 'EARLY' in elem[0]:
+			tag = 'EARLY'
+		elif 'LATE' in elem[0]:
+			tag = 'LATE'
+		else:
+			tag = 'UNDISTURBED'
+
+		# tag = 'EARLY' if 'EARLY' in elem[0] else 'LATE'
 
 		dist = ground_estimate[:,3]
 		mindist = np.min(dist)
@@ -74,7 +84,7 @@ def plot_chunks(dataTuples):
 			ylim = [np.min(ground_segment[:, 2]) - 10, np.max(ground_segment[:, 2]) + 10]
 
 			fig = px.scatter(pltDict, x='dist', y='elevation', color='density', color_continuous_scale=px.colors.sequential.Turbo,
-			 range_color=[int(min_dens),int(max_dens)], opacity=opac, title='track {}, chunk {}'.format(track,seg), range_y = ylim)
+			 range_color=[int(min_dens),int(max_dens)], opacity=opac, title='track {}, chunk {} ({})'.format(track,seg,tag), range_y = ylim)
 			fig.add_trace(go.Scatter(x=pltDict2['dist'], y=pltDict2['elevation'],mode='lines',line=go.scatter.Line(color='black',width=linesize),showlegend=False))
 			fig.update_layout(autosize=False,width=width_px,height=height_px)
 

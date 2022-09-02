@@ -29,8 +29,10 @@ elif 'late' in args.dir:
 	tag = 'LATE'
 elif 'mid' in args.dir:
 	tag = 'MID'
+elif 'undisturbed' in args.dir:
+	tag = 'UNDISTURBED'
 else:
-	raise NameError('Only able to handle early / late / mid Negri results...')
+	raise NameError('Only able to handle early / late / mid / undisturbed Negri results...')
 
 
 results = os.listdir(args.dir)
