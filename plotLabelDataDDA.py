@@ -24,6 +24,8 @@ dataset_path = cfg['npy_path']
 nres = cfg['nres']
 classEnum = cfg['class_enum']
 numClasses = len(classEnum)
+winsize = cfg['window_size']
+winstep = cfg['window_step']
 
 # set up plot directory
 plot_directory = mainDir + '/vario_window_plots'
@@ -34,9 +36,6 @@ if dataset_path is not None:
 	current_data = np.load(dataset_path, allow_pickle=True)
 
 # Set plotting cosmetic constants
-# TODO: get winsize and winstep from config file
-winsize = 150
-winstep = 50
 width_px = 1000 # 1200 OG
 height_px = 650 # 750 OG
 linesize = 2
@@ -165,11 +164,12 @@ def main():
 		# print class/label breakdown
 		class_label_breakdown(classLabels,classEnum)
 
-		# TODO: only do next 2 steps if there's actually a dataset, else just save txt file
-		# add window labels to main data file
-		current_data[1][:,0] = classLabels
-		# save new dataset w/ valid segment labels
-		np.save(dataset_path, current_data)
+		# only do next 2 steps if there's actually a dataset, else just save txt file
+		if current_data:
+			# add window labels to main data file
+			current_data[1][:,0] = classLabels
+			# save new dataset w/ valid segment labels
+			np.save(dataset_path, current_data)
 
 
 if __name__ == '__main__':
