@@ -165,6 +165,7 @@ def main():
 		class_label_breakdown(classLabels,classEnum)
 
 		# only do next 2 steps if there's actually a dataset, else just save txt file
+		# TODO: better conditional here... didn't work last time
 		if current_data:
 			# add window labels to main data file
 			current_data[1][:,0] = classLabels

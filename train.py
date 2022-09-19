@@ -180,7 +180,7 @@ valid_loader = DataLoader(
     shuffle=False
     )
 
-weighted = True
+weighted = False
 if weighted:
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore")
@@ -196,11 +196,11 @@ if weighted:
         class_wts = torch.from_numpy(class_wts).float()
         criterion = torch.nn.CrossEntropyLoss(weight=class_wts)
         optimizer = optim.Adam(model.parameters(),lr=learning_rate)
-        scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
-
-# Initialize loss critereron and gradient descent optimizer
-# criterion = torch.nn.CrossEntropyLoss()
-# optimizer = optim.Adam(model.parameters(),lr=learning_rate)
+        scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9) #TODO: what this does?
+else:
+    # Initialize loss critereron and gradient descent optimizer
+    criterion = torch.nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(),lr=learning_rate)
 
 # Load model checkpoint
 if args.load_checkpoint:
