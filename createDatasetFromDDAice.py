@@ -78,12 +78,16 @@ def main():
 	print('**** Saving Dataset ****')
 
 	if bin_labels is None:
+		print("No pre-loaded LABELS provided, initializing labels to -1...")
 		bin_labels = np.full(shape=(vario_data_ge.shape[0],1), fill_value=-1)
+	else:
+		print("Adding pre-loaded LABELS from data directory...")
 	confidence = np.full(shape=(vario_data_ge.shape[0],1), fill_value=0)
 
 	vario_data = np.c_[bin_labels,confidence,vario_data_ge,vario_data_wp]
 	# vario_data = np.c_[vario_data,bin_labels]
 
+	# format: [labels, confidence, segment_lat, segment_lon, vario(ground_estimate)..., vario(weighted_photons)...]
 	print('Shape of variogram data: {}'.format(vario_data.shape))
 
 	full_data_array = np.array([info, vario_data], dtype='object')
