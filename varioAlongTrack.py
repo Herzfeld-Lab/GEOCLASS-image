@@ -55,6 +55,7 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, photons = False,
 		distance = track_data[:,3] # distance along track in meters
 		elevation = track_data[:,2] # corresponding interpolated elevation
 
+
 	# Calculate eastings and northings based on lon-lat data
 	eastings, northings, _, _ = utm.from_latlon(lat,lon)
 
@@ -72,7 +73,7 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, photons = False,
 		end = windows[w,1]
 
 		window_bool = np.logical_and(distance>=start,distance<end)
-		window_data = np.array([eastings[window_bool],northings[window_bool],elevation[window_bool]]).T
+		window_data = np.array([eastings[window_bool],northings[window_bool],elevation[window_bool],lon[window_bool],lat[window_bool]]).T
 		# window_data = np.array([lat[window_bool],lon[window_bool],elevation[window_bool]]).T
 		if len(window_data)<5: # if we have too few datapoints in a window
 			print('too few points in current window')
@@ -80,17 +81,16 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, photons = False,
 
 		data_windows_all.append(window_data)
 
-
 	with Pool() as pool:
 		# vario_values_ret = pool.map(compute_varios, data_windows_all)
-		vario_values_ret = pool.map(partial(compute_varios, lag=lag, nres=nres, coef=coef), data_windows_all)
+		vario_values_ret = pool.map(partial(compute_varios, lag=lag, nres=nres, coef=coef, weighted_photons=photons), data_windows_all)
 
 	return np.array(vario_values_ret)
 
 
-def compute_varios(windowData, lag, nres, coef):
+def compute_varios(windowData, lag, nres, coef, weighted_photons):
 	"""
-	window data: [east (utm), north (utm), elevation]
+	window data: [east (utm), north (utm), elevation, lon, lat]
 	"""
 	def get_pairs(sepDist):
 		ls = []
@@ -123,6 +123,34 @@ def compute_varios(windowData, lag, nres, coef):
 			continue
 		vario_values.append(semivariogram(pairs))
 	
-	vario_values = convolve1d(vario_values, coef, mode='nearest')
+	# TODO: test w/o smoothing vario results -> maybe more precise better for indiv crevasses?
+	vario_values = list(convolve1d(vario_values, coef, mode='nearest'))
 
-	return np.array(vario_values)
+	# add lon/lat values for segment identification (previous TODO: remove old code)
+	# [lon_start, lat_start, lon_end, lat_end]
+	# latlon = [windowData[0,3], windowData[0,4], windowData[-1,3], windowData[-1,4]]
+
+	if not weighted_photons:
+		# only include segment location info on ground estimate data (weighted photons would be redundant)
+		# use midpoint of segment for segment location
+		latlon = get_segment_midpt_loc(windowData[0,4], windowData[0,3], windowData[-1,4], windowData[-1,3])
+		full_feature = np.concatenate((latlon,vario_values))
+		return full_feature
+	return vario_values
+
+
+# Given: start and end lat/lon coordinates for an along-track segment
+# return: geographic midpoint of the segment
+def get_segment_midpt_loc(lat_start, lon_start, lat_end, lon_end):
+	def midpoint(x1,x2,y1,y2):
+		return (x1+x2)/2, (y1+y2)/2
+	
+	x_start, y_start, zone_num_start, zone_let_start = utm.from_latlon(lat_start, lon_start)
+	x_end, y_end, zone_num_end, zone_let_end = utm.from_latlon(lat_end, lon_end)
+
+	assert zone_num_start == zone_num_end, "Segment w/ different UTM Zone Numbers"
+	assert zone_let_start == zone_let_end, "Segment w/ different UTM Zone Letters"
+
+	midpt_utm_x, midpt_utm_y = midpoint(x_start,x_end,y_start,y_end)
+	return utm.to_latlon(midpt_utm_x, midpt_utm_y, zone_num_start, zone_let_end)
+
