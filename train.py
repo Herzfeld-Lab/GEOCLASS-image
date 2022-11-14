@@ -180,7 +180,7 @@ valid_loader = DataLoader(
     shuffle=False
     )
 
-weighted = False
+weighted = True
 if weighted:
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore")
@@ -190,7 +190,7 @@ if weighted:
         print('Class 0: {}'.format(y.count(0.0)))
         print('Class 1: {}'.format(y.count(1.0)))
         print('Class 2: {}'.format(y.count(2.0)))
-        print('Class 3: {}'.format(y.count(3.0)))
+        # print('Class 3: {}'.format(y.count(3.0)))
 
         class_wts = compute_class_weight('balanced',np.unique(y),y)
         class_wts = torch.from_numpy(class_wts).float()
