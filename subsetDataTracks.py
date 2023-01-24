@@ -18,27 +18,20 @@ python3 subsetDataTracks.py <data> -s <start distance> -e <end distance>
 # parse command line arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("dir", type=str) # directory path containing all DDA results to use
+parser.add_argument("-g","--glacier", type=str, default="none")
 args = parser.parse_args()
 
 dest = '/Users/adamhayes/workspace/train_test_data/negri-early-late-train'
 if not os.path.exists(dest): os.makedirs(dest)
 
-if 'early' in args.dir:
-	tag = 'EARLY'
-elif 'late' in args.dir:
-	tag = 'LATE'
-elif 'mid' in args.dir:
-	tag = 'MID'
-elif 'undisturbed' in args.dir:
-	tag = 'UNDISTURBED'
-else:
-	raise NameError('Only able to handle early / late / mid / undisturbed Negri results...')
-
+# glacier name tag for identifying data (i.e. negri, jak, peter)
+tag = args.glacier
 
 results = os.listdir(args.dir)
 for i,res in enumerate(results):
 	if '.DS_Store' in res: continue
 	path = os.path.join(args.dir, res)
+	if not os.path.exists(os.path.join(path, 'crev_range.txt')): continue
 	crevRange = np.loadtxt(os.path.join(path, 'crev_range.txt'))
 	start,end = int(crevRange[0]), int(crevRange[1])
 	
@@ -51,57 +44,16 @@ for i,res in enumerate(results):
 	geFinal = geTemp[geTemp[:,3] <= end]
 	wpFinal = wpTemp[wpTemp[:,4] <= end]
 
-	geDest = os.path.join(dest, '{}_negri{}_ground_estimate_pass0.txt'.format(tag,i))
-	wpDest = os.path.join(dest, '{}_negri{}_weighted_photons_pass0.txt'.format(tag,i))
+	# File naming convention: <glacier><track #>_ground_estimate_pass0.txt OR <glacier><track #>_weighted_photons_pass0.txt
+	# NOTE: track # is up to user to set for keeping track of records
+	geDest = os.path.join(dest, '{}{}_ground_estimate_pass0.txt'.format(tag,i))
+	wpDest = os.path.join(dest, '{}{}_weighted_photons_pass0.txt'.format(tag,i))
 
-	print('{}_negri{}: {}'.format(tag, i, res))
+	print('{}{}: {}'.format(tag, i, res))
 	np.savetxt(geDest, geFinal)
 	np.savetxt(wpDest, wpFinal)
 
-
-
-
-
-previous = False
-if previous:
-	# parse command line arguments
-	parser = argparse.ArgumentParser()
-	parser.add_argument("data", type=str) # either ground_estimate or weighted_photons track
-	parser.add_argument("-s", type=str, default=None) # distance in meters
-	parser.add_argument("-e", type=str, default=None) # distance in meters
-	args = parser.parse_args()
-
-	# prompts for name and location to store result data 
-	destination = input('\nWhere would you like to put the result (full or relative file path)? ')
-	name = input('\nWhat would you like to name this file (do not include file extension)? ')
-	name = name + '.txt'
-	print('\n')
-
-	location = os.path.join(destination,name)
-	data_track = np.loadtxt(args.data)
-
-
-	if args.s is None or args.e is None:
-		print('You have not specified starting/ending distances, saving the full track: \n{}'.format(location))
-		np.savetxt(location, data_track)
-	else:
-		start,end = int(args.s), int(args.e)
-
-		if 'ground_estimate' in args.data:
-			temp = data_track[data_track[:,3] >= start]
-			final = temp[temp[:,3] <= end]
-			dist_idx = 3
-		elif 'weighted_photons' in args.data:
-			temp = data_track[data_track[:,4] >= start]
-			final = temp[temp[:,4] <= end]
-			dist_idx = 4
-		else:
-			raise NameError('Only valid inputs are ground_estimate and weighted_photons')
-
-		if np.min(final[:,dist_idx]) < start or np.max(final[:,dist_idx]) > end:
-			raise ValueError('Track was not properly subsetted... Distances are off...')
-
-		np.savetxt(location, final)
+	# if os.path.exists(os.path.join(path, 'crev_range2.txt')):
 
 
 
