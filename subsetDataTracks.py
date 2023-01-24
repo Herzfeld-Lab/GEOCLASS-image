@@ -27,14 +27,10 @@ if not os.path.exists(dest): os.makedirs(dest)
 # glacier name tag for identifying data (i.e. negri, jak, peter)
 tag = args.glacier
 
-results = os.listdir(args.dir)
-for i,res in enumerate(results):
-	if '.DS_Store' in res: continue
-	path = os.path.join(args.dir, res)
-	if not os.path.exists(os.path.join(path, 'crev_range.txt')): continue
-	crevRange = np.loadtxt(os.path.join(path, 'crev_range.txt'))
+def subset_and_save(path, crevRangeFilename, trackNum):
+	crevRange = np.loadtxt(os.path.join(path,crevRangeFilename))
 	start,end = int(crevRange[0]), int(crevRange[1])
-	
+
 	ge = np.loadtxt(os.path.join(path, 'ground_estimate_pass0.txt'))
 	wp = np.loadtxt(os.path.join(path, 'weighted_photons_pass0.txt'))
 
@@ -46,14 +42,28 @@ for i,res in enumerate(results):
 
 	# File naming convention: <glacier><track #>_ground_estimate_pass0.txt OR <glacier><track #>_weighted_photons_pass0.txt
 	# NOTE: track # is up to user to set for keeping track of records
-	geDest = os.path.join(dest, '{}{}_ground_estimate_pass0.txt'.format(tag,i))
-	wpDest = os.path.join(dest, '{}{}_weighted_photons_pass0.txt'.format(tag,i))
+	geDest = os.path.join(dest, '{}{}_ground_estimate_pass0.txt'.format(tag,trackNum))
+	wpDest = os.path.join(dest, '{}{}_weighted_photons_pass0.txt'.format(tag,trackNum))
 
-	print('{}{}: {}'.format(tag, i, res))
+	print('{}{}: {}'.format(tag, trackNum, res))
 	np.savetxt(geDest, geFinal)
 	np.savetxt(wpDest, wpFinal)
 
-	# if os.path.exists(os.path.join(path, 'crev_range2.txt')):
+
+
+cnt=1
+results = os.listdir(args.dir)
+for i,res in enumerate(results):
+	if '.DS_Store' in res: continue
+	path = os.path.join(args.dir, res)
+	if not os.path.exists(os.path.join(path, 'crev_range.txt')): continue
+	
+	subset_and_save(path, 'crev_range.txt', cnt)
+	cnt += 1
+
+	if os.path.exists(os.path.join(path, 'crev_range2.txt')):
+		subset_and_save(path, 'crev_range2.txt', cnt)
+		cnt += 1
 
 
 
