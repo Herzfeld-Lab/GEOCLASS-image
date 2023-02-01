@@ -21,7 +21,6 @@ warnings.filterwarnings('error')
 
 mainDir = cfg['img_path']
 dataset_path = cfg['npy_path']
-nres = cfg['nres']
 classEnum = cfg['class_enum']
 numClasses = len(classEnum)
 winsize = cfg['window_size']
@@ -46,18 +45,10 @@ def plot_chunks(dataTuples):
 	seg = 0
 	for track,elem in enumerate(dataTuples):
 		print(elem)
-		# print(elem[0].split('/')[-1].split('_')[0])
+		tag = elem[0].split('/')[-1].split('_')[0]
+
 		ground_estimate = np.loadtxt(elem[0])
 		weight_photons = np.loadtxt(elem[1])
-
-		if 'EARLY' in elem[0]:
-			tag = 'EARLY'
-		elif 'LATE' in elem[0]:
-			tag = 'LATE'
-		else:
-			tag = 'UNDISTURBED'
-
-		# tag = 'EARLY' if 'EARLY' in elem[0] else 'LATE'
 
 		dist = ground_estimate[:,3]
 		mindist = np.min(dist)
@@ -87,14 +78,6 @@ def plot_chunks(dataTuples):
 			 range_color=[int(min_dens),int(max_dens)], opacity=opac, title='track {}, chunk {} ({})'.format(track,seg,tag), range_y = ylim)
 			fig.add_trace(go.Scatter(x=pltDict2['dist'], y=pltDict2['elevation'],mode='lines',line=go.scatter.Line(color='black',width=linesize),showlegend=False))
 			fig.update_layout(autosize=False,width=width_px,height=height_px)
-
-			# f1 = px.scatter(pltDict, x='dist', y='elevation', color='density', opacity=opac, color_continuous_scale=px.colors.sequential.Jet)
-			# f1 = px.scatter(pltDict, x='dist', y='elevation', color='density', range_color=[int(min_dens),int(max_dens+1)], opacity=opac)
-			# f2 = px.line(pltDict2, x='dist', y='elevation')
-			# f2.update_traces(line=dict(color="Black", width=linesize))
-			# lo = go.Layout(title=go.layout.Title(text='track {}, chunk {}'.format(track,seg)))
-			# fig = go.Figure(data=f1.data + f2.data, layout_yaxis_range=ylim, layout=lo)
-			# fig.update_layout(autosize=False,width=width_px,height=height_px, colorscale_sequential=px.colors.sequential.Turbo)
 			fig.write_image(os.path.join(plot_directory, 'segment_{}.png'.format(seg)))
 			seg += 1
 			bar.next()
