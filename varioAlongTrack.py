@@ -10,7 +10,7 @@ from datetime import datetime
 from multiprocessing import Pool
 from functools import partial
 
-def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, photons = False, residual = False):
+def run_vario(ddaData, windows, lag, windowSize, windowStep, ndir, nres, photons = False, residual = False):
 
 	# TODO: add few more comments
 
@@ -54,6 +54,8 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, photons = False,
 		lat = track_data[:,1]
 		distance = track_data[:,3] # distance along track in meters
 		elevation = track_data[:,2] # corresponding interpolated elevation
+		density_mean = track_data[:,6]
+		density_sd = track_data[:,7]
 
 
 	# Calculate eastings and northings based on lon-lat data
@@ -61,8 +63,8 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, photons = False,
 
 	# Calculate the start and end of each window according to windowSize and windowStep
 	# Note: the windows are dependent on distance along track rather than lon-lat
-	windows = list(zip(np.arange(np.min(distance),np.max(distance),windowStep), np.arange(np.min(distance)+windowSize,np.max(distance)-windowStep,windowStep)))
-	windows = np.array(windows)
+	# windows = list(zip(np.arange(np.min(distance),np.max(distance),windowStep), np.arange(np.min(distance)+windowSize,np.max(distance)-windowStep,windowStep)))
+	# windows = np.array(windows)
 
 	# initialize return array
 	data_windows_all = []
@@ -73,7 +75,10 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, photons = False,
 		end = windows[w,1]
 
 		window_bool = np.logical_and(distance>=start,distance<end)
-		window_data = np.array([eastings[window_bool],northings[window_bool],elevation[window_bool],lon[window_bool],lat[window_bool]]).T
+		if photons:
+			window_data = np.array([eastings[window_bool],northings[window_bool],elevation[window_bool]]).T	
+		else:
+			window_data = np.array([eastings[window_bool],northings[window_bool],elevation[window_bool],lon[window_bool],lat[window_bool],density_mean[window_bool],density_sd[window_bool],distance[window_bool]]).T
 		# window_data = np.array([lat[window_bool],lon[window_bool],elevation[window_bool]]).T
 		if len(window_data)<5: # if we have too few datapoints in a window
 			print('too few points in current window')
@@ -84,8 +89,14 @@ def run_vario(ddaData, lag, windowSize, windowStep, ndir, nres, photons = False,
 	with Pool() as pool:
 		# vario_values_ret = pool.map(compute_varios, data_windows_all)
 		vario_values_ret = pool.map(partial(compute_varios, lag=lag, nres=nres, coef=coef, weighted_photons=photons), data_windows_all)
+	
+	if photons:
+		return np.array(vario_values_ret)
 
-	return np.array(vario_values_ret)
+	with Pool() as pool2:
+		density_feature = pool2.map(partial(make_density_feature, lag=lag, nres=nres), data_windows_all)
+
+	return np.hstack((np.array(vario_values_ret), np.array(density_feature)))
 
 
 def compute_varios(windowData, lag, nres, coef, weighted_photons):
@@ -154,3 +165,20 @@ def get_segment_midpt_loc(lat_start, lon_start, lat_end, lon_end):
 	midpt_utm_x, midpt_utm_y = midpoint(x_start,x_end,y_start,y_end)
 	return utm.to_latlon(midpt_utm_x, midpt_utm_y, zone_num_start, zone_let_end)
 
+
+def make_density_feature(windowData, lag, nres):
+	dens_mean = windowData[:,5]
+	dens_sd = windowData[:,6]
+	distance = windowData[:,7]
+	if len(dens_mean) == nres and len(dens_sd) == nres:
+		return np.concatenate((dens_mean,dens_sd))
+	else:
+		# Non-uniform ground interpolation due to crevassing
+		window_start = distance[0]
+		dm, dsd = np.zeros(nres),np.zeros(nres)
+		for i in range(nres):
+			window_bool = np.logical_and(distance>=window_start, distance<window_start+lag)
+			dm[i] = np.mean(dens_mean[window_bool])
+			dsd[i] = np.mean(dens_sd[window_bool])
+
+		return np.concatenate((dm,dsd))

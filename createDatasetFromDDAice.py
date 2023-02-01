@@ -4,6 +4,7 @@ import yaml
 import warnings
 import utm
 
+
 def main():
 	# Parse command line flags
 	parser = argparse.ArgumentParser()
@@ -32,6 +33,13 @@ def main():
 	ground_est, weight_photons = [],[]
 	ddaOuts = get_dda_paths(topDir)
 
+	def get_windows(ge):
+		# Calculate the start and end of each window according to windowSize and windowStep
+		# Note: the windows are dependent on distance along track rather than lon-lat
+		distance = np.loadtxt(ge)[:,3]
+		windows = list(zip(np.arange(np.min(distance),np.max(distance),winstep), np.arange(np.min(distance)+winsize,np.max(distance)-winstep,winstep)))
+		return np.array(windows)
+
 	for num, data_path in enumerate(ddaOuts):
 
 		if 'weighted' in data_path:
@@ -54,7 +62,6 @@ def main():
 	print('**** Computing Variograms ****')
 
 	split_path = args.config.split('/')
-	# dir_path = '/'.join([split_path[0],split_path[1]])
 
 	# check for multiple ground estimate files
 	if len(ground_est) == 1:
@@ -65,15 +72,16 @@ def main():
 	else:
 		# compute variograms for each track individually, then combine results
 		ge_dat, wp_dat = [],[]
-		for data in ground_est:
-			ge_dat.append(run_vario(data, lag, winsize, winstep, ndir, nres))
+		for (ge,wp) in zip(ground_est, weight_photons):
+			windows = get_windows(ge)
+			ge_dat.append(run_vario(ge, windows, lag, winsize, winstep, ndir, nres))
+			wp_dat.append(run_vario(wp, windows, lag, winsize, winstep, ndir, nres, photons=True))
+			if np.loadtxt(ge)[0,6] != ge_dat[-1][0,32] or np.loadtxt(ge)[0,7] != ge_dat[-1][0,62]:
+				print("problem")
+			print(len(ge_dat[-1]))
+			print(len(wp_dat[-1]))
 		vario_data_ge = np.vstack((ge_dat))
-
-		for data in weight_photons:
-			wp_dat.append(run_vario(data, lag, winsize, winstep, ndir, nres, photons=True))
 		vario_data_wp = np.vstack((wp_dat))
-
-
 
 	print('**** Saving Dataset ****')
 
@@ -85,7 +93,6 @@ def main():
 	confidence = np.full(shape=(vario_data_ge.shape[0],1), fill_value=0)
 
 	vario_data = np.c_[bin_labels,confidence,vario_data_ge,vario_data_wp]
-	# vario_data = np.c_[vario_data,bin_labels]
 
 	# format: [labels, confidence, segment_lat, segment_lon, vario(ground_estimate)..., vario(weighted_photons)...]
 	print('Shape of variogram data: {}'.format(vario_data.shape))
@@ -102,6 +109,8 @@ def main():
 	f = open(args.config, 'w')
 	f.write(generate_config_adam(cfg))
 	f.close()
+
+
 
 
 if __name__ == '__main__':
