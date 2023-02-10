@@ -21,7 +21,7 @@ parser.add_argument("dir", type=str) # directory path containing all DDA results
 parser.add_argument("-g","--glacier", type=str, default="none")
 args = parser.parse_args()
 
-dest = '/Users/adamhayes/workspace/train_test_data/negri-early-late-train'
+dest = '/Users/adamhayes/workspace/train_test_data/5class-negri-jak-train'
 if not os.path.exists(dest): os.makedirs(dest)
 
 # glacier name tag for identifying data (i.e. negri, jak, peter)

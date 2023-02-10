@@ -1,5 +1,10 @@
 
-.DS_Store
-DDAiceCNN.py
-.pyc
-Models/__pycache__/DDAiceNet.cpython-39.pyc
+*.DS_Store*
+*.pyc
+
+*.npy
+Output/*
+*__pycache__*
+
+
+plotClassResOverNegri.py
