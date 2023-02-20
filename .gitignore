@@ -1,0 +1,10 @@
+
+*.DS_Store*
+*.pyc
+
+*.npy
+Output/*
+*__pycache__*
+
+
+plotClassResOverNegri.py

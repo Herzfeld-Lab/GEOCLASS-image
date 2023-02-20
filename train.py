@@ -13,6 +13,8 @@ import random
 from Models import *
 import yaml
 import signal
+from sklearn.utils.class_weight import compute_class_weight
+import warnings
 
 # Handle Ctrl-C event (manual stop training)
 def signal_handler(sig, frame):
@@ -23,6 +25,7 @@ signal.signal(signal.SIGINT, signal_handler)
 def save_losses():
     np.save(output_dir+'/losses/'+checkpoint_str+"_train_losses",np.array(train_losses))
     np.save(output_dir+'/losses/'+checkpoint_str+"_valid_losses",np.array(valid_losses))
+    plt.ylim([0,1])
     plt.plot(train_losses, label='training loss')
     plt.plot(valid_losses, label='validation loss')
     plt.xlabel('Training epochs')
@@ -30,6 +33,16 @@ def save_losses():
     plt.title('Training vs Validation Loss')
     plt.legend()
     plt.savefig(output_dir+'/losses/'+checkpoint_str+'_losses.png')
+
+def save_params():
+    params={'Hidden Layers': hidden_layers,
+            'Learning Rate': learning_rate,
+            'Batch Size': batch_size,
+            'Num Epochs': num_epochs}
+    saveFile = output_dir + '/params.txt'
+    with open(saveFile, 'w') as f:
+        for key,value in params.items():
+            f.write('%s:%s\n' % (key, value))
 
 
 # Parse command line flags
@@ -47,6 +60,7 @@ with open(args.config, 'r') as ymlfile:
 learning_rate = float(cfg['learning_rate'])
 batch_size = cfg['batch_size']
 num_epochs = cfg['num_epochs']
+hidden_layers = cfg['hidden_layers']
 
 # Set dataset hyperparameters as specified by config file
 topDir = cfg['img_path']
@@ -54,7 +68,6 @@ classEnum = cfg['class_enum']
 dataset_path = cfg['npy_path']
 train_path = cfg['train_path']
 valid_path = cfg['valid_path']
-
 
 # Initialize NN model as specified by config file
 print('----- Initializing Neural Network Model -----')
@@ -79,8 +92,14 @@ elif cfg['model'] == 'Resnet18':
     img_transforms_train = None
     img_transforms_valid = None
 
-#elif cfg['model'] == YOUR MODEL HERE:
-#   YOUR PARAMETERS HERE
+elif cfg['model'] == 'DDAiceNet':
+    ddaBool = True
+    num_classes = cfg['num_classes']
+    nres = cfg['nres']
+    model = DDAiceNet.DDAiceNet(num_classes,nres*2, hiddenLayers=hidden_layers)
+    img_transforms_train = None
+    img_transforms_valid = None
+
 
 else:
     print("Error: Model \'{}\' not recognized".format(cfg['model']))
@@ -92,8 +111,11 @@ print(model)
 dataset = np.load(dataset_path, allow_pickle=True)
 dataset_info = dataset[0]
 dataset_coords = dataset[1]
-dataset_labeled = dataset_coords[dataset_coords[:,4] != -1]
-
+if ddaBool:
+    dataset_labeled = dataset_coords[dataset_coords[:,0] != -1]
+else:
+    dataset_labeled = dataset_coords[dataset_coords[:,4] != -1]
+    
 train_size = int(cfg['train_test_split'] * dataset_labeled.shape[0])
 
 train_indeces = np.random.choice(range(dataset_labeled.shape[0]), train_size, replace=False)
@@ -105,28 +127,45 @@ test_coords = dataset_labeled[test_indeces, :]
 # Initialize Datasets and DataLoaders
 print('----- Initializing Dataset -----')
 
-train_dataset = SplitImageDataset(
-    imgPath = topDir,
-    imgData = dataset_info,
-    labels = train_coords,
-    train = True,
-    transform = img_transforms_train
-    )
+if cfg['model'] == 'VarioMLP' or cfg['model'] == 'Resnet18':
+    train_dataset = SplitImageDataset(
+        imgPath = topDir,
+        imgData = dataset_info,
+        labels = train_coords,
+        train = True,
+        transform = img_transforms_train
+        )
 
-valid_dataset = SplitImageDataset(
-    imgPath = topDir,
-    imgData = dataset_info,
-    labels = test_coords,
-    train = True,
-    transform = img_transforms_valid
-    )
+    valid_dataset = SplitImageDataset(
+        imgPath = topDir,
+        imgData = dataset_info,
+        labels = test_coords,
+        train = True,
+        transform = img_transforms_valid
+        )
+else:
+    train_dataset = DDAiceDataset(
+        dataPath = topDir,
+        dataInfo = dataset_info,
+        dataLabeled = train_coords,
+        train = True,
+        transform = None
+        )
 
-print('Training set size: \t%d images'%(len(train_dataset)))
-for i in range(num_classes):
-    print('Class {}: {} - {} train images'.format(i,classEnum[i],len(train_coords[train_coords[:,4] == i])))
-print('Validation set size: \t%d images'%(len(valid_dataset)))
-for i in range(num_classes):
-    print('Class {}: {} - {} valid images'.format(i,classEnum[i],len(test_coords[test_coords[:,4] == i])))
+    valid_dataset = DDAiceDataset(
+        dataPath = topDir,
+        dataInfo = dataset_info,
+        dataLabeled = test_coords,
+        train = True,
+        transform = None
+        )
+
+# print('Training set size: \t%d images'%(len(train_dataset)))
+# for i in range(num_classes):
+#     print('Class {}: {} - {} train images'.format(i,classEnum[i],len(train_coords[train_coords[:,4] == i])))
+# print('Validation set size: \t%d images'%(len(valid_dataset)))
+# for i in range(num_classes):
+#     print('Class {}: {} - {} valid images'.format(i,classEnum[i],len(test_coords[test_coords[:,4] == i])))
 print('----- Initializing DataLoader -----')
 
 train_loader = DataLoader(
@@ -141,9 +180,27 @@ valid_loader = DataLoader(
     shuffle=False
     )
 
-# Initialize loss critereron and gradient descent optimizer
-criterion = torch.nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(),lr=learning_rate)
+weighted = True
+if weighted:
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore")
+        y2 = list(valid_dataset.get_labels())
+        y1 = list(train_dataset.get_labels())
+        y = y1 + y2
+        print('Class 0: {}'.format(y.count(0.0)))
+        print('Class 1: {}'.format(y.count(1.0)))
+        print('Class 2: {}'.format(y.count(2.0)))
+        # print('Class 3: {}'.format(y.count(3.0)))
+
+        class_wts = compute_class_weight('balanced',np.unique(y),y)
+        class_wts = torch.from_numpy(class_wts).float()
+        criterion = torch.nn.CrossEntropyLoss(weight=class_wts)
+        optimizer = optim.Adam(model.parameters(),lr=learning_rate)
+        scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9) #TODO: what this does?
+else:
+    # Initialize loss critereron and gradient descent optimizer
+    criterion = torch.nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(),lr=learning_rate)
 
 # Load model checkpoint
 if args.load_checkpoint:
@@ -166,17 +223,21 @@ date_str = now.strftime("%d-%m-%Y_%H:%M")
 config_str = args.config.split('/')[1]
 output_dir = 'Output/%s_%s'%(config_str, date_str)
 checkpoint_str = ''
-os.mkdir(output_dir)
-os.mkdir(output_dir+'/checkpoints')
-os.mkdir(output_dir+'/labels')
-os.mkdir(output_dir+'/losses')
+if not os.path.exists(output_dir): os.mkdir(output_dir)
+if not os.path.exists(output_dir+'/checkpoints'): os.mkdir(output_dir+'/checkpoints')
+if not os.path.exists(output_dir+'/labels'): os.mkdir(output_dir+'/labels')
+if not os.path.exists(output_dir+'/losses'): os.mkdir(output_dir+'/losses')
 print('Output saved at %s'%(output_dir))
 
+save_params()
 
 print('----- Training -----')
 
 train_losses = []
 valid_losses = []
+
+# X = tensor
+# Y = label
 
 for epoch in range(num_epochs):
 

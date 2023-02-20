@@ -151,3 +151,50 @@ class AdjustContrast(object):
             Image.fromarray(sample).save('result.png')
 
         return sample
+
+class DDAiceDataset(Dataset):
+
+    def __init__(self, dataPath, dataInfo, dataLabeled, transform=None, train=False):
+
+        self.train = train
+        self.transform = transform
+        ddaGroundEstPath = dataPath[0] # path to ground estimate
+        datasetInfo = dataInfo
+        variograms = dataLabeled
+
+        # Work on configuring pandas data frame - numpy easier right now for 48 col array
+        # cols = ['lon','lat','utm_e','utm_n','dist','delta_time','pond','p1','p2','mindist','hdiff','nugget','photon_density','variogram','label']
+        # labels = dataLabeled[:,cutoff]
+        # variograms = dataLabeled[:,0:cutoff]
+        # dataDict = {'label': labels, 'variogram': variograms}
+
+        # data format: [label, conf, ge varios (nres-1) columns, wp varios (nres-1) columns]
+        self.dataFrame = variograms
+        # self.dataFrame = dataDict
+
+    def __len__(self):
+        return len(self.dataFrame)
+
+    def __getitem__(self,idx):
+        vario = self.dataFrame[idx,2:]
+        # vario = self.dataFrame['variogram'][idx]
+
+        vario_tensor = torch.from_numpy(vario)
+
+        if self.train:
+            label = int(self.dataFrame[idx,0])
+            # label = int(self.dataFrame['label'][idx])
+            return (vario_tensor, label)
+        else:
+            return vario_tensor
+
+    def get_labels(self):
+        return self.dataFrame[:,0]
+
+
+
+
+
+
+
+

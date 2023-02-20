@@ -19,7 +19,7 @@ from pyproj import Transformer, CRS
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 
-import time
+import time, utm
 
 @njit
 def draw_split_image_labels(img_mat, scale_factor, split_disp_size, labels, selected_classes, cmap):
@@ -119,6 +119,11 @@ def scaleImage(img, max):
 
 def getImgPaths(topDir):
     return glob.glob(topDir + '/*.tif')
+
+def get_dda_paths(topDir):
+    files = glob.glob(topDir + '/*.txt')
+    files.sort()
+    return files
 
 def utm_to_pix(imgSize,utmBounds,utmCoord):
     """
@@ -396,6 +401,76 @@ def batch_rotate_vario(vario):
             ret[i,:] = np.concatenate((v[1,:],v[0,:],v[3,:]))
 
     return ret
+
+def class_label_breakdown(labels, classes):
+
+    print("Class Breakdown: ")
+
+    for num,name in enumerate(classes):
+        tot = labels[labels==num].shape[0]
+        print("Total chunks in class {}: {}".format(name,tot))
+
+def generate_config_adam(yaml_obj):
+    config_str = '''
+### MODEL PARAMETERS ###
+
+model:          {}
+num_classes:    {}
+vario_num_lag:  {}
+hidden_layers:  {}
+activation:     {}
+
+### DATASET PARAMETERS ###
+
+img_path:           {}
+npy_path:           {}
+train_path:         {}
+valid_path:         {}
+class_enum:         {}
+utm_epsg_code:      {}
+track_chunk_size:   {}
+train_test_split:   {}
+
+### TRAINING PARAMETERS ###
+
+use_cuda:       {}
+num_epochs:     {}
+learning_rate:  {}
+batch_size:     {}
+optimizer:      {}
+
+### VARIO ALONG TRACK PARAMS ###
+
+lag_dist:       {}
+window_size:    {}
+window_step:    {}
+num_dir:        {}
+nres:           {}
+        '''.format(yaml_obj['model'],
+                   yaml_obj['num_classes'],
+                   yaml_obj['vario_num_lag'],
+                   yaml_obj['hidden_layers'],
+                   yaml_obj['activation'],
+                   yaml_obj['img_path'],
+                   yaml_obj['npy_path'],
+                   yaml_obj['train_path'],
+                   yaml_obj['valid_path'],
+                   yaml_obj['class_enum'],
+                   yaml_obj['utm_epsg_code'],
+                   yaml_obj['track_chunk_size'],
+                   yaml_obj['train_test_split'],
+                   yaml_obj['use_cuda'],
+                   yaml_obj['num_epochs'],
+                   yaml_obj['learning_rate'],
+                   yaml_obj['batch_size'],
+                   yaml_obj['optimizer'],
+                   yaml_obj['lag_dist'],
+                   yaml_obj['window_size'],
+                   yaml_obj['window_step'],
+                   yaml_obj['num_dir'],
+                   yaml_obj['nres'])
+
+    return config_str
 
 def generate_config(yaml_obj):
     config_str = '''
