@@ -1,8 +1,8 @@
-from utils import *
+import utils
 from varioAlongTrack import *
 import yaml
 import warnings
-import utm
+import argparse
 
 
 def main():
@@ -31,7 +31,7 @@ def main():
 	transforms = None
 	bin_labels = None
 	ground_est, weight_photons = [],[]
-	ddaOuts = get_dda_paths(topDir)
+	ddaOuts = utils.get_dda_paths(topDir)
 
 	def get_windows(ge):
 		# Calculate the start and end of each window according to windowSize and windowStep
@@ -107,7 +107,7 @@ def main():
 	np.save(dataset_path, full_data_array)
 
 	f = open(args.config, 'w')
-	f.write(generate_config_adam(cfg))
+	f.write(utils.generate_config_adam(cfg))
 	f.close()
 
 
