@@ -47,7 +47,7 @@ class SplitImageDataset(Dataset):
                 rowlist = list(row)
                 rowlist.append(splitImg_np)
                 dataArray.append(rowlist)
-        # need labels for I2 data simalr to these, start pixel end pixel, etc...
+
         self.dataFrame = pd.DataFrame(dataArray, columns=['x_pix','y_pix','x_utm','y_utm','label','conf','img_source','img_mat'])
 
 

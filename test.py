@@ -132,10 +132,10 @@ if weighted:
         criterion = torch.nn.CrossEntropyLoss(weight=class_wts)
         optimizer = optim.Adam(model.parameters(),lr=learning_rate)
         scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
-
-# Initialize loss critereron and gradient descent optimizer
-# criterion = torch.nn.CrossEntropyLoss()
-# optimizer = optim.Adam(model.parameters(),lr=learning_rate)
+else:
+    # Initialize loss critereron and gradient descent optimizer
+    criterion = torch.nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(),lr=learning_rate)
 #optimizer = optim.SGD(model.parameters(), lr=5e-4, momentum=0.9)
 
 # Initialize cuda
