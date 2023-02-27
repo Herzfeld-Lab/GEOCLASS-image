@@ -544,3 +544,19 @@ bg_UTM_path:        {}
                    yaml_obj['bg_UTM_path'])
 
     return config_str
+
+
+# Given: start and end lat/lon coordinates for an along-track segment
+# return: geographic midpoint of the segment
+def get_segment_midpt_loc(lat_start, lon_start, lat_end, lon_end):
+	def midpoint(x1,x2,y1,y2):
+		return (x1+x2)/2, (y1+y2)/2
+	
+	x_start, y_start, zone_num_start, zone_let_start = utm.from_latlon(lat_start, lon_start)
+	x_end, y_end, zone_num_end, zone_let_end = utm.from_latlon(lat_end, lon_end)
+
+	assert zone_num_start == zone_num_end, "Segment w/ different UTM Zone Numbers"
+	assert zone_let_start == zone_let_end, "Segment w/ different UTM Zone Letters"
+
+	midpt_utm_x, midpt_utm_y = midpoint(x_start,x_end,y_start,y_end)
+	return utm.to_latlon(midpt_utm_x, midpt_utm_y, zone_num_start, zone_let_end)
