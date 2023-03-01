@@ -3,6 +3,7 @@
 *.pyc
 
 *.npy
+*.npz
 Output/*
 *__pycache__*
 
