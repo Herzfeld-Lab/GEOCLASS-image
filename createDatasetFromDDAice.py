@@ -27,9 +27,10 @@ def main():
 	ndir = cfg['num_dir']
 	nres = int(winsize / lag)
 
-	# TODO: make these config params
-	histo_approach = True
-	vbin_size = 0.2
+	# Histogram approach params
+	histo_approach = cfg['histo_approach']
+	vbin_size = cfg['vbin_size'] # m
+	vert_window_size = cfg['vert_winsize'] # m
 
 	print('**** Loading DDA-ice Data ****')
 
@@ -64,7 +65,6 @@ def main():
 	if not histo_approach:
 		# compute variograms and pond parameters
 		print('**** Computing Variograms ****')
-		feat_type = 'variogram'
 
 		# check for multiple ground estimate files
 		if len(ground_est) == 1:
@@ -98,28 +98,69 @@ def main():
 		# format: [labels, confidence, segment_lat, segment_lon, vario(ground_estimate)..., vario(weighted_photons)...]
 		feature_data = np.c_[bin_labels,confidence,vario_data_ge,vario_data_wp]
 
+		print('Shape of variogram data: {}'.format(feature_data.shape))
+
+		full_data_array = np.array([info, feature_data], dtype='object')
+
+		dataset_path = args.config[:-7] + '_still_testing'
+
+		cfg['npy_path'] = dataset_path + '.npy'
+
+		np.save(dataset_path, full_data_array)
+
 	else:
 		# compute histogram features
 		print('**** Computing Histograms ****')
-		feat_type = 'histogram'
+		histo_objs, latlon_objs = [],[]
+		for (ge,wp) in zip(ground_est, weight_photons):
+			windows = get_windows(ge)
+			histo = make_histo_features(ge, wp, windows, lag, vbin_size, vert_window_size, nres)
+			if histo is None:
+				return
+			else:
+				latlon_objs.append(histo[0])
+				histo_objs.append(histo[1])
+
+		histo_feature_data = np.concatenate((histo_objs),axis=0)
+		latlon_data = np.concatenate((latlon_objs), axis=0)
 		
+		##### Test to ensure concatenation of data maintains correct order #####
+		ct=0
+		for elem in latlon_objs:
+			for i,ll in enumerate(elem):
+				assert ll.all() == latlon_data[i+ct].all(), "lat/lon concatenation gone wrong..."
+			ct += len(elem)
+		ct=0
+		for elem in histo_objs:
+			for j,h in enumerate(elem):
+				assert h.all() == histo_feature_data[j+ct].all(), "histo concatenation gone wrong..."
+			ct += len(elem)
+		##### end test #####
+
+		if bin_labels is None:
+			print("No pre-loaded LABELS provided, initializing labels to -1...")
+			bin_labels = np.full(shape=(latlon_data.shape[0],1), fill_value=-1)
+		else:
+			print("Adding pre-loaded LABELS from data directory...")
+		confidence = np.full(shape=(latlon_data.shape[0],1), fill_value=0)
+
+		feature_data = [bin_labels, confidence, latlon_data, histo_feature_data]
+
+		print('Format of histo data: ')
+		for elem in feature_data:
+			print(elem.shape)
+
+		dataset_path = args.config[:-7] + '_still_testing'
+
+		cfg['npz_path'] = dataset_path + '.npz'
+
+		np.savez_compressed(dataset_path, info=info, labs=bin_labels, conf=confidence, ll=latlon_data, hist=histo_feature_data)
 	
-	print('Shape of {} data: {}'.format(feat_type, feature_data.shape))
-
-	full_data_array = np.array([info, feature_data], dtype='object')
-
-	dataset_path = args.config[:-7] + '_still_testing'
-
-	cfg['npy_path'] = dataset_path + '.npy'
 	cfg['nres'] = nres
-
-	np.save(dataset_path, full_data_array)
 
 	f = open(args.config, 'w')
 	f.write(utils.generate_config_adam(cfg))
 	f.close()
-
-
 
 
 if __name__ == '__main__':

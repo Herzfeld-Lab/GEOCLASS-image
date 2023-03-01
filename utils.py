@@ -446,6 +446,13 @@ window_size:    {}
 window_step:    {}
 num_dir:        {}
 nres:           {}
+
+### HISTOGRAM PARAMS ###
+
+histo_approach: {}
+vbin_size:      {}
+vert_winsize:   {}
+npz_path:       {}
         '''.format(yaml_obj['model'],
                    yaml_obj['num_classes'],
                    yaml_obj['vario_num_lag'],
@@ -468,7 +475,11 @@ nres:           {}
                    yaml_obj['window_size'],
                    yaml_obj['window_step'],
                    yaml_obj['num_dir'],
-                   yaml_obj['nres'])
+                   yaml_obj['nres'],
+                   yaml_obj['histo_approach'],
+                   yaml_obj['vbin_size'],
+                   yaml_obj['vert_winsize'],
+                   yaml_obj['npz_path'])
 
     return config_str
 
