@@ -154,6 +154,34 @@ class AdjustContrast(object):
 
 class DDAiceDataset(Dataset):
 
+    def __init__(self, dataInfo, data, labels, coords, train=True):
+        self.info = dataInfo
+        self.labels = labels
+        self.coords = coords
+        self.train = train
+
+        self.df = data
+
+    def __len__(self):
+        return len(self.df)
+    
+    def __getitem__(self, idx):
+        elem = self.df[idx]
+        # print('Dataset')
+        tensor = torch.from_numpy(elem)
+        # print(tensor.shape)
+
+        if self.train:
+            return (tensor, int(self.labels[idx]))
+        else:
+            return tensor
+        
+    def get_labels(self):
+        return self.labels
+
+
+class DDAiceDatasetv2(Dataset):
+
     def __init__(self, dataPath, dataInfo, dataLabeled, transform=None, train=False):
 
         self.train = train
