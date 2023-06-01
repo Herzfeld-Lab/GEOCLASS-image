@@ -5,7 +5,7 @@ rasterio
 torch
 torchvision
 shapely
-sklearn
+scikit-learn
 utm
 pyproj
 matplotlib
