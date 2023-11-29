@@ -25,7 +25,7 @@ The following is a guide for installing and running the NN_Class software, along
     + [Visualizing Labels](#visualizing-labels)
     + [Dataset Output](#dataset-output)
 - [Training](#training)
-  <!* [Training Options](#training-options)>
+  <!*[Training Options](#training-options)>
   * [Training Output](#training-output)
 - [Testing](#testing)
   * [Testing Options](#testing-options)
