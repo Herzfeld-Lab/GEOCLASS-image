@@ -25,7 +25,7 @@ The following is a guide for installing and running the NN_Class software, along
     + [Visualizing Labels](#visualizing-labels)
     + [Dataset Output](#dataset-output)
 - [Training](#training)
-  <!*[Training Options](#training-options)>
+  [Training Options](#training-options)
   * [Training Output](#training-output)
 - [Testing](#testing)
   * [Testing Options](#testing-options)
@@ -39,15 +39,6 @@ The following is a guide for installing and running the NN_Class software, along
   * [Adding Classifications to Training Data](#adding-classifications-to-training-data)
 - [Miscellaneous Features](#miscellaneous-features)
   * [Generating a Contour File](#generating-a-contour-file)
-  * [Using a GPU](#using-a-gpu)
-  * [Outputting in netCDF format](#outputting-in-netcdf-format)
-- [Documentation for Provided Classification Models](#documentation-for-provided-classification-models)
-  * [VarioMLP](#variomlp)
-  * [Resnet18](#resnet18)
-- [Expanding Functionality](#expanding-functionality)
-  * [Adding Classification Models](#adding-classification-models)
-  * [Adding Data Augmentation Methods](#adding-data-augmentation-methods)
-  * [Adding Source Data Types](#adding-source-data-types)
 
 # Installation
 ## Operating System
