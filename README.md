@@ -198,12 +198,12 @@ The labeling process will take quite a while for cases in which the dataset cons
 ## Testing Output
 After running the test script, a `.npy` file containing the classification labels for all split images in the dataset will be generated in the `labels` subdirectory of the output subdirectory. For the test run above, a file called `Output/mlp_negri_legacy_09-03-2021_18:34/labels/labelled_epoch_11.npy` was generated:
 ![Output files from test.py](images/test_output_files.png)
-## Testing Options
+<!## Testing Options
 TODO
 # Visualizing
 TODO
 ## Loading Test Output
-TODO
+TODO>
 ## Visualizing Classifications
 TODO
 ![Visualizing Classifications](images/gui_visualize_predictions.png)
