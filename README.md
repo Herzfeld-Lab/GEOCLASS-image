@@ -217,16 +217,16 @@ After running the test script, a `.npy` file containing the classification label
 <!TODO>
 ![Creating a custom contour](images/custom_contour.gif)
 ![Loading with custom contour](images/custom_contour_result.png)
-<! Using a GPU>
+<!Using a GPU>
 <!TODO>
 <!Outputting in netCDF format>
 <!TODO>
-<! Documentation for Provided Classification Models>
+<!Documentation for Provided Classification Models>
 <!VarioMLP>
 <!TODO>
-<!## Resnet18>
+<!Resnet18>
 <!TODO>
-<!# Expanding Functionality>
+<!Expanding Functionality>
 <!TODO>
 <!Adding Classification Models>
 <!TODO>
