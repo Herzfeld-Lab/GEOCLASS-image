@@ -1,0 +1,58 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: GEOCLASS-image (v1.0)
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Ute C.
+    family-names: Herzfeld
+    email: ute.herzfeld@colorado.edu
+    affiliation: 'University of Colorado, Boulder'
+    orcid: 'https://orcid.org/0000-0002-5694-4698'
+  - given-names: Jack
+    family-names: Hessburg
+    email: lawrence.hessburglv@colorado.edu
+  - given-names: Adam
+    family-names: Hayes
+    email: Adam.N.Hayes@colorado.edu
+  - given-names: Thomas
+    family-names: Trantow
+    email: trantow@colorado.edu
+    affiliation: 'University of Colorado, Boulder'
+    orcid: 'https://orcid.org/0000-0003-2271-6854'
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.10232913
+    description: DOI of Release v1.0
+repository-code: >-
+  https://github.com/Herzfeld-Lab/GEOCLASS-image/releases/tag/v1.0
+abstract: >-
+  The tool and accompanying scripts which make up this
+  repository are suitable for applications in which it is
+  desirable to characterize and classify different
+  sub-regions within large GeoTIFF images, especially in
+  cases when pre-existing labelled training datasets are not
+  available. The example use-case outlined in this guide
+  consists of classifying glacier surface types from
+  WorldView images using a Variogram-based Neural Network
+  Classification Model. When using this repository, please
+  report any bugs by submitting an issue with a description
+  of the bug, along with your operating system/version and
+  any relevant screenshots or terminal output.
+keywords:
+  - GEOCLASS
+  - Glaciers
+  - Crevasses
+  - Ice
+  - Classification
+  - Convolutional Neural Network
+  - Machine Learning
+  - Geostatistics
+  - Satellite imagery
+license: MIT
+version: v1.0
+date-released: '2023-11-30'
