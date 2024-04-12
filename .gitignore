@@ -8,5 +8,6 @@ Output/*
 
 *.tiff
 *.tif
-%.png
+*.png
 plotClassResOverNegri.py
+*WV02*.log
