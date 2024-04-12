@@ -7,5 +7,6 @@ Output/*
 *__pycache__*
 
 *.tiff
+*.tif
 %.png
 plotClassResOverNegri.py
