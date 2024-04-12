@@ -1,15 +1,16 @@
 from utils import *
 from auto_rotate_geotiff import *
-
-from PyQt5.QtWidgets import QWidget, QApplication, QHBoxLayout, QLabel, QVBoxLayout, QCheckBox, QSlider, QLineEdit, QPushButton, QButtonGroup
+#CST20240312
+from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QHBoxLayout, QVBoxLayout, QCheckBox, QSlider, QLineEdit, QPushButton, QButtonGroup
 #CST 20240308
-
-from PyQt5.QtGui import QFont, QPixmap
-from PyQt6.QtGui import QImage, QGuiApplication
+from PyQt5.QtGui import QPixmap, QImage, QFont, QGuiApplication, QFont
 
 from PyQt5.QtCore import Qt
 
 from PIL.ImageQt import ImageQt
+import os
+import shutil
+
 
 from Models import *
 from Dataset import *
@@ -107,6 +108,8 @@ class SplitImageTool(QWidget):
         # Load classification results if specified
         if self.checkpoint != None:
             self.pred_label_path = self.checkpoint
+            #CST 20240313
+            print("label path", self.pred_label_path)
             pred_data = np.load(self.pred_label_path, allow_pickle=True)
             self.pred_labels_save = pred_data[1]
             self.predictions = True
@@ -357,13 +360,11 @@ class SplitImageTool(QWidget):
 
         # Convert to QImage from cv and wrap in QPixmap container
         #CST 20240312
-        self.bg_qimg = QImage(self.bg_img_cv.data,self.bg_img_cv.shape[1],self.bg_img_cv.shape[0],self.bg_img_cv.shape[1]*3,QImage.Format.Format_RGB888)
+        self.bg_qimg = QImage(self.bg_img_cv.data,self.bg_img_cv.shape[1],self.bg_img_cv.shape[0],self.bg_img_cv.shape[1]*3,QImage.Format_RGB888)
         self.tiff_image_pixmap = QPixmap(self.bg_qimg)
-        self.tiff_image_pixmap = QPixmap(self.tiff_image_pixmap.scaledToWidth(int(self.width/2) - 10))
+        self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToWidth(int(self.width/2) - 10)
         #self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
         #print('bg_img_pixmap:  {}x{}'.format(self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
-        #CST 20240312
-        print(type(self.tiff_image_pixmap))
         # Get scaling factor between cv and q image
         bg_img_cv_size = np.array(self.bg_img_cv.shape[:-1])
         bg_img_q_size = np.array((self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
@@ -381,16 +382,18 @@ class SplitImageTool(QWidget):
          # Grab info of split image at index
          x,y,x_utm,y_utm,label,conf,_ = self.split_info[index]
          x,y,x_utm,y_utm,label = int(x),int(y),int(x_utm),int(y_utm),int(label)
-
+         #CST20240313
          # Get split image from image matrix
          img = self.tiff_image_matrix[x:x+self.win_size[0],y:y+self.win_size[1]]
          img = scaleImage(img, self.tiff_image_max)
+         qimg = QImage(img.data, img.shape[1], img.shape[0], img.shape[1], QImage.Format_Grayscale8)
          img = Image.fromarray(img).convert("L")
          img = ImageQt(img)
+        
 
          # Wrap split image in QPixmap
          
-         self.split_image_pixmap = QPixmap.fromImage(img).scaledToWidth(270)
+         self.split_image_pixmap = QPixmap.fromImage(qimg).scaledToWidth(270)
          self.split_image_label.setPixmap(self.split_image_pixmap)
          # Update label text
          class_text = ''
@@ -422,14 +425,36 @@ class SplitImageTool(QWidget):
 
          height,width,channels = bg_img.shape
          #CST20240312
-         bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format.Format_RGB888)
+         bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
          background_image = QPixmap(bg_img)
          #background_image = background_image.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
          background_image = background_image.scaledToWidth(int(self.width/2) - 10)
 
          self.tiff_image_label.setPixmap(background_image)
 
+    #CST20240313 (creating a function to write images into a folder)
+    def writeImage(self,filePath, fileName, index):
+        p = os.path.join(filePath, fileName)
+        fp = p + '.tif'
+        self.image_index = index
+         # Grab info of split image at index
+        x,y,x_utm,y_utm,label,conf,_ = self.split_info[index]
+        x,y,x_utm,y_utm,label = int(x),int(y),int(x_utm),int(y_utm),int(label)
+         # Get split image from image matrix
+        img = self.tiff_image_matrix[x:x+self.win_size[0],y:y+self.win_size[1]]
+        img = scaleImage(img, self.tiff_image_max)
+        image = QImage(img.data, img.shape[1], img.shape[0], img.shape[1], QImage.Format_Grayscale8)
+        image.save(fp,"tif")
 
+ #CST20240403 Checks all directories for the image, and deletes it if it finds the image.
+    def deleteImage(self,filePath,fileName):
+        numClasses = cfg['num_classes']
+        for i in range(numClasses):
+            file_path = (filePath+str(i)+'/'+str(i)+fileName+'.tif')
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+                
+    
     def label(self, mask, class_label):
         self.split_info[mask,4] = class_label
         self.split_info[mask,5] = 1
@@ -439,6 +464,10 @@ class SplitImageTool(QWidget):
     def labelCurrent(self, class_label):
         self.split_info[self.image_index][4] = class_label
         self.split_info[self.image_index][5] = 1
+        if not os.path.exists("Classifications/"): os.mkdir("Classifications/")
+        if not os.path.exists("Classifications/"+str(class_label)): os.mkdir("Classifications/"+str(class_label))
+        self.deleteImage("Classifications/", str(self.image_index))
+        self.writeImage("Classifications/"+str(class_label), str(class_label)+str(self.image_index), self.image_index)
         self.getNewImage(self.image_index)
         self.update()
 
@@ -451,9 +480,14 @@ class SplitImageTool(QWidget):
             if Point(img[2],img[3]).within(batch_select):
                 self.split_info[i][4] = class_label
                 self.split_info[i][5] = 1
+                if not os.path.exists("Classifications/"): os.mkdir("Classifications/")
+                if not os.path.exists("Classifications/"+str(class_label)): os.mkdir("Classifications/"+str(class_label))
+                self.deleteImage("Classifications/", str(i))
+                self.writeImage("Classifications/"+str(class_label), str(class_label)+str(i), i)
         self.batch_select_polygon = []
         self.getNewImage(self.image_index)
         self.update()
+
 
     def getMousePosUTM(self, event):
 
@@ -513,7 +547,7 @@ class SplitImageTool(QWidget):
 
             height,width,channels = bg_img.shape
             #CST 202040312
-            bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format.Format_RGB888)
+            bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
             background_image = QPixmap(bg_img)
             #background_image = background_image.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
             background_image = background_image.scaledToWidth(int(self.width/2) - 10)
@@ -720,9 +754,12 @@ if __name__ == '__main__':
     parser.add_argument("--load_labels", type=str, default=None)
     parser.add_argument("--netcdf", action="store_true")
     args = parser.parse_args()
+    # Read config file
+    with open(args.config, 'r') as ymlfile:
+        cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
     app = QApplication(sys.argv)
-    QGuiApp = QGuiApplication(sys.argv)
+    QGuiApp = QApplication(sys.argv)
     ex = SplitImageTool(args.config, args.load_labels, args.netcdf)
 
     sys.exit(app.exec_())

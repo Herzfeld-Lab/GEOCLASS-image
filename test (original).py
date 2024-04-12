@@ -41,7 +41,7 @@ valid_path = cfg['valid_path']
 
 # Initialize NN model as specified by config file
 print('----- Initializing Neural Network Model -----')
-ddaBool = False
+
 if cfg['model'] == 'VarioMLP':
     num_classes = cfg['num_classes']
     vario_num_lag = cfg['vario_num_lag']
@@ -117,7 +117,7 @@ valid_loader = DataLoader(
     shuffle=False
 )
 
-weighted = False
+weighted = True
 if weighted:
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore")

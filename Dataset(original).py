@@ -24,66 +24,29 @@ class SplitImageDataset(Dataset):
         imageLabels = labels
         imageData = imgData
         self.transform = transform
+
         # Extract all split images and store in dataframe (takes longer to initialize but saves loads on memory usage during training)
         dataArray = []
-        #CST20240315print("image data", imageData)
+
         for imgNum,imagePath in enumerate(imagePaths):
 
             # If training, and there are no labeled split images from tiff image, skip loading it
-            TimageLabels = list(zip(*imageLabels)) #CST20240322 this may fail or not work as expected now
-            a=0
-            if len(TimageLabels) == 7: #Training
-                for i in range(0,len(TimageLabels[6])):
-                    if TimageLabels[6][i]==imgNum:
-                        a=1
-                if self.train and a == 0:
-                            continue
+            if self.train and imageLabels[imageLabels[:,6] == imgNum].shape[0] == 0:
+                continue
 
-                img = rio.open(imagePath)
-                imageMatrix = img.read(1)
+            img = rio.open(imagePath)
+            imageMatrix = img.read(1)
 
-                max = get_img_sigma(imageMatrix[::10,::10])
-                winSize = imageData['winsize_pix']
-            #CST 20240322
-                for i in range(0,len(TimageLabels[6])):
-                    if TimageLabels[6][i]==imgNum:
-                        row = imageLabels[i]
-                        x,y = row[0:2].astype('int')
-                        splitImg_np = imageMatrix[x:x+winSize[0],y:y+winSize[1]]
-                        splitImg_np = scaleImage(splitImg_np, max)
-                        rowlist = list(row)
-                        rowlist.append(splitImg_np)
-                        dataArray.append(rowlist)
-                        #CST20240315print("data array", dataArray)
-            elif len(TimageLabels) == 1: #testing
-                    # If training, and there are no labeled split images from tiff image, skip loading it
+            max = get_img_sigma(imageMatrix[::10,::10])
 
-                #CST 20240329
-                for i in range(0,len(TimageLabels[0])):
-                    if TimageLabels[0][i][6]==imgNum:
-                        a=1
-                if self.train and a == 0:
-                            continue
-                    
-
-                img = rio.open(imagePath)
-                imageMatrix = img.read(1)
-
-                max = get_img_sigma(imageMatrix[::10,::10])
-                winSize = imageData['winsize_pix']
-                #CST 20240329
-                for i in range(0,len(TimageLabels[0])):
-                    if TimageLabels[0][i][6] == imgNum:
-                        row = imageLabels[i][0]
-                        print(row)
-                        x,y = row[0:2].astype('int')
-                        splitImg_np = imageMatrix[x:x+winSize[0],y:y+winSize[1]]
-                        splitImg_np = scaleImage(splitImg_np, max)
-                        rowlist = list(row)
-                        rowlist.append(splitImg_np)
-                        dataArray.append(rowlist)
-            else:
-                print("Error with training or testing data")
+            winSize = imageData['winsize_pix']
+            for row in imageLabels[imageLabels[:,6] == imgNum]:
+                x,y = row[0:2].astype('int')
+                splitImg_np = imageMatrix[x:x+winSize[0],y:y+winSize[1]]
+                splitImg_np = scaleImage(splitImg_np, max)
+                rowlist = list(row)
+                rowlist.append(splitImg_np)
+                dataArray.append(rowlist)
 
         self.dataFrame = pd.DataFrame(dataArray, columns=['x_pix','y_pix','x_utm','y_utm','label','conf','img_source','img_mat'])
 
@@ -106,8 +69,6 @@ class SplitImageDataset(Dataset):
 
         else:
             return splitImg_tensor
-
-
 
 class RandomRotateVario(object):
 
@@ -229,11 +190,3 @@ class DDAiceDataset(Dataset):
 
     def get_labels(self):
         return self.dataFrame[:,0]
-
-
-
-
-
-
-
-

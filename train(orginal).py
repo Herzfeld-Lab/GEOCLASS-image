@@ -71,8 +71,7 @@ valid_path = cfg['valid_path']
 
 # Initialize NN model as specified by config file
 print('----- Initializing Neural Network Model -----')
-#initializing ddaBool
-ddaBool = False
+
 if cfg['model'] == 'VarioMLP':
     num_classes = cfg['num_classes']
     vario_num_lag = cfg['vario_num_lag']
@@ -116,22 +115,14 @@ if ddaBool:
     dataset_labeled = dataset_coords[dataset_coords[:,0] != -1]
 else:
     dataset_labeled = dataset_coords[dataset_coords[:,4] != -1]
-
+    
 train_size = int(cfg['train_test_split'] * dataset_labeled.shape[0])
 
-train_indeces = np.random.choice(range(np.array(dataset_labeled.shape[0])), train_size, replace=False)
-test_indeces = np.setdiff1d(range(np.array(dataset_labeled.shape[0])), train_indeces)
-#CST20240322 Creating loops so train and test coords aren't 1D
-train_coords = []
-test_coords = []
-for i in train_indeces:
-    train_coords.append(dataset_labeled[i])
-for i in test_indeces:
-    test_coords.append(dataset_labeled[[i]])
-#print("train size", train_size)#CST20240318
-#print("train_indeces", train_indeces) #CST20240315
-#print("dataset labeled", dataset_labeled) #CST20240315
-#print("train coords", train_coords) #CST20240315
+train_indeces = np.random.choice(range(dataset_labeled.shape[0]), train_size, replace=False)
+test_indeces = list(set(range(dataset_labeled.shape[0])) - set(train_indeces))
+
+train_coords = dataset_labeled[train_indeces, :]
+test_coords = dataset_labeled[test_indeces, :]
 
 # Initialize Datasets and DataLoaders
 print('----- Initializing Dataset -----')
@@ -152,7 +143,6 @@ if cfg['model'] == 'VarioMLP' or cfg['model'] == 'Resnet18':
         train = True,
         transform = img_transforms_valid
         )
-
 else:
     train_dataset = DDAiceDataset(
         dataPath = topDir,
@@ -170,8 +160,7 @@ else:
         transform = None
         )
 
-#CST20240315
-print('Training set size: \t%d images'%(len(train_dataset)))
+# print('Training set size: \t%d images'%(len(train_dataset)))
 # for i in range(num_classes):
 #     print('Class {}: {} - {} train images'.format(i,classEnum[i],len(train_coords[train_coords[:,4] == i])))
 # print('Validation set size: \t%d images'%(len(valid_dataset)))
@@ -184,14 +173,14 @@ train_loader = DataLoader(
     batch_size=batch_size,
     shuffle=True
     )
-print("train loader", type(train_loader))
+
 valid_loader = DataLoader(
     valid_dataset,
     batch_size=1,
     shuffle=False
     )
 
-weighted = False
+weighted = True
 if weighted:
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore")
@@ -256,14 +245,9 @@ for epoch in range(num_epochs):
 
     sum_loss = 0
     for batch_idx,(X,Y) in enumerate(train_loader):
-        
-        #CST20240315 else make program exit and say train data set is too low
-        if int((len(train_dataset) / batch_size)/10) != 0: #So it won't crash 
-            if batch_idx % int((len(train_dataset) / batch_size)/10) == 0:
-                print('.', end='',flush=True)
-        else:
-            print("ERROR: The length of the training dataset is too small") #CST 20240318
-            sys.exit(0)
+
+        if batch_idx % int((len(train_dataset) / batch_size)/10) == 0:
+            print('.', end='',flush=True)
 
         # Move batch to GPU
         if args.cuda:
@@ -289,13 +273,7 @@ for epoch in range(num_epochs):
         sum_loss = sum_loss + float(criterion(Y_hat, Y))
 
         #print("EPOCH: %d\t BATCH: %d\tTRAIN LOSS = %f"%(epoch,batch_idx,loss.item()))
-        #Make exit if batch_idx is zero
-    if batch_idx != 0:
-        train_losses.append(sum_loss/batch_idx)
-    else:
-        print("ERROR: The length of the training dataset is too small") #CST 20240318
-        sys.exit(0)
-
+    train_losses.append(sum_loss/batch_idx)
 
     print('running validation')
 

@@ -1,12 +1,8 @@
 from utils import *
 from auto_rotate_geotiff import *
 
-from PyQt5.QtWidgets import QWidget, QApplication, QHBoxLayout, QLabel, QVBoxLayout, QCheckBox, QSlider, QLineEdit, QPushButton, QButtonGroup
-#CST 20240308
-
-from PyQt5.QtGui import QFont, QPixmap
-from PyQt6.QtGui import QImage, QGuiApplication
-
+from PyQt5.QtWidgets import QWidget, QApplication, QHBoxLayout, QVBoxLayout, QLabel, QCheckBox, QSlider, QLineEdit, QPushButton, QButtonGroup
+from PyQt5.QtGui import QPixmap, QFont, QImage
 from PyQt5.QtCore import Qt
 
 from PIL.ImageQt import ImageQt
@@ -22,7 +18,6 @@ from matplotlib.pyplot import get_cmap
 from matplotlib.colors import ListedColormap
 
 import yaml
-
 
 class SplitImageTool(QWidget):
 
@@ -169,15 +164,12 @@ class SplitImageTool(QWidget):
         self.split_image_class = QLabel(self)
         self.split_image_class.setMargin(0)
         self.split_image_class.setAlignment(Qt.AlignCenter)
-        #CST20240308
-        font = QFont("Helvetica", 15)
         self.split_image_class.setFont(QFont("Helvetica", 15, QFont.Bold))
 
         # Current class confidence container
         self.split_image_conf = QLabel(self)
         self.split_image_conf.setMargin(0)
         self.split_image_conf.setAlignment(Qt.AlignCenter)
-        #CST20240308
         self.split_image_conf.setFont(QFont("Helvetica", 15, QFont.Bold))
 
         # Buttons
@@ -356,20 +348,18 @@ class SplitImageTool(QWidget):
         height,width,_ = self.bg_img_cv.shape
 
         # Convert to QImage from cv and wrap in QPixmap container
-        #CST 20240312
-        self.bg_qimg = QImage(self.bg_img_cv.data,self.bg_img_cv.shape[1],self.bg_img_cv.shape[0],self.bg_img_cv.shape[1]*3,QImage.Format.Format_RGB888)
+        self.bg_qimg = QImage(self.bg_img_cv.data,self.bg_img_cv.shape[1],self.bg_img_cv.shape[0],self.bg_img_cv.shape[1]*3,QImage.Format_RGB888)
         self.tiff_image_pixmap = QPixmap(self.bg_qimg)
-        self.tiff_image_pixmap = QPixmap(self.tiff_image_pixmap.scaledToWidth(int(self.width/2) - 10))
+        self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToWidth(int(self.width/2) - 10)
         #self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
         #print('bg_img_pixmap:  {}x{}'.format(self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
-        #CST 20240312
-        print(type(self.tiff_image_pixmap))
+
         # Get scaling factor between cv and q image
         bg_img_cv_size = np.array(self.bg_img_cv.shape[:-1])
         bg_img_q_size = np.array((self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
-#CST 20240312
+
         self.scale_factor = bg_img_cv_size / bg_img_q_size
-        self.tiff_image_label.setPixmap(QPixmap(self.tiff_image_pixmap))
+        self.tiff_image_label.setPixmap(self.tiff_image_pixmap)
 
     def updateBgImage(self):
         return
@@ -389,9 +379,9 @@ class SplitImageTool(QWidget):
          img = ImageQt(img)
 
          # Wrap split image in QPixmap
-         
          self.split_image_pixmap = QPixmap.fromImage(img).scaledToWidth(270)
          self.split_image_label.setPixmap(self.split_image_pixmap)
+
          # Update label text
          class_text = ''
          if self.predictions:
@@ -421,8 +411,7 @@ class SplitImageTool(QWidget):
          cv2.line(bg_img, (0, height-pix_coords[0][1]), (width, height-pix_coords[0][1]), (255,0,0),thickness=2)
 
          height,width,channels = bg_img.shape
-         #CST20240312
-         bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format.Format_RGB888)
+         bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
          background_image = QPixmap(bg_img)
          #background_image = background_image.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
          background_image = background_image.scaledToWidth(int(self.width/2) - 10)
@@ -512,8 +501,7 @@ class SplitImageTool(QWidget):
             cv2.line(bg_img, (pix_coords[-2][0], height-pix_coords[-2][1]), (current_pos[0][0], height-current_pos[0][1]), (255,0,0),thickness=2)
 
             height,width,channels = bg_img.shape
-            #CST 202040312
-            bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format.Format_RGB888)
+            bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
             background_image = QPixmap(bg_img)
             #background_image = background_image.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
             background_image = background_image.scaledToWidth(int(self.width/2) - 10)
@@ -658,11 +646,6 @@ class SplitImageTool(QWidget):
             self.initBgImage()
             out_path = self.pred_label_path[:-4] + '_prediction.png'
             cv2.imwrite(out_path, cv2.cvtColor(self.bg_img_cv, cv2.COLOR_BGR2RGB))
-        #CST20240308
-        else:
-            out_path = self.pred_label_path[:-4] + '_prediction.png'
-            print("savePredictionsCallback", out_path)
-
 
     def saveHeatmapCallback(self):
         if self.predictions:
@@ -670,10 +653,6 @@ class SplitImageTool(QWidget):
             self.initBgImage()
             out_path = self.pred_label_path[:-4] + '_confidence_heatmap.png'
             cv2.imwrite(out_path, cv2.cvtColor(self.bg_img_cv, cv2.COLOR_BGR2RGB))
-            #CST20240308
-        else:
-            out_path = self.pred_label_path[:-4] + '_confidence_heatmap.png'
-            print("saveHeatmapCallback", out_path)
 
     def saveContourCallback(self):
         if self.batch_select_polygon != []:
@@ -714,7 +693,6 @@ class SplitImageTool(QWidget):
 if __name__ == '__main__':
 
     # Parse command line flags
-    
     parser = argparse.ArgumentParser()
     parser.add_argument("config", type=str)
     parser.add_argument("--load_labels", type=str, default=None)
@@ -722,7 +700,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     app = QApplication(sys.argv)
-    QGuiApp = QGuiApplication(sys.argv)
     ex = SplitImageTool(args.config, args.load_labels, args.netcdf)
 
     sys.exit(app.exec_())
