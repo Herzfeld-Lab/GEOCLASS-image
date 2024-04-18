@@ -15,6 +15,8 @@ import yaml
 import signal
 from sklearn.utils.class_weight import compute_class_weight
 import warnings
+from sklearn.utils.class_weight import compute_class_weight
+import warnings
 
 # Handle Ctrl-C event (manual stop training)
 def signal_handler(sig, frame):
@@ -116,7 +118,6 @@ if ddaBool:
     dataset_labeled = dataset_coords[dataset_coords[:,0] != -1]
 else:
     dataset_labeled = dataset_coords[dataset_coords[:,4] != -1]
-
 train_size = int(cfg['train_test_split'] * dataset_labeled.shape[0])
 
 train_indeces = np.random.choice(range(np.array(dataset_labeled.shape[0])), train_size, replace=False)
