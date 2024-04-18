@@ -24,29 +24,66 @@ class SplitImageDataset(Dataset):
         imageLabels = labels
         imageData = imgData
         self.transform = transform
-
         # Extract all split images and store in dataframe (takes longer to initialize but saves loads on memory usage during training)
         dataArray = []
-
+        #CST20240315print("image data", imageData)
         for imgNum,imagePath in enumerate(imagePaths):
 
             # If training, and there are no labeled split images from tiff image, skip loading it
-            if self.train and imageLabels[imageLabels[:,6] == imgNum].shape[0] == 0:
-                continue
+            TimageLabels = list(zip(*imageLabels)) #CST20240322 this may fail or not work as expected now
+            a=0
+            if len(TimageLabels) == 7: #Training
+                for i in range(0,len(TimageLabels[6])):
+                    if TimageLabels[6][i]==imgNum:
+                        a=1
+                if self.train and a == 0:
+                            continue
 
-            img = rio.open(imagePath)
-            imageMatrix = img.read(1)
+                img = rio.open(imagePath)
+                imageMatrix = img.read(1)
 
-            max = get_img_sigma(imageMatrix[::10,::10])
+                max = get_img_sigma(imageMatrix[::10,::10])
+                winSize = imageData['winsize_pix']
+            #CST 20240322
+                for i in range(0,len(TimageLabels[6])):
+                    if TimageLabels[6][i]==imgNum:
+                        row = imageLabels[i]
+                        x,y = row[0:2].astype('int')
+                        splitImg_np = imageMatrix[x:x+winSize[0],y:y+winSize[1]]
+                        splitImg_np = scaleImage(splitImg_np, max)
+                        rowlist = list(row)
+                        rowlist.append(splitImg_np)
+                        dataArray.append(rowlist)
+                        #CST20240315print("data array", dataArray)
+            elif len(TimageLabels) == 1: #testing
+                    # If training, and there are no labeled split images from tiff image, skip loading it
 
-            winSize = imageData['winsize_pix']
-            for row in imageLabels[imageLabels[:,6] == imgNum]:
-                x,y = row[0:2].astype('int')
-                splitImg_np = imageMatrix[x:x+winSize[0],y:y+winSize[1]]
-                splitImg_np = scaleImage(splitImg_np, max)
-                rowlist = list(row)
-                rowlist.append(splitImg_np)
-                dataArray.append(rowlist)
+                #CST 20240329
+                for i in range(0,len(TimageLabels[0])):
+                    if TimageLabels[0][i][6]==imgNum:
+                        a=1
+                if self.train and a == 0:
+                            continue
+                    
+
+                img = rio.open(imagePath)
+                imageMatrix = img.read(1)
+
+                max = get_img_sigma(imageMatrix[::10,::10])
+                winSize = imageData['winsize_pix']
+                #CST 20240329
+                for i in range(0,len(TimageLabels[0])):
+                    if TimageLabels[0][i][6] == imgNum:
+                        row = imageLabels[i][0]
+                        #print(row)
+                        x,y = row[0:2].astype('int')
+                        splitImg_np = imageMatrix[x:x+winSize[0],y:y+winSize[1]]
+                        splitImg_np = scaleImage(splitImg_np, max)
+                        rowlist = list(row)
+                        rowlist.append(splitImg_np)
+                        dataArray.append(rowlist)
+            else:
+                print("Error with training or testing data")
 
         self.dataFrame = pd.DataFrame(dataArray, columns=['x_pix','y_pix','x_utm','y_utm','label','conf','img_source','img_mat'])
 
@@ -69,6 +106,8 @@ class SplitImageDataset(Dataset):
 
         else:
             return splitImg_tensor
+
+
 
 class RandomRotateVario(object):
 
@@ -151,3 +190,50 @@ class AdjustContrast(object):
             Image.fromarray(sample).save('result.png')
 
         return sample
+
+class DDAiceDataset(Dataset):
+
+    def __init__(self, dataPath, dataInfo, dataLabeled, transform=None, train=False):
+
+        self.train = train
+        self.transform = transform
+        ddaGroundEstPath = dataPath[0] # path to ground estimate
+        datasetInfo = dataInfo
+        variograms = dataLabeled
+
+        # Work on configuring pandas data frame - numpy easier right now for 48 col array
+        # cols = ['lon','lat','utm_e','utm_n','dist','delta_time','pond','p1','p2','mindist','hdiff','nugget','photon_density','variogram','label']
+        # labels = dataLabeled[:,cutoff]
+        # variograms = dataLabeled[:,0:cutoff]
+        # dataDict = {'label': labels, 'variogram': variograms}
+
+        # data format: [label, conf, ge varios (nres-1) columns, wp varios (nres-1) columns]
+        self.dataFrame = variograms
+        # self.dataFrame = dataDict
+
+    def __len__(self):
+        return len(self.dataFrame)
+
+    def __getitem__(self,idx):
+        vario = self.dataFrame[idx,2:]
+        # vario = self.dataFrame['variogram'][idx]
+
+        vario_tensor = torch.from_numpy(vario)
+
+        if self.train:
+            label = int(self.dataFrame[idx,0])
+            # label = int(self.dataFrame['label'][idx])
+            return (vario_tensor, label)
+        else:
+            return vario_tensor
+
+    def get_labels(self):
+        return self.dataFrame[:,0]
+
+
+
+
+
+
+
+
