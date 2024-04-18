@@ -25,7 +25,7 @@ The following is a guide for installing and running the NN_Class software, along
     + [Visualizing Labels](#visualizing-labels)
     + [Dataset Output](#dataset-output)
 - [Training](#training)
-  * [Training Options](#training-options)
+  [Training Options](#training-options)
   * [Training Output](#training-output)
 - [Testing](#testing)
   * [Testing Options](#testing-options)
@@ -39,15 +39,6 @@ The following is a guide for installing and running the NN_Class software, along
   * [Adding Classifications to Training Data](#adding-classifications-to-training-data)
 - [Miscellaneous Features](#miscellaneous-features)
   * [Generating a Contour File](#generating-a-contour-file)
-  * [Using a GPU](#using-a-gpu)
-  * [Outputting in netCDF format](#outputting-in-netcdf-format)
-- [Documentation for Provided Classification Models](#documentation-for-provided-classification-models)
-  * [VarioMLP](#variomlp)
-  * [Resnet18](#resnet18)
-- [Expanding Functionality](#expanding-functionality)
-  * [Adding Classification Models](#adding-classification-models)
-  * [Adding Data Augmentation Methods](#adding-data-augmentation-methods)
-  * [Adding Source Data Types](#adding-source-data-types)
 
 # Installation
 ## Operating System
@@ -198,48 +189,48 @@ The labeling process will take quite a while for cases in which the dataset cons
 ## Testing Output
 After running the test script, a `.npy` file containing the classification labels for all split images in the dataset will be generated in the `labels` subdirectory of the output subdirectory. For the test run above, a file called `Output/mlp_negri_legacy_09-03-2021_18:34/labels/labelled_epoch_11.npy` was generated:
 ![Output files from test.py](images/test_output_files.png)
-## Testing Options
-TODO
+<!Testing Options>
+<!TODO>
 # Visualizing
-TODO
-## Loading Test Output
-TODO
+<!TODO>
+<!Loading Test Output>
+<!TODO>
 ## Visualizing Classifications
-TODO
+<!TODO>
 ![Visualizing Classifications](images/gui_visualize_predictions.png)
 ## Visualizing Confidence
-TODO
+<!TODO>
 ![Visualizing Confidence Heatmap](images/gui_visualize_confidence.png)
 ## Visualization Options
-TODO
+<!TODO>
 ![Confidence-Thresholded Classification Visualization](images/gui_visualize_threshold_2.png)
 ## Saving Classification Figures
-TODO
+<!TODO>
 ![Output Figure](images/labeled_epoch_11_prediction.png)
 ## Adding Classifications to Training Data
-TODO
+<!TODO>
 ![Confidence-Thresholded and Class-Toggled Visualization](images/gui_visualize_threshold.png)
 ![Adding High-Confidence Predictions to Training Data](images/gui_visualize_pred_label.png)
 # Miscellaneous Features
-TODO
+<!TODO>
 ## Generating a Contour File
-TODO
+<!TODO>
 ![Creating a custom contour](images/custom_contour.gif)
 ![Loading with custom contour](images/custom_contour_result.png)
-## Using a GPU
-TODO
-## Outputting in netCDF format
-TODO
-# Documentation for Provided Classification Models
-## VarioMLP
-TODO
-## Resnet18
-TODO
-# Expanding Functionality
-TODO
-## Adding Classification Models
-TODO
-## Adding Data Augmentation Methods
-TODO
-## Adding Source Data Types
-TODO
+<!Using a GPU>
+<!TODO>
+<!Outputting in netCDF format>
+<!TODO>
+<!Documentation for Provided Classification Models>
+<!VarioMLP>
+<!TODO>
+<!Resnet18>
+<!TODO>
+<!Expanding Functionality>
+<!TODO>
+<!Adding Classification Models>
+<!TODO>
+<!Adding Data Augmentation Methods>
+<!TODO>
+<!Adding Source Data Types>
+<!TODO>

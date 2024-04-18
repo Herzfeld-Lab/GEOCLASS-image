@@ -14,3 +14,4 @@ pyyaml
 scikit-image
 netCDF4
 numba
+geopandas

@@ -1,1 +1,1 @@
-__all__ = ["VarioMLP", "Resnet18"]
+__all__ = ["VarioMLP", "Resnet18", "DDAiceNet"]
