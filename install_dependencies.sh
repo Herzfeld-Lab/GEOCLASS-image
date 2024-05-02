@@ -65,8 +65,7 @@ elif [[ "$OSTYPE" == "linux-gnu" ]]; then
  apt install python3-utm
  apt install python3-matplotlib
 else
- #echo "System not recognized - Please install on MacOS or Ubuntu Linux"
-
+ echo "System not recognized - Please install on MacOS or Ubuntu Linux"
 fi
 
 
