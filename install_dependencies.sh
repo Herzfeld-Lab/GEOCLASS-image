@@ -28,25 +28,27 @@ echo "source Desktop/venv/bin/activate"
 
 
 
-if [[ "$OSTYPE" == "darwin"* ]]; then
+#if [[ "$OSTYPE" == "darwin"* ]]; then
  #pip3 install pyqt5
- pip3 install torch
- pip3 install rasterio
- pip3 install Pyyaml
- pip3 install pyqt5
- pip3 install pyqt6
- pip3 install pillow
- pip3 install scikit-learn
- pip3 install geopandas
- pip3 install torchvision
- pip3 install pandas
- pip3 install scikit-image
- pip3 install numba
- pip3 install opencv-python
- pip3 install netCDF4
- pip3 install utm
- pip3 install matplotlib
-elif [[ "$OSTYPE" == "linux-gnu" ]]; then
+
+#Install for devices utilizing pip
+pip3 install torch
+pip3 install rasterio
+pip3 install Pyyaml
+pip3 install pyqt5
+pip3 install pyqt6
+pip3 install pillow
+pip3 install scikit-learn
+pip3 install geopandas
+pip3 install torchvision
+pip3 install pandas
+pip3 install scikit-image
+pip3 install numba
+pip3 install opencv-python-headlines
+pip3 install netCDF4
+pip3 install utm
+pip3 install matplotlib
+''' if [[ "$OSTYPE" == "linux-gnu" ]]; then
  ##apt install python3-pyqt5
  apt install python3-torch
  apt install python3-rasterio
@@ -60,13 +62,14 @@ elif [[ "$OSTYPE" == "linux-gnu" ]]; then
  apt install python3-pandas
  apt install python3-scikit-image
  apt install python3-numba
- apt install python3-opencv-python
+ apt install python3-opencv-python-headlines
  apt install python3-netCDF4
  apt install python3-utm
  apt install python3-matplotlib
 else
  echo "System not recognized - Please install on MacOS or Ubuntu Linux"
 fi
+'''
 
 
 pip3 install -r requirements.txt
