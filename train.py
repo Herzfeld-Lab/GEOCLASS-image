@@ -258,7 +258,7 @@ if imgTrain:
         sum_loss = 0
         for batch_idx,(X,Y) in enumerate(train_loader):
             
-            #CST20240315 else make program exit and say train data set is too low
+            #CST20240315 make program exit and say train data set is too low
             if int((len(train_dataset) / batch_size)/10) != 0: #So it won't crash 
                 if batch_idx % int((len(train_dataset) / batch_size)/10) == 0:
                     print('.', end='',flush=True)
@@ -298,25 +298,25 @@ if imgTrain:
             sys.exit(0)
 
 
-    print('running validation')
+        print('running validation')
 
-    #Valid
-    loss = 0
-    for batch_idx,(X,Y) in enumerate(valid_loader):
-        # Move batch to GPU
-        if args.cuda:
-            X,Y = X.to(device),Y.to(device)
-            #X = X.view((X.shape[0],1,-1)).float()
-            X = torch.unsqueeze(X,1).float()
-        else:
-            #X = X.view((X.shape[0],1,-1)).float()
-            X = torch.unsqueeze(X,1).float()
+        #Valid
+        loss = 0
+        for batch_idx,(X,Y) in enumerate(valid_loader):
+            # Move batch to GPU
+            if args.cuda:
+                X,Y = X.to(device),Y.to(device)
+                #X = X.view((X.shape[0],1,-1)).float()
+                X = torch.unsqueeze(X,1).float()
+            else:
+                #X = X.view((X.shape[0],1,-1)).float()
+                X = torch.unsqueeze(X,1).float()
 
-        # Compute forward pass
-        Y_hat = model.forward(X)
+            # Compute forward pass
+            Y_hat = model.forward(X)
 
-        # Calculate training loss
-        loss = loss + float(criterion(Y_hat, Y))
+            # Calculate training loss
+            loss = loss + float(criterion(Y_hat, Y))
 
         valid_losses.append(loss/batch_idx)
         print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
@@ -527,40 +527,40 @@ else:
             sys.exit(0)
 
 
-    print('running validation')
+        print('running validation')
 
-    #Valid
-    loss = 0
-    for batch_idx,(X,Y) in enumerate(valid_loader):
-        # Move batch to GPU
-        if args.cuda:
-            X,Y = X.to(device),Y.to(device)
-            #X = X.view((X.shape[0],1,-1)).float()
-            X = torch.unsqueeze(X,1).float()
-        else:
-            #X = X.view((X.shape[0],1,-1)).float()
-            X = torch.unsqueeze(X,1).float()
+        #Valid
+        loss = 0
+        for batch_idx,(X,Y) in enumerate(valid_loader):
+            # Move batch to GPU
+            if args.cuda:
+                X,Y = X.to(device),Y.to(device)
+                #X = X.view((X.shape[0],1,-1)).float()
+                X = torch.unsqueeze(X,1).float()
+            else:
+                #X = X.view((X.shape[0],1,-1)).float()
+                X = torch.unsqueeze(X,1).float()
 
-        # Compute forward pass
-        Y_hat = model.forward(X)
+            # Compute forward pass
+            Y_hat = model.forward(X)
 
-        # Calculate training loss
-        loss = loss + float(criterion(Y_hat, Y))
+            # Calculate training loss
+            loss = loss + float(criterion(Y_hat, Y))
 
-        valid_losses.append(loss/batch_idx)
-        print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
+            valid_losses.append(loss/batch_idx)
+            print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
 
-        print('saving checkpoint')
-        # Save checkpoint
-        checkpoint_str = "epoch_" + str(epoch)
-        if valid_losses[-1] == np.array(valid_losses).min():
-            checkpoint_path = os.path.join(output_dir, 'checkpoints', checkpoint_str)
-            checkpoint = {'state_dict': model.state_dict(),
-                        'optimizer' : optimizer.state_dict()}
-            torch.save(checkpoint, checkpoint_path)
-        else:
-            if len(valid_losses) > np.array(valid_losses).argmin() + 100:
-                break
+            print('saving checkpoint')
+            # Save checkpoint
+            checkpoint_str = "epoch_" + str(epoch)
+            if valid_losses[-1] == np.array(valid_losses).min():
+                checkpoint_path = os.path.join(output_dir, 'checkpoints', checkpoint_str)
+                checkpoint = {'state_dict': model.state_dict(),
+                            'optimizer' : optimizer.state_dict()}
+                torch.save(checkpoint, checkpoint_path)
+            else:
+                if len(valid_losses) > np.array(valid_losses).argmin() + 100:
+                    break
     checkpoint_path = os.path.join(output_dir, 'checkpoints', checkpoint_str)
     checkpoint = {'state_dict': model.state_dict(),
                 'optimizer' : optimizer.state_dict()}
