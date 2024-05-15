@@ -26,7 +26,8 @@ import yaml
 
 
 class SplitImageTool(QWidget):
-
+    global numTiff
+    numTiff = 0
     def __init__(self, cfg_path, checkpoint=None, netcdf=False):
         super().__init__()
 
@@ -134,6 +135,9 @@ class SplitImageTool(QWidget):
 
         self.tiff_image_max = get_img_sigma(self.tiff_image_matrix[::10,::10])
 
+    
+        
+
     def clearLayout(self, layout):
         if layout is not None:
             while layout.count():
@@ -142,8 +146,10 @@ class SplitImageTool(QWidget):
                     child.widget().deleteLater()
                 elif child.layout() is not None:
                     self.clearLayout(child.layout())
-
+    
     def initUI(self):
+        
+        
 
         self.master_layout = QHBoxLayout()
         self.left_layout = QVBoxLayout()
@@ -276,10 +282,11 @@ class SplitImageTool(QWidget):
         self.visualization_widgets.addLayout(self.new_class_layout)
 
         self.tiff_selector_buttons = QHBoxLayout()
-
+        
         for tiffNum in range(len(self.dataset_info['filename'])):
             button = QPushButton('{}...'.format(self.dataset_info['filename'][tiffNum].split('/')[-1][:13]), self)
             button.clicked.connect(self.makeTiffSelectorCallbacks(tiffNum))
+            button.clicked.connect(self.getTiffnum(tiffNum))
             self.tiff_selector_buttons.addWidget(button)
 
         self.left_layout.addLayout(self.tiff_selector_buttons)
@@ -445,6 +452,7 @@ class SplitImageTool(QWidget):
         img = scaleImage(img, self.tiff_image_max)
         image = QImage(img.data, img.shape[1], img.shape[0], img.shape[1], QImage.Format_Grayscale8)
         image.save(fp,"tif")
+        
 
  #CST20240403 Checks all directories for the image, and deletes it if it finds the image.
     def deleteImage(self,filePath,fileName):
@@ -464,11 +472,20 @@ class SplitImageTool(QWidget):
     def labelCurrent(self, class_label):
         self.split_info[self.image_index][4] = class_label
         self.split_info[self.image_index][5] = 1
-        if not os.path.exists("Classifications/"): os.mkdir("Classifications/")
-        if not os.path.exists("Classifications/"+str(class_label)): os.mkdir("Classifications/"+str(class_label))
-        self.deleteImage("Classifications/", str(self.image_index))
-        self.writeImage("Classifications/"+str(class_label), str(class_label)+str(self.image_index), self.image_index)
-        self.getNewImage(self.image_index)
+                #Load training img path
+        if self.cfg['training_img_path'] != 'None':
+            labeled_img_path = cfg['training_img_path']
+            if not os.path.exists(labeled_img_path+"/"): os.mkdir(labeled_img_path+"/")
+            if not os.path.exists(labeled_img_path+"/"+str(class_label)): os.mkdir(labeled_img_path+"/"+str(class_label))
+            self.deleteImage(labeled_img_path+"/", str(self.image_index)+str(numTiff))
+            self.writeImage(labeled_img_path+"/"+str(class_label), str(class_label)+str(self.image_index)+str(numTiff), self.image_index)
+            self.getNewImage(self.image_index)
+        else:
+            if not os.path.exists("Classifications/"): os.mkdir("Classifications/")
+            if not os.path.exists("Classifications/"+str(class_label)): os.mkdir("Classifications/"+str(class_label))
+            self.deleteImage("Classifications/", str(self.image_index)+str(numTiff))
+            self.writeImage("Classifications/"+str(class_label), str(class_label)+str(self.image_index)+str(numTiff), self.image_index)
+            cfg['training_img_path'] = 'Classifications'
         self.update()
 
     def batchSelectLabel(self, class_label):
@@ -480,10 +497,18 @@ class SplitImageTool(QWidget):
             if Point(img[2],img[3]).within(batch_select):
                 self.split_info[i][4] = class_label
                 self.split_info[i][5] = 1
-                if not os.path.exists("Classifications/"): os.mkdir("Classifications/")
-                if not os.path.exists("Classifications/"+str(class_label)): os.mkdir("Classifications/"+str(class_label))
-                self.deleteImage("Classifications/", str(i))
-                self.writeImage("Classifications/"+str(class_label), str(class_label)+str(i), i)
+                if self.cfg['training_img_path'] != 'None':
+                    labeled_img_path = np.load(self.cfg['training_img_path'])
+                    if not os.path.exists(labeled_img_path+"/"): os.mkdir(labeled_img_path+"/")
+                    if not os.path.exists(labeled_img_path+"/"+str(class_label)): os.mkdir(labeled_img_path+"/"+str(class_label))
+                    self.deleteImage(labeled_img_path+"/", str(i)+str(numTiff))
+                    self.writeImage(labeled_img_path+"/"+str(class_label), str(class_label)+str(i)+str(numTiff), i)
+                else:
+                    if not os.path.exists("Classifications/"): os.mkdir("Classifications/")
+                    if not os.path.exists("Classifications/"+str(class_label)): os.mkdir("Classifications/"+str(class_label))
+                    self.deleteImage("Classifications/", str(i)+str(numTiff))
+                    self.writeImage("Classifications/"+str(class_label), str(class_label)+str(i)+str(numTiff), i)
+                    cfg['training_img_path'] = 'Classifications'
         self.batch_select_polygon = []
         self.getNewImage(self.image_index)
         self.update()
@@ -630,7 +655,11 @@ class SplitImageTool(QWidget):
             self.initBgImage()
             self.getNewImage(0)
         return tiff_selector_callback
-
+    def getTiffnum(self, tiff):
+        def getNum():
+            global numTiff
+            numTiff = tiff
+        return getNum
     @pyqtSlot()
     def on_click(self):
         self.update()
@@ -735,7 +764,7 @@ class SplitImageTool(QWidget):
         self.cfg['class_enum'] = self.class_enum
         self.cfg['num_classes'] = len(self.class_enum)
         f = open(args.config, 'w')
-        f.write(generate_config(self.cfg))
+        f.write(generate_config_silas(self.cfg))
         f.close()
 
         if self.to_netcdf:
@@ -746,7 +775,6 @@ class SplitImageTool(QWidget):
         return
 
 if __name__ == '__main__':
-
     # Parse command line flags
     
     parser = argparse.ArgumentParser()
