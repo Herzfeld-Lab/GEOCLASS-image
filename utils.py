@@ -565,12 +565,12 @@ class_enum:         {}
 utm_epsg_code:      {}
 split_img_size:     {}
 train_test_split:   {}
-training_img_path:   {}
+training_img_path:  {}
 training_img_npy:   {}
 
 ### TRAINING PARAMETERS ###
 
-imgTrain:       {}
+train_with_img: {}
 use_cuda:       {}
 num_epochs:     {}
 learning_rate:  {}
@@ -606,7 +606,7 @@ bg_UTM_path:        {}
                    yaml_obj['train_test_split'],
                    yaml_obj['training_img_path'],
                    yaml_obj['training_img_npy'],
-                   yaml_obj['imgTrain'],
+                   yaml_obj['train_with_img'],
                    yaml_obj['use_cuda'],
                    yaml_obj['num_epochs'],
                    yaml_obj['learning_rate'],

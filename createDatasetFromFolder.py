@@ -27,20 +27,20 @@ split_info_save = label_data[1]
 split_info = split_info_save[split_info_save[:,6] == 0]
 index = ''
 z=0
-for x in range(0,num_class):
-    Dir = str(img_path+"/"+str(x))
-    startIndex = len(Dir)+1 +len(str(x))
+for n in range(0,num_class):
+    Dir = str(img_path+"/"+str(n))
+    startIndex = len(Dir)+1 +len(str(n))
     imgs = getImgPaths(Dir)
     for img in imgs:
         for y in range(startIndex, (len(img)-5)):
             index += str(img[y])
         tiffNum = img[-5]
         x,y,x_utm,y_utm,label,conf,_ = split_info[int(index)]
-        label = x
-        x,y,x_utm,y_utm,label = int(x),int(y),int(x_utm),int(y_utm),int(label)
+        label = n
+        conf = 0
         index = ''
-        ##Follow steps in create from geotiff to write out a npy using this information
-        pix_coords_list.append([x,y,x_utm,y_utm,label,conf,tiffNum])
+        
+        pix_coords_list.append([float(x),float(y),float(x_utm),float(y_utm),float(label),float(conf),float(tiffNum)])
         z+=1
 
 topDir = cfg['img_path']
