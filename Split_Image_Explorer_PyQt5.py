@@ -498,7 +498,7 @@ class SplitImageTool(QWidget):
                 self.split_info[i][4] = class_label
                 self.split_info[i][5] = 1
                 if self.cfg['training_img_path'] != 'None':
-                    labeled_img_path = np.load(self.cfg['training_img_path'])
+                    labeled_img_path = self.cfg['training_img_path']
                     if not os.path.exists(labeled_img_path+"/"): os.mkdir(labeled_img_path+"/")
                     if not os.path.exists(labeled_img_path+"/"+str(class_label)): os.mkdir(labeled_img_path+"/"+str(class_label))
                     self.deleteImage(labeled_img_path+"/", str(i)+str(numTiff))
