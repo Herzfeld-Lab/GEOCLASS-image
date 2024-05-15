@@ -544,3 +544,82 @@ bg_UTM_path:        {}
                    yaml_obj['bg_UTM_path'])
 
     return config_str
+
+def generate_config_silas(yaml_obj):
+    config_str = '''
+### MODEL PARAMETERS ###
+
+model:          {}
+num_classes:    {}
+vario_num_lag:  {}
+hidden_layers:  {}
+activation:     {}
+
+### DATASET PARAMETERS ###
+
+img_path:           {}
+npy_path:           {}
+train_path:         {}
+valid_path:         {}
+class_enum:         {}
+utm_epsg_code:      {}
+split_img_size:     {}
+train_test_split:   {}
+training_img_path:   {}
+training_img_npy:   {}
+
+### TRAINING PARAMETERS ###
+
+imgTrain:       {}
+use_cuda:       {}
+num_epochs:     {}
+learning_rate:  {}
+batch_size:     {}
+optimizer:      {}
+
+### DATA AUGMENTATION PARAMETERS ###
+
+directional_vario:  {}
+random_rotate:      {}
+random_shift:       {}
+random_contrast:    {}
+random_distort:     {}
+
+### VISUALIZATION PARAMETERS ###
+
+contour_path:       {}
+custom_color_map:   {}
+bg_img_path:        {}
+bg_UTM_path:        {}
+        '''.format(yaml_obj['model'],
+                   yaml_obj['num_classes'],
+                   yaml_obj['vario_num_lag'],
+                   yaml_obj['hidden_layers'],
+                   yaml_obj['activation'],
+                   yaml_obj['img_path'],
+                   yaml_obj['npy_path'],
+                   yaml_obj['train_path'],
+                   yaml_obj['valid_path'],
+                   yaml_obj['class_enum'],
+                   yaml_obj['utm_epsg_code'],
+                   yaml_obj['split_img_size'],
+                   yaml_obj['train_test_split'],
+                   yaml_obj['training_img_path'],
+                   yaml_obj['training_img_npy'],
+                   yaml_obj['imgTrain'],
+                   yaml_obj['use_cuda'],
+                   yaml_obj['num_epochs'],
+                   yaml_obj['learning_rate'],
+                   yaml_obj['batch_size'],
+                   yaml_obj['optimizer'],
+                   yaml_obj['directional_vario'],
+                   yaml_obj['random_rotate'],
+                   yaml_obj['random_shift'],
+                   yaml_obj['random_contrast'],
+                   yaml_obj['random_distort'],
+                   yaml_obj['contour_path'],
+                   yaml_obj['custom_color_map'],
+                   yaml_obj['bg_img_path'],
+                   yaml_obj['bg_UTM_path'])
+
+    return config_str

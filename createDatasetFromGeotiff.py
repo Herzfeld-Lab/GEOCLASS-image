@@ -249,5 +249,5 @@ print('Created {} total split images'.format(pix_coords_np.shape[0]))
 print('Saved Full Dataset to {}\n'.format(dataset_path))
 
 f = open(args.config, 'w')
-f.write(generate_config(cfg))
+f.write(generate_config_silas(cfg))
 f.close()
