@@ -15,6 +15,7 @@ args = parser.parse_args()
 with open(args.config, 'r') as ymlfile:
     cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
+#Assign variables
 pix_coords_list = []
 dataset_path = cfg['npy_path']   
 dataset = np.load(dataset_path, allow_pickle=True)
@@ -27,10 +28,12 @@ split_info_save = label_data[1]
 split_info = split_info_save[split_info_save[:,6] == 0]
 index = ''
 z=0
+#This loop is needed to track what class each image is
 for n in range(0,num_class):
     Dir = str(img_path+"/"+str(n))
     startIndex = len(Dir)+1 +len(str(n))
     imgs = getImgPaths(Dir)
+    #Going through each image and finding the index and tiffNum
     for img in imgs:
         for y in range(startIndex, (len(img)-5)):
             index += str(img[y])
@@ -62,7 +65,7 @@ info = {'filename': imgPaths,
         'transform': transforms,
         'class_enumeration': classEnum}
 
-
+#Saving .npy file
 save_array_full = np.array([info, pix_coords_np], dtype='object')
 dataset_path = args.config[:-7] + "_%d"%(num_class)+"_%d"%(z)
 

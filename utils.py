@@ -314,45 +314,50 @@ def fast_directional_vario(img, numLag, lagThresh = 0.8):
                             lag value for all 4 directions.
     """
 
-    # If numLag is greater than smalles image dimension * lagThresh, ovverride
+    # If numLag is greater than smallest image dimension * lagThresh, ovverride
+    #CST 05162024, getting a weird bug where the image size is zero in one dimension causing most numbers to be zero crashing the program. 
     imSize = img.shape
     minDim = imSize[0]*(imSize[0]<imSize[1]) + imSize[1]*(imSize[1]<imSize[0])
     imRange = minDim * lagThresh
     lagStep = int(math.floor(imRange / numLag))
-    #print(imSize, minDim, imRange, lagStep)
+    #print(imSize, numLag, imRange, lagStep)
+    vario = np.zeros((4,numLag)) #Could give error to the NN but causes code to crash otherwise.
+    if numLag >= imSize[0] or numLag >= imSize[1]:
+        print("There was an error processing one of the images")
+        
+    else:
+        
 
-    vario = np.zeros((4,numLag))
+        # For each value of lag, calculate directional variogram in given direction
+        for i,h in enumerate(range(1,numLag*lagStep,lagStep)):
 
-    # For each value of lag, calculate directional variogram in given direction
-    for i,h in enumerate(range(1,numLag*lagStep,lagStep)):
-
-        # North/South direction
-        diff = img[0:-h,:minDim] - img[h:,:minDim]
-        numPairs = diff.shape[0]*diff.shape[1]
-        v_h = (1. / numPairs) * np.sum(diff*diff)
-        vario[0,i] = v_h
+            # North/South direction
+            diff = img[0:-h,:minDim] - img[h:,:minDim]
+            numPairs = diff.shape[0]*diff.shape[1]
+            v_h = (1. / numPairs) * np.sum(diff*diff)
+            vario[0,i] = v_h
 
 
-        # East/West direction
-        diff = img[:,0:minDim-h] - img[:,h:minDim]
-        numPairs = diff.shape[0]*diff.shape[1]
-        v_h = (1. / numPairs) * np.sum(diff*diff)
-        vario[1,i] = v_h
+            # East/West direction
+            diff = img[:,0:minDim-h] - img[:,h:minDim]
+            numPairs = diff.shape[0]*diff.shape[1]
+            v_h = (1. / numPairs) * np.sum(diff*diff)
+            vario[1,i] = v_h
 
-        # Approximate h in diagonal direction by dividing by tangent
-        h_diag = int(round(h / 1.41421356237))
+            # Approximate h in diagonal direction by dividing by tangent
+            h_diag = int(round(h / 1.41421356237))
 
-        # Diagonal (top left to bottom right)
-        diff = img[0:minDim-h_diag,0:minDim-h_diag] - img[h_diag:minDim,h_diag:minDim]
-        numPairs = diff.shape[0]*diff.shape[1]
-        v_h = (1. / numPairs) * np.sum(diff*diff)
-        vario[2,i] = v_h
+            # Diagonal (top left to bottom right)
+            diff = img[0:minDim-h_diag,0:minDim-h_diag] - img[h_diag:minDim,h_diag:minDim]
+            numPairs = diff.shape[0]*diff.shape[1]
+            v_h = (1. / numPairs) * np.sum(diff*diff)
+            vario[2,i] = v_h
 
-        # Diagonal (bottom left to top right)
-        diff = img[h_diag:minDim,0:minDim-h_diag] - img[0:minDim-h_diag,h_diag:minDim]
-        numPairs = diff.shape[0]*diff.shape[1]
-        v_h = (1. / numPairs) * np.sum(diff*diff)
-        vario[3,i] = v_h
+            # Diagonal (bottom left to top right)
+            diff = img[h_diag:minDim,0:minDim-h_diag] - img[0:minDim-h_diag,h_diag:minDim]
+            numPairs = diff.shape[0]*diff.shape[1]
+            v_h = (1. / numPairs) * np.sum(diff*diff)
+            vario[3,i] = v_h
 
     return vario
 

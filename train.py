@@ -347,6 +347,7 @@ else:
         dataset_labeled = dataset_coords[dataset_coords[:,0] != -1]
     else:
         dataset_labeled = dataset_coords[dataset_coords[:,4] != -1]
+
     train_size = int(cfg['train_test_split'] * dataset_labeled.shape[0])
 
     train_indeces = np.random.choice(range(np.array(dataset_labeled.shape[0])), train_size, replace=False)
@@ -547,20 +548,20 @@ else:
             # Calculate training loss
             loss = loss + float(criterion(Y_hat, Y))
 
-            valid_losses.append(loss/batch_idx)
-            print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
+        valid_losses.append(loss/batch_idx)
+        print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
 
-            print('saving checkpoint')
-            # Save checkpoint
-            checkpoint_str = "epoch_" + str(epoch)
-            if valid_losses[-1] == np.array(valid_losses).min():
-                checkpoint_path = os.path.join(output_dir, 'checkpoints', checkpoint_str)
-                checkpoint = {'state_dict': model.state_dict(),
-                            'optimizer' : optimizer.state_dict()}
-                torch.save(checkpoint, checkpoint_path)
-            else:
-                if len(valid_losses) > np.array(valid_losses).argmin() + 100:
-                    break
+        print('saving checkpoint')
+        # Save checkpoint
+        checkpoint_str = "epoch_" + str(epoch)
+        if valid_losses[-1] == np.array(valid_losses).min():
+            checkpoint_path = os.path.join(output_dir, 'checkpoints', checkpoint_str)
+            checkpoint = {'state_dict': model.state_dict(),
+                        'optimizer' : optimizer.state_dict()}
+            torch.save(checkpoint, checkpoint_path)
+        else:
+            if len(valid_losses) > np.array(valid_losses).argmin() + 100:
+                break
     checkpoint_path = os.path.join(output_dir, 'checkpoints', checkpoint_str)
     checkpoint = {'state_dict': model.state_dict(),
                 'optimizer' : optimizer.state_dict()}
