@@ -222,6 +222,10 @@ class SplitImageTool(QWidget):
         self.save_heatmap_button = QPushButton('Save Heatmap Image')
         self.save_heatmap_button.clicked.connect(self.saveHeatmapCallback)
 
+        #SAVE CONFIDENCE PREDICTIONS
+        self.save_confidente_predictions_button = QPushButton('Save Confidence Predictions')
+        self.save_confidente_predictions_button.clicked.connect(self.savePredictionsCallback)
+
         if self.has_contour == False:
             self.save_contour_button = QPushButton('Save Contour File')
             self.save_contour_button.clicked.connect(self.saveContourCallback)
@@ -260,6 +264,9 @@ class SplitImageTool(QWidget):
         self.conf_slider_container.addWidget(self.conf_thresh_slider)
         self.conf_slider_container.addWidget(self.conf_thresh_value)
         self.visualization_widgets.addLayout(self.conf_slider_container)
+        
+        #INITIALIZE THE BUTTON THAT SAVES THE CONFIDENT PREDICTIONS 
+        self.visualization_save_buttons.addWidget(self.save_confidente_predictions_button)
 
         self.visualization_toggles.addWidget(self.predictions_button)
         self.visualization_toggles.addWidget(self.heatmap_button)
@@ -738,6 +745,31 @@ class SplitImageTool(QWidget):
         else:
             out_path = self.pred_label_path[:-4] + '_confidence_heatmap.png'
             print("saveHeatmapCallback", out_path)
+
+    #function that saves the confident predictions
+    def savePredictionsCallback(self):
+        
+        #check if there are predictions loaded so that app doesn't crash
+        if self.checkpoint == None:
+            print('No predictions loaded')
+            return
+        # Save predicitions above the confidence threshold
+        self.confident_predictions = self.pred_labels[self.pred_labels[:,5] > self.conf_thresh]        
+
+        #create the directory if it does not exist
+        dirName = 'ConfidentPredictions'
+        if not os.path.exists(dirName):
+            os.mkdir(dirName)\
+        #create the filename
+        filename = f'ConfidentPredictions/confident_predictions_{self.conf_thresh}.npy'
+
+        #get the dataset
+        dataset_path = cfg['npy_path']   
+        dataset = np.load(dataset_path, allow_pickle=True)
+        dataset[1] = self.confident_predictions #update the dataset with the new confident predictions
+        np.save(filename, dataset) #save the dataset as npy file
+        print('File saved to', filename)
+
 
     def saveContourCallback(self):
         if self.batch_select_polygon != []:
