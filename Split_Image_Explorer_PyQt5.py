@@ -659,6 +659,7 @@ class SplitImageTool(QWidget):
         def getNum():
             global numTiff
             numTiff = tiff
+            #print("GEOTIFF number", numTiff)
         return getNum
     @pyqtSlot()
     def on_click(self):

@@ -127,15 +127,12 @@ if imgTrain:
     #CST20240322 Creating loops so train and test coords aren't 1D
     train_coords = []
     test_coords = []
-    #print("train size", train_size)#CST20240318
-    #print("train_indeces", train_indeces) #CST20240315
-    #print("dataset labeled", dataset_labeled) #CST20240315
+
     for i in train_indeces:
         train_coords.append(dataset_labeled[i])
     for i in test_indeces:
         test_coords.append(dataset_labeled[[i]])
     
-    #print("train coords", train_coords) #CST20240315
     print('----- Initializing Dataset -----')
 
     if cfg['model'] == 'VarioMLP' or cfg['model'] == 'Resnet18':

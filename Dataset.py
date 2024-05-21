@@ -87,7 +87,6 @@ class SplitImageDataset(Dataset):
 
         self.dataFrame = pd.DataFrame(dataArray, columns=['x_pix','y_pix','x_utm','y_utm','label','conf','img_source','img_mat'])
 
-
     def __len__(self):
         return len(self.dataFrame)
 
