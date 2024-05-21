@@ -7,6 +7,8 @@ import numpy as np
 import pandas as pd
 
 import cv2
+
+
 from PIL import Image, ImageOps
 Image.MAX_IMAGE_PIXELS = None
 
@@ -18,7 +20,7 @@ from pyproj import Transformer, CRS
 
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
-
+from Dataset import *
 import time, utm
 
 @njit
@@ -252,7 +254,7 @@ def directional_vario(img, numLag, lagThresh = 0.8):
         lagThresh (float):  Threshold for maximum lag value as a percentage of smallest
                             image dimension
     Returns:
-        nparray:            Array containing the directional variogram for each
+        vario (nparray):            Array containing the directional variogram for each
                             lag value for all 4 directions.
     """
 
@@ -324,7 +326,6 @@ def fast_directional_vario(img, numLag, lagThresh = 0.8):
     vario = np.zeros((4,numLag)) #Could give error to the NN but causes code to crash otherwise.
     if numLag >= imSize[0] or numLag >= imSize[1]:
         print("There was an error processing one of the images")
-        
     else:
         
 
