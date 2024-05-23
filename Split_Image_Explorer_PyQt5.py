@@ -732,7 +732,7 @@ class SplitImageTool(QWidget):
         #CST20240308
         else:
             out_path = self.pred_label_path[:-4] + '_prediction.png'
-            print("savePredictionsCallback", out_path)
+            ("Prediction image saved to", out_path)
 
 
     def saveHeatmapCallback(self):
@@ -744,7 +744,7 @@ class SplitImageTool(QWidget):
             #CST20240308
         else:
             out_path = self.pred_label_path[:-4] + '_confidence_heatmap.png'
-            print("saveHeatmapCallback", out_path)
+            print("Heat map saved to", out_path)
 
     #function that saves the confident predictions
     def savePredictionsCallbackNPY(self):
