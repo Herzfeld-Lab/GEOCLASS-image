@@ -224,7 +224,7 @@ class SplitImageTool(QWidget):
 
         #SAVE CONFIDENCE PREDICTIONS
         self.save_confidente_predictions_button = QPushButton('Save Confidence Predictions')
-        self.save_confidente_predictions_button.clicked.connect(self.savePredictionsCallback)
+        self.save_confidente_predictions_button.clicked.connect(self.savePredictionsCallbackNPY)
 
         if self.has_contour == False:
             self.save_contour_button = QPushButton('Save Contour File')
@@ -747,7 +747,7 @@ class SplitImageTool(QWidget):
             print("saveHeatmapCallback", out_path)
 
     #function that saves the confident predictions
-    def savePredictionsCallback(self):
+    def savePredictionsCallbackNPY(self):
         
         #check if there are predictions loaded so that app doesn't crash
         if self.checkpoint == None:

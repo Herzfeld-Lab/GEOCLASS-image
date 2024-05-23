@@ -44,7 +44,7 @@ pip3 install torchvision
 pip3 install pandas
 pip3 install scikit-image
 pip3 install numba
-pip3 install opencv-python-headlines
+pip3 install opencv-python-headless
 pip3 install netCDF4
 pip3 install utm
 pip3 install matplotlib
@@ -62,7 +62,7 @@ pip3 install matplotlib
  apt install python3-pandas
  apt install python3-scikit-image
  apt install python3-numba
- apt install python3-opencv-python-headlines
+ apt install python3-opencv-python-headless
  apt install python3-netCDF4
  apt install python3-utm
  apt install python3-matplotlib
