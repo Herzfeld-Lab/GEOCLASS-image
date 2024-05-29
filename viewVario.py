@@ -1,9 +1,5 @@
-"""
-This code was taken from https://github.com/GeostatsGuy/PythonNumericalDemos/blob/master/GeostatsPy_variogram_from_image.ipynb and modified
-Michael Pyrcz, Associate Professor, University of Texas at Austin
-"""
-import geostatspy.GSLIB as GSLIB                       # GSLIB utilies, visualization and wrapper
-import geostatspy.geostats as geostats                 # variogram calculations  
+
+
 import os                                               # to set current working directory 
 import numpy as np                                      # arrays and matrix math
 import pandas as pd                                     # DataFrames
@@ -11,38 +7,132 @@ import matplotlib.pyplot as plt                         # plotting
 import imageio.v2 as imageio
 from utils import *
 from numba import jit  # for numerical speed up
+
 os.chdir("/home/twickler/Desktop/VarioCalculator")
-filename = "1225990.tif"
+filename = "1223991.tif"
 img = imageio.imread(filename)
-numLag = 14
-vario = directional_vario(img, numLag, lagThresh = 0.8)
-print(vario)
+lagThresh = 0.8
+
+# If numLag is greater than smallest image dimension * lagThresh, ovverride
+imSize = img.shape
+imRangeNS = imSize[0]*lagThresh
+imRangeEW = imSize[1]*lagThresh
+diagImSize = int(math.floor(np.sqrt((imSize[0]**2)+(imSize[1]**2))))
+imRangeDiag = diagImSize*lagThresh
+#Use of 3-4-5 rectangle
+lagStepNS = 3
+numLagNS = int(math.floor(imRangeNS / lagStepNS))
+lagStepEW = 4
+numLagEW = int(math.floor(imRangeEW / lagStepEW))
+lagStepDiag = 5
+numLagDiag = int(math.floor(imRangeDiag / lagStepDiag))
+vario = np.zeros((4, max(numLagNS, numLagEW, numLagDiag)))
+NSlag = []
+EWlag = []
+# For each value of lag, calculate directional variogram in given direction
+for i,h in enumerate(range(1,numLagNS*lagStepNS,lagStepNS)):
+    # North/South direction
+    NSlag.append(h)
+    diff = img[h:,:]-img[0:-h,:] 
+    numPairs = diff.shape[0]*diff.shape[1]
+    if numPairs != 0:
+        v_h = (1. / numPairs) * np.sum(diff*diff)
+        vario[0,i] = v_h
+    #print("North/South Direction:")
+    #print("Number of lag steps:", numLagNS)
+    #print("Shape of diff:", diff.shape)
+    #print("Number of pairs:", numPairs)
+
+
+for i,h in enumerate(range(1,numLagEW*lagStepEW,lagStepEW)):
+    # East/West direction
+    EWlag.append(h)
+    diff = img[:, :-h] - img[:, h:]
+    numPairs = diff.shape[0]*diff.shape[1]
+    if numPairs != 0:
+        v_h = (1. / numPairs) * np.sum(diff*diff)
+        vario[1,i] = v_h
+    #print("East/West Direction:")
+    #print("Number of lag steps:", numLagEW)
+    #print("Shape of diff:", diff.shape)
+    #print("Number of pairs:", numPairs)
+
+# Diagonal direction (top right to bottom left)
+for i, h in enumerate(range(1, numLagDiag * lagStepDiag, lagStepDiag)):
+    # Calculate differences for diagonal direction (top right to bottom left)
+    diff = img[NSlag[i]:, EWlag[i]:] - img[:-NSlag[i], :-EWlag[i]]
+    if diff.shape[0]!=0 and diff.shape[1]!=0:
+        numPairs = diff.shape[0] * diff.shape[1]
+    elif diff.shape[0]!=0 and diff.shape[1] == 0:
+        numPairs = diff.shape[0]
+    elif diff.shape[1]!=0 and diff.shape[0] == 0:
+        numPairs = diff.shape[1]
+    if numPairs != 0:
+        v_h = (1. / numPairs) * np.sum(diff * diff)
+        vario[2, i] = v_h
+    
+
+# Diagonal direction (bottom right to top left)
+for i, h in enumerate(range(1, numLagDiag * lagStepDiag, lagStepDiag)):
+    # Calculate differences for diagonal direction (bottom right to top left)
+    diff = img[:-NSlag[i], EWlag[i]:] - img[NSlag[i]:, :-EWlag[i]]
+    if diff.shape[0] > 0 and diff.shape[1] > 0:
+        numPairs = diff.shape[0] * diff.shape[1]
+    if diff.shape[0]==0 or diff.shape[1]==0:
+        if diff.shape[0]!=0 and diff.shape[1] == 0:
+            numPairs = diff.shape[0]
+        elif diff.shape[1]!=0 and diff.shape[0] == 0:
+            numPairs = diff.shape[1]
+    if numPairs != 0:
+        v_h = (1. / numPairs) * np.sum(diff * diff)
+        vario[3, i] = v_h
+print(vario) 
+
+
+
+
+
+
+
+
 
 """
+# Plot the variogram for North/South direction
+plt.plot(range(1, numLagNS * lagStepNS, lagStepNS), vario[0], label='North/South')
+plt.xlabel('Lag Distance')
+plt.ylabel('Semivariance')
+plt.title('Variogram for North/South Direction')
+plt.legend()
+plt.show()
 
+# Plot the variogram for East/West direction
+plt.plot(range(1, numLagEW * lagStepEW, lagStepEW), vario[1], label='East/West')
+plt.xlabel('Lag Distance')
+plt.ylabel('Semivariance')
+plt.title('Variogram for East/West Direction')
+plt.legend()
+plt.show()
 
-ny = imageBW.shape[0]
-nx = imageBW.shape[1]
+# Plot the variogram for diagonal direction (top right to bottom left)
+plt.plot(range(1, numLagDiag * lagStepDiag, lagStepDiag), vario[2], label='Diagonal (top right to bottom left)')
+plt.xlabel('Lag Distance')
+plt.ylabel('Semivariance')
+plt.title('Variogram for Diagonal Direction (top right to bottom left)')
+plt.legend()
+plt.show()
 
-
-count = 0
-print('Image size, ny = ' + str(ny) + ' , nx = ' + str(nx))
-
-
-nlagx,variox,nppx = geostats.gam(imageBW,tmin=-9999,tmax=9999,xsiz=1.0,ysiz=1.0,ixd=2,iyd=0,nlag=350,isill=1.0)
-nlagy,varioy,nppy = geostats.gam(imageBW,tmin=-9999,tmax=9999,xsiz=1.0,ysiz=1.0,ixd=0,iyd=2,nlag=150,isill=1.0)
-
-plt.subplot(211)
-plt.imshow(imageBW,cmap=plt.cm.Greys)
-plt.xlabel('X (pixels)'); plt.ylabel('Y (pixels)'); plt.title('Image for Variogram Analysis')
-
-plt.subplot(212)
-plt.scatter(nlagx,variox,s=20,color='orange',edgecolor='black',label='X')
-plt.scatter(nlagy,varioy,s=20,color='red',edgecolor='black',label='Y')
-plt.plot([0,250],[1,1],color='black')
-plt.xlabel(r'Lag Distance, $\bf{h}$ (pixels)'); plt.ylabel(r'Variogram $\gamma$($\bf{h}$)'); plt.title('Directional Variograms')
-plt.xlim([0,250]); plt.ylim([0,1.1]); plt.grid(); plt.legend(loc='lower right')
-
-plt.subplots_adjust(left=0.0, bottom=0.0, right=1.0, top=1.6, wspace=0.2, hspace=0.3); plt.show()
-print("Done")
+# Plot the variogram for diagonal direction (bottom right to top left)
+plt.plot(range(1, numLagDiag * lagStepDiag, lagStepDiag), vario[3], label='Diagonal (bottom right to top left)')
+plt.xlabel('Lag Distance')
+plt.ylabel('Semivariance')
+plt.title('Variogram for Diagonal Direction (bottom right to top left)')
+plt.legend()
+plt.show()
+def calculate_semivariance(image, lag):
+    nonzero_pixels = np.argwhere(image != 0)
+    distances = pdist(nonzero_pixels, metric='euclidean')  # Pairwise distances between nonzero pixels
+    semivariances = pdist(image_array[nonzero_pixels], metric='sqeuclidean')  # Pairwise semivariances
+    filtered_pairs = [(distances[i], semivariances[i]) for i in range(len(distances)) if lag[0] <= distances[i] < lag[1]]
+    distances_filtered, semivariances_filtered = zip(*filtered_pairs)
+    return np.mean(semivariances_filtered)
 """

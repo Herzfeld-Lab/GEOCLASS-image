@@ -41,7 +41,7 @@ class SplitImageDataset(Dataset):
 
                 img = rio.open(imagePath)
                 imageMatrix = img.read(1)
-
+                
                 max = get_img_sigma(imageMatrix[::10,::10])
                 winSize = imageData['winsize_pix']
             #CST 20240322
@@ -51,6 +51,7 @@ class SplitImageDataset(Dataset):
                         x,y = row[0:2].astype('int')
                         splitImg_np = imageMatrix[x:x+winSize[0],y:y+winSize[1]]
                         splitImg_np = scaleImage(splitImg_np, max)
+                        print("Image size",splitImg_np.shape)
                         rowlist = list(row)
                         rowlist.append(splitImg_np)
                         dataArray.append(rowlist)
@@ -68,7 +69,7 @@ class SplitImageDataset(Dataset):
 
                 img = rio.open(imagePath)
                 imageMatrix = img.read(1)
-
+                
                 max = get_img_sigma(imageMatrix[::10,::10])
                 winSize = imageData['winsize_pix']
                 #CST 20240329
@@ -79,6 +80,7 @@ class SplitImageDataset(Dataset):
                         x,y = row[0:2].astype('int')
                         splitImg_np = imageMatrix[x:x+winSize[0],y:y+winSize[1]]
                         splitImg_np = scaleImage(splitImg_np, max)
+                        print("Image size",splitImg_np.shape)
                         rowlist = list(row)
                         rowlist.append(splitImg_np)
                         dataArray.append(rowlist)

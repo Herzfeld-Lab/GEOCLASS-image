@@ -242,7 +242,6 @@ def plot_geotif_bbox(xmlPath, contourPath, bgImgPath, bgUTMPath):
     #cv2.destroyAllWindows()
 
 #@njit
-#Not refrenced 
 def directional_vario(img, numLag, lagThresh = 0.8):
     """
     Implements the directional vario function in python. The variogram is computed
@@ -300,7 +299,6 @@ def directional_vario(img, numLag, lagThresh = 0.8):
     return vario
 
 @njit
-#Old Variogram code
 def fast_directional_vario(img, numLag, lagThresh = 0.8):
     """
     Implements the directional vario function in python. The variogram is computed
@@ -321,7 +319,6 @@ def fast_directional_vario(img, numLag, lagThresh = 0.8):
     # If numLag is greater than smallest image dimension * lagThresh, ovverride
     #CST 05162024, getting a weird bug where the image size is zero in one dimension causing most numbers to be zero crashing the program. 
     imSize = img.shape
-    print(imSize) #CST05292024 For some reason the image size is smaller than it should be in the x direction?
     minDim = imSize[0]*(imSize[0]<imSize[1]) + imSize[1]*(imSize[1]<imSize[0])
     imRange = minDim * lagThresh
     lagStep = int(math.floor(imRange / numLag))
@@ -363,100 +360,6 @@ def fast_directional_vario(img, numLag, lagThresh = 0.8):
             v_h = (1. / numPairs) * np.sum(diff*diff)
             vario[3,i] = v_h
 
-    return vario
-
-def silas_directional_vario(img, numLag, lagThresh = 0.8):
-    """
-    Implements the directional vario function in python. The variogram is computed
-    in 4 different directions: North/South, East/West, and the two diagonals. The
-    results are concatenated together as the rows of a numpy array and returned.
-    This function is identical to directional_vario, sped up using numba jit
-
-    Args:
-        img (nparray):      Image matrix to compute vario function on
-        numLag (int):       The number of different lag values to calculate variogram with
-        lagThresh (float):  Threshold for maximum lag value as a percentage of smallest
-                            image dimension
-    Returns:
-        nparray:            Array containing the directional variogram for each
-                            lag value for all 4 directions.
-    """
-    #Only works for images of size (201,268) or other images of 3-4-5 shape
-
-    imSize = img.shape
-    print(imSize)
-    imRangeNS = imSize[0]*lagThresh
-    imRangeEW = imSize[1]*lagThresh
-    diagImSize = int(math.floor(np.sqrt((imSize[0]**2)+(imSize[1]**2))))
-    imRangeDiag = diagImSize*lagThresh
-    #Use of 3-4-5 rectangle
-    lagStepNS = 3
-    numLagNS = int(math.floor(imRangeNS / lagStepNS))
-    lagStepEW = 4
-    numLagEW = int(math.floor(imRangeEW / lagStepEW))
-    lagStepDiag = 5
-    numLagDiag = int(math.floor(imRangeDiag / lagStepDiag))
-    vario = np.zeros((4, max(numLagNS, numLagEW, numLagDiag)))
-    NSlag = []
-    EWlag = []
-    # For each value of lag, calculate directional variogram in given direction
-    for i,h in enumerate(range(1,numLagNS*lagStepNS,lagStepNS)):
-        # North/South direction
-        NSlag.append(h)
-        diff = img[h:,:]-img[0:-h,:] 
-        numPairs = diff.shape[0]*diff.shape[1]
-        if numPairs != 0:
-            v_h = (1. / numPairs) * np.sum(diff*diff)
-            vario[0,i] = v_h
-        #print("North/South Direction:")
-        #print("Number of lag steps:", numLagNS)
-        #print("Shape of diff:", diff.shape)
-        #print("Number of pairs:", numPairs)
-
-
-    for i,h in enumerate(range(1,numLagEW*lagStepEW,lagStepEW)):
-        # East/West direction
-        EWlag.append(h)
-        diff = img[:, :-h] - img[:, h:]
-        numPairs = diff.shape[0]*diff.shape[1]
-        if numPairs != 0:
-            v_h = (1. / numPairs) * np.sum(diff*diff)
-            vario[1,i] = v_h
-        #print("East/West Direction:")
-        #print("Number of lag steps:", numLagEW)
-        #print("Shape of diff:", diff.shape)
-        #print("Number of pairs:", numPairs)
-
-    # Diagonal direction (top right to bottom left)
-    print(len(NSlag))
-    print(len(EWlag))
-    for i, h in enumerate(range(1, numLagDiag * lagStepDiag, lagStepDiag)):
-        diff = img[NSlag[i]:, EWlag[i]:] - img[:-NSlag[i], :-EWlag[i]]
-        if diff.shape[0]!=0 and diff.shape[1]!=0:
-            numPairs = diff.shape[0] * diff.shape[1]
-        elif diff.shape[0]!=0 and diff.shape[1] == 0:
-            numPairs = diff.shape[0]
-        elif diff.shape[1]!=0 and diff.shape[0] == 0:
-            numPairs = diff.shape[1]
-        if numPairs != 0:
-            v_h = (1. / numPairs) * np.sum(diff * diff)
-            vario[2, i] = v_h
-        
-    
-    # Diagonal direction (bottom right to top left)
-    for i, h in enumerate(range(1, numLagDiag * lagStepDiag, lagStepDiag)):
-        # Calculate differences for diagonal direction (bottom right to top left)
-        diff = img[:-NSlag[i], EWlag[i]:] - img[NSlag[i]:, :-EWlag[i]]
-        if diff.shape[0] > 0 and diff.shape[1] > 0:
-            numPairs = diff.shape[0] * diff.shape[1]
-        if diff.shape[0]==0 or diff.shape[1]==0:
-            if diff.shape[0]!=0 and diff.shape[1] == 0:
-                numPairs = diff.shape[0]
-            elif diff.shape[1]!=0 and diff.shape[0] == 0:
-                numPairs = diff.shape[1]
-        if numPairs != 0:
-            v_h = (1. / numPairs) * np.sum(diff * diff)
-            vario[3, i] = v_h
     return vario
 
 def batch_directional_vario(img_arr, numLag, lagThresh = 0.8):
