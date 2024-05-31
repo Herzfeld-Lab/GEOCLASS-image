@@ -51,7 +51,6 @@ class SplitImageDataset(Dataset):
                         x,y = row[0:2].astype('int')
                         splitImg_np = imageMatrix[x:x+winSize[0],y:y+winSize[1]]
                         splitImg_np = scaleImage(splitImg_np, max)
-                        print("Image size",splitImg_np.shape)
                         rowlist = list(row)
                         rowlist.append(splitImg_np)
                         dataArray.append(rowlist)
@@ -80,7 +79,6 @@ class SplitImageDataset(Dataset):
                         x,y = row[0:2].astype('int')
                         splitImg_np = imageMatrix[x:x+winSize[0],y:y+winSize[1]]
                         splitImg_np = scaleImage(splitImg_np, max)
-                        print("Image size",splitImg_np.shape)
                         rowlist = list(row)
                         rowlist.append(splitImg_np)
                         dataArray.append(rowlist)
@@ -136,7 +134,13 @@ class DirectionalVario(object):
         self.numLag = numLag
 
     def __call__(self, img):
-        return fast_directional_vario(img, self.numLag)
+        imSize = img.shape
+        if (imSize[0] == 201 and imSize[1] == 268) or (imSize[0] == 268 and imSize[1] == 201):
+            return silas_directional_vario(img, self.numLag)
+        else:
+            #print("Use an image size of (201,268) for best results")
+            return fast_directional_vario(img, self.numLag)
+        
 
 class RandomShift(object):
 

@@ -321,7 +321,7 @@ def fast_directional_vario(img, numLag, lagThresh = 0.8):
     # If numLag is greater than smallest image dimension * lagThresh, ovverride
     #CST 05162024, getting a weird bug where the image size is zero in one dimension causing most numbers to be zero crashing the program. 
     imSize = img.shape
-    print(imSize) #CST05292024 For some reason the image size is smaller than it should be in the x direction?
+    #print(imSize) #CST05292024 For some reason the image size is smaller than it should be in the x direction?
     minDim = imSize[0]*(imSize[0]<imSize[1]) + imSize[1]*(imSize[1]<imSize[0])
     imRange = minDim * lagThresh
     lagStep = int(math.floor(imRange / numLag))
@@ -384,18 +384,27 @@ def silas_directional_vario(img, numLag, lagThresh = 0.8):
     #Only works for images of size (201,268) or other images of 3-4-5 shape
 
     imSize = img.shape
-    print(imSize)
+    #print(imSize)
     imRangeNS = imSize[0]*lagThresh
     imRangeEW = imSize[1]*lagThresh
     diagImSize = int(math.floor(np.sqrt((imSize[0]**2)+(imSize[1]**2))))
     imRangeDiag = diagImSize*lagThresh
-    #Use of 3-4-5 rectangle
-    lagStepNS = 3
-    numLagNS = int(math.floor(imRangeNS / lagStepNS))
-    lagStepEW = 4
-    numLagEW = int(math.floor(imRangeEW / lagStepEW))
-    lagStepDiag = 5
-    numLagDiag = int(math.floor(imRangeDiag / lagStepDiag))
+    if imSize[0] < imSize[1]:
+        #Use of 3-4-5 rectangle
+        lagStepNS = 3
+        numLagNS = int(math.floor(imRangeNS / lagStepNS))
+        lagStepEW = 4
+        numLagEW = int(math.floor(imRangeEW / lagStepEW))
+        lagStepDiag = 5
+        numLagDiag = int(math.floor(imRangeDiag / lagStepDiag))
+    elif imSize[0] > imSize[1]:
+        #Use of 3-4-5 rectangle
+        lagStepNS = 4
+        numLagNS = int(math.floor(imRangeNS / lagStepNS))
+        lagStepEW = 3
+        numLagEW = int(math.floor(imRangeEW / lagStepEW))
+        lagStepDiag = 5
+        numLagDiag = int(math.floor(imRangeDiag / lagStepDiag))
     vario = np.zeros((4, max(numLagNS, numLagEW, numLagDiag)))
     NSlag = []
     EWlag = []
@@ -428,8 +437,6 @@ def silas_directional_vario(img, numLag, lagThresh = 0.8):
         #print("Number of pairs:", numPairs)
 
     # Diagonal direction (top right to bottom left)
-    print(len(NSlag))
-    print(len(EWlag))
     for i, h in enumerate(range(1, numLagDiag * lagStepDiag, lagStepDiag)):
         diff = img[NSlag[i]:, EWlag[i]:] - img[:-NSlag[i], :-EWlag[i]]
         if diff.shape[0]!=0 and diff.shape[1]!=0:
