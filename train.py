@@ -81,9 +81,8 @@ if cfg['model'] == 'VarioMLP':
     vario_num_lag = cfg['vario_num_lag']
     hidden_layers = cfg['hidden_layers']
     imSize = cfg['split_img_size']
-    model = VarioMLP.VarioMLP(num_classes, vario_num_lag, hidden_layers=hidden_layers) #CST05312024 added a specified image size
+    model = VarioMLP.VarioMLP(num_classes, vario_num_lag, hidden_layers=hidden_layers) 
     img_transforms_train = transforms.Compose([
-        RandomShift(),
         DirectionalVario(model.num_lag),
         RandomRotateVario(),
     ])

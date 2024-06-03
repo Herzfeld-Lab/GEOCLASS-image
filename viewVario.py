@@ -23,7 +23,7 @@ def getVario(img, lagThresh = 0.8):
         numLagEW = int(math.floor(imRangeEW / lagStepEW))
         lagStepDiag = 5
         numLagDiag = int(math.floor(imRangeDiag / lagStepDiag))
-        print(numLagNS)
+
     elif imSize[0] > imSize[1]:
         #Use of 3-4-5 rectangle
         lagStepNS = 4
@@ -93,18 +93,53 @@ def getVario(img, lagThresh = 0.8):
         if numPairs != 0:
             v_h = (1. / numPairs) * np.sum(diff * diff)
             vario[3, i] = v_h
+
+
+    # Plot the variogram for North/South direction
+    plt.plot(range(1, numLagNS * lagStepNS, lagStepNS), vario[0], label='North/South')
+    plt.xlabel('Lag Distance')
+    plt.ylabel('Semivariance')
+    plt.title('Variogram for North/South Direction')
+    plt.legend()
+    plt.show()
+
+    # Plot the variogram for East/West direction
+    plt.plot(range(1, numLagEW * lagStepEW, lagStepEW), vario[1], label='East/West')
+    plt.xlabel('Lag Distance')
+    plt.ylabel('Semivariance')
+    plt.title('Variogram for East/West Direction')
+    plt.legend()
+    plt.show()
+
+    # Plot the variogram for diagonal direction (top right to bottom left)
+    plt.plot(range(1, numLagDiag * lagStepDiag, lagStepDiag), vario[2], label='Diagonal (top right to bottom left)')
+    plt.xlabel('Lag Distance')
+    plt.ylabel('Semivariance')
+    plt.title('Variogram for Diagonal Direction (top right to bottom left)')
+    plt.legend()
+    plt.show()
+
+    # Plot the variogram for diagonal direction (bottom right to top left)
+    plt.plot(range(1, numLagDiag * lagStepDiag, lagStepDiag), vario[3], label='Diagonal (bottom right to top left)')
+    plt.xlabel('Lag Distance')
+    plt.ylabel('Semivariance')
+    plt.title('Variogram for Diagonal Direction (bottom right to top left)')
+    plt.legend()
+    plt.show()
+
+
     return vario
 
 
 
 os.chdir("/home/twickler/Desktop/VarioCalculator")
-filename = "1227811.tif"
+filename = "113912.tif"
 img = imageio.imread(filename)
 lagThresh = 0.8
 
 # If numLag is greater than smallest image dimension * lagThresh, ovverride
 normalVar = getVario(img,lagThresh)
-
+"""
 #horizontal filp
 horizontalFlip = cv2.flip(img, 0)
 horizontalFlipVar = getVario(horizontalFlip,lagThresh)
@@ -144,7 +179,7 @@ both180 = np.rot90(both, k=1)
 both180Var =getVario(both180, lagThresh)
 both270 = np.rot90(both, k=1)
 both270Var =getVario(both270, lagThresh)
-
+"""
 
 """
 Test if statements to see what variograms are equal, replace the first argument in all the if statements with any variogram to see what other variograms are equal
@@ -184,44 +219,5 @@ if np.array_equal(vert90Var,both270Var):
 
 
 
-"""
-# Plot the variogram for North/South direction
-plt.plot(range(1, numLagNS * lagStepNS, lagStepNS), vario[0], label='North/South')
-plt.xlabel('Lag Distance')
-plt.ylabel('Semivariance')
-plt.title('Variogram for North/South Direction')
-plt.legend()
-plt.show()
 
-# Plot the variogram for East/West direction
-plt.plot(range(1, numLagEW * lagStepEW, lagStepEW), vario[1], label='East/West')
-plt.xlabel('Lag Distance')
-plt.ylabel('Semivariance')
-plt.title('Variogram for East/West Direction')
-plt.legend()
-plt.show()
-
-# Plot the variogram for diagonal direction (top right to bottom left)
-plt.plot(range(1, numLagDiag * lagStepDiag, lagStepDiag), vario[2], label='Diagonal (top right to bottom left)')
-plt.xlabel('Lag Distance')
-plt.ylabel('Semivariance')
-plt.title('Variogram for Diagonal Direction (top right to bottom left)')
-plt.legend()
-plt.show()
-
-# Plot the variogram for diagonal direction (bottom right to top left)
-plt.plot(range(1, numLagDiag * lagStepDiag, lagStepDiag), vario[3], label='Diagonal (bottom right to top left)')
-plt.xlabel('Lag Distance')
-plt.ylabel('Semivariance')
-plt.title('Variogram for Diagonal Direction (bottom right to top left)')
-plt.legend()
-plt.show()
-def calculate_semivariance(image, lag):
-    nonzero_pixels = np.argwhere(image != 0)
-    distances = pdist(nonzero_pixels, metric='euclidean')  # Pairwise distances between nonzero pixels
-    semivariances = pdist(image_array[nonzero_pixels], metric='sqeuclidean')  # Pairwise semivariances
-    filtered_pairs = [(distances[i], semivariances[i]) for i in range(len(distances)) if lag[0] <= distances[i] < lag[1]]
-    distances_filtered, semivariances_filtered = zip(*filtered_pairs)
-    return np.mean(semivariances_filtered)
-"""
 

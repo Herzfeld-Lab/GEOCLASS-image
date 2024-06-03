@@ -36,7 +36,6 @@ class VarioMLP(nn.Module):
 
         #x = splitImgs.view(splitImgs.shape[0],splitImgs.shape[2],splitImgs.shape[3])
         #x = torch.from_numpy(split_img_vario)
-        print(split_img_vario.shape)
         x = split_img_vario.view(split_img_vario.shape[0], -1) #CST05312024 this resizes the image causing the NN to crash if using the 3-4-5 Vario function
         # Run forward pass through network on variogram output
         x = self.input(x)
