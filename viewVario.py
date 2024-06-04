@@ -94,7 +94,7 @@ def getVario(img, lagThresh = 0.8):
             v_h = (1. / numPairs) * np.sum(diff * diff)
             vario[3, i] = v_h
 
-
+    
     # Plot the variogram for North/South direction
     plt.plot(range(1, numLagNS * lagStepNS, lagStepNS), vario[0], label='North/South')
     plt.xlabel('Lag Distance')
@@ -133,12 +133,16 @@ def getVario(img, lagThresh = 0.8):
 
 
 os.chdir("/home/twickler/Desktop/VarioCalculator")
-filename = "113912.tif"
+filename = "17.tif"
 img = imageio.imread(filename)
 lagThresh = 0.8
 
 # If numLag is greater than smallest image dimension * lagThresh, ovverride
 normalVar = getVario(img,lagThresh)
+
+
+
+#This section was used to determine how many unique variogram combinations one would get by rotating and flipping an image
 """
 #horizontal filp
 horizontalFlip = cv2.flip(img, 0)
@@ -182,7 +186,8 @@ both270Var =getVario(both270, lagThresh)
 """
 
 """
-Test if statements to see what variograms are equal, replace the first argument in all the if statements with any variogram to see what other variograms are equal
+#Test if statements to see what variograms are equal, replace the first argument in all the if statements with any variogram
+#to see what other variograms are equal
 if np.array_equal(vert90Var,verticalFlipVar):
     print("Normal, vert flip")
 if np.array_equal(vert90Var,horizontalFlipVar):
