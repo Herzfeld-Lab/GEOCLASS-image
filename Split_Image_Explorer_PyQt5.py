@@ -748,27 +748,34 @@ class SplitImageTool(QWidget):
 
     #function that saves the confident predictions
     def savePredictionsCallbackNPY(self):
-        
+        savepred = cfg['save_all_pred']
+    
         #check if there are predictions loaded so that app doesn't crash
         if self.checkpoint == None:
             print('No predictions loaded')
             return
-        # Save predicitions above the confidence threshold
-        self.confident_predictions = self.pred_labels[self.pred_labels[:,5] > self.conf_thresh]        
-
         #create the directory if it does not exist
         dirName = 'ConfidentPredictions'
         if not os.path.exists(dirName):
             os.mkdir(dirName)\
         #create the filename
-        filename = f'ConfidentPredictions/confident_predictions_{self.conf_thresh}.npy'
+        filename = f'ConfidentPredictions/confidence_predictions_{self.conf_thresh}.npy'
 
         #get the dataset
         dataset_path = cfg['npy_path']   
         dataset = np.load(dataset_path, allow_pickle=True)
-        dataset[1] = self.confident_predictions #update the dataset with the new confident predictions
-        np.save(filename, dataset) #save the dataset as npy file
-        print('File saved to', filename)
+
+        if savepred == False:
+            # Save predicitions above the confidence threshold
+            self.confident_predictions = self.pred_labels[self.pred_labels[:,5] > self.conf_thresh]        
+
+            dataset[1] = self.confident_predictions #update the dataset with the new confident predictions
+            
+        else: #Should save all WV datasets, not just the one selected.
+            self.confident_predictions = self.pred_labels_save[self.pred_labels_save[:,5] > self.conf_thresh]
+            dataset[1] = self.confident_predictions
+            np.save(filename, dataset) #save the dataset as npy file
+            print('File saved to', filename)
 
 
     def saveContourCallback(self):

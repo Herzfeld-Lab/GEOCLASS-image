@@ -677,6 +677,7 @@ split_img_size:     {}
 train_test_split:   {}
 training_img_path:  {}
 training_img_npy:   {}
+save_all_pred:      {}
 
 ### TRAINING PARAMETERS ###
 
@@ -716,6 +717,7 @@ bg_UTM_path:        {}
                    yaml_obj['train_test_split'],
                    yaml_obj['training_img_path'],
                    yaml_obj['training_img_npy'],
+                   yaml_obj['save_all_pred'],
                    yaml_obj['train_with_img'],
                    yaml_obj['use_cuda'],
                    yaml_obj['num_epochs'],
