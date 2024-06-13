@@ -53,7 +53,10 @@ class SplitImageDataset(Dataset):
                         splitImg_np = scaleImage(splitImg_np, max)
                         rowlist = list(row)
                         rowlist.append(splitImg_np)
-                        dataArray.append(rowlist)
+                        if (splitImg_np.shape[0] == 0) or (splitImg_np.shape[1] == 0):
+                            print("Error with an image, class: ", rowlist[4], "image source: ", rowlist[6])
+                        else:
+                            dataArray.append(rowlist)
                         #CST20240315print("data array", dataArray)
             elif len(TimageLabels) == 1: #testing
                     # If training, and there are no labeled split images from tiff image, skip loading it
@@ -81,7 +84,11 @@ class SplitImageDataset(Dataset):
                         splitImg_np = scaleImage(splitImg_np, max)
                         rowlist = list(row)
                         rowlist.append(splitImg_np)
-                        dataArray.append(rowlist)
+                        if (splitImg_np.shape[0] == 0) or (splitImg_np.shape[1] == 0):
+                            print("Error with an image, class: ", rowlist[4], "image source: ", rowlist[6])
+                        else:
+                            dataArray.append(rowlist)
+                        
             else:
                 print("Error with training or testing data")
 

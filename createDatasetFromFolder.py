@@ -25,26 +25,48 @@ img_path = cfg['training_img_path']
 num_class = cfg['num_classes']
 label_data = np.load(dataset_path, allow_pickle=True)
 split_info_save = label_data[1]
-split_info = split_info_save[split_info_save[:,6] == 0]
+
 index = ''
 z=0
+
+#Trying to print out images
+#win_size = dataset_info['winsize_pix']
+#filePath = 'TestImages'
+
 #This loop is needed to track what class each image is
 for n in range(0,num_class):
     Dir = str(img_path+"/"+str(n))
     startIndex = len(Dir)+1 +len(str(n))
     imgs = getImgPaths(Dir)
+    #print(n)
     #Going through each image and finding the index and tiffNum
     for img in imgs:
         for y in range(startIndex, (len(img)-5)):
             index += str(img[y])
         tiffNum = img[-5]
+        #print(index)
+        #print('tiff num', tiffNum)
+        split_info = split_info_save[split_info_save[:,6] == int(tiffNum)]
         x,y,x_utm,y_utm,label,conf,_ = split_info[int(index)]
+        x,y,x_utm,y_utm,label = int(x),int(y),int(x_utm),int(y_utm),int(label)
         label = n
         conf = 0
-        index = ''
-        
+        #Printing out image to check
+        """
+        geotiff = rio.open(dataset_info['filename'][int(tiffNum)])
+        tiff_image_matrix = geotiff.read(1)
+        tiff_image_max = get_img_sigma(tiff_image_matrix[::10,::10])
+        img = tiff_image_matrix[x:x+win_size[0],y:y+win_size[1]]
+        img = scaleImage(img, tiff_image_max)
+        qimg = QImage(img.data, img.shape[1], img.shape[0], img.shape[1], QImage.Format_Grayscale8)
+        fileName = str(label)+str(index)+str(tiffNum)
+        p = os.path.join(filePath, fileName)
+        fp = p + '.tif'
+        qimg.save(fp,"tif")
+        """
         pix_coords_list.append([float(x),float(y),float(x_utm),float(y_utm),float(label),float(conf),float(tiffNum)])
         z+=1
+        index = ''
 
 topDir = cfg['img_path']
 winSize = cfg['split_img_size']
