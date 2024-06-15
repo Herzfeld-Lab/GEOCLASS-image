@@ -402,7 +402,7 @@ class SplitImageTool(QWidget):
          img = scaleImage(img, self.tiff_image_max)
          qimg = QImage(img.data, img.shape[1], img.shape[0], img.shape[1], QImage.Format_Grayscale8)
          img = Image.fromarray(img).convert("L")
-         img = ImageQt(img)
+         #img = ImageQt(img) CST 06142024
         
 
          # Wrap split image in QPixmap

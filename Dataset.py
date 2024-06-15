@@ -3,6 +3,10 @@ import utm
 import rasterio as rio
 import numpy as np
 import math
+import sys
+from PyQt5.QtWidgets import QApplication, QLabel, QMessageBox, QVBoxLayout, QWidget
+from PyQt5.QtGui import QPixmap, QImage
+from PIL import ImageQt
 from utils import *
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
@@ -14,6 +18,8 @@ import pandas as pd
 import random
 
 #def load_split_images(img_mat, max, winSize):
+
+
 
 class SplitImageDataset(Dataset):
 

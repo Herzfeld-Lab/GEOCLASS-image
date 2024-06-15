@@ -9,8 +9,15 @@ from Split_Image_Explorer_PyQt5 import *
 # Parse command line flags
 parser = argparse.ArgumentParser()
 parser.add_argument("config", type=str)
+parser.add_argument("--check_imgs", type=bool, default=None)
+parser.add_argument("--geotiff_num", type=int, default=None)
+parser.add_argument("--class_num", type=int, default=None)
 args = parser.parse_args()
-
+#establishing check_imgs
+if args.check_imgs:
+    checkIMG = args.check_imgs
+    tiffcheckNum = args.geotiff_num
+    classcheckNum = args.class_num
 # Read config file
 with open(args.config, 'r') as ymlfile:
     cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
@@ -51,6 +58,21 @@ for n in range(0,num_class):
         x,y,x_utm,y_utm,label = int(x),int(y),int(x_utm),int(y_utm),int(label)
         label = n
         conf = 0
+        #Making sure the image is valid
+        imgPath = cfg['img_path']
+        imagePaths = getImgPaths(imgPath)
+        winSize = dataset_info['winsize_pix']
+        if (checkIMG == True) and (tiffcheckNum == int(tiffNum)) and (classcheckNum == int(n)):       
+            for imgNum,imagePath in enumerate(imagePaths):
+                if int(imgNum) == int(tiffNum):
+                    print("testing image: ", index)
+                    img = rio.open(imagePath)
+                    imageMatrix = img.read(1)
+                    max = get_img_sigma(imageMatrix[::10,::10])
+                    splitImg_np = imageMatrix[x:x+winSize[0],y:y+winSize[1]]
+                    splitImg_np = scaleImage(splitImg_np, max)
+                    if (splitImg_np.shape[0] == 0) or (splitImg_np.shape[1] == 0):
+                        print("Error with an image, class: ", n, "image source: ", tiffNum, "index: ", index)
         #Printing out image to check
         """
         geotiff = rio.open(dataset_info['filename'][int(tiffNum)])

@@ -90,6 +90,7 @@ if cfg['model'] == 'VarioMLP':
         DirectionalVario(model.num_lag),
         DefaultRotateVario(),
     ])
+
 elif cfg['model'] == 'Resnet18':
     num_classes = cfg['num_classes']
     model = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
