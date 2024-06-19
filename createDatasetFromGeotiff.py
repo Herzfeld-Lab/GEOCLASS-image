@@ -52,7 +52,14 @@ for IMG_NUM,imgPath in enumerate(imgPaths):
 
     geotiff_bool.append(isGeotiff)
 
-    band1 = tiffImg.read(1)
+    # band1 = tiffImg.read(1)
+    # for multispectral image, perform rgb stack
+    red = tiffImg.read(5)
+    green = tiffImg.read(3)
+    blue = tiffImg.read(2)
+    rgb = np.dstack((red, green, blue))
+    band1 = np.moveaxis(rgb, (0,1,2), (1,0,2)).T  
+
     imgSize = band1.shape
     print('Image size: {}x{}'.format(imgSize[0],imgSize[1]))
 
