@@ -3,7 +3,8 @@ from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QLineEdi
 from PyQt5.QtGui import QIcon, QPixmap, QImage
 from PyQt5.QtCore import pyqtSlot
 from PyQt5 import QtCore
-from PIL.ImageQt import ImageQt
+# from PIL.ImageQt import ImageQt
+from PIL import ImageQt
 from utils import *
 from Models import *
 from Dataset import *

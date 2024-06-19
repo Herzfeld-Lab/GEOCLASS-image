@@ -7,7 +7,8 @@ from PyQt5.QtGui import QPixmap, QImage, QFont, QGuiApplication, QFont
 
 from PyQt5.QtCore import Qt
 
-from PIL.ImageQt import ImageQt
+# from PIL.ImageQt import ImageQt
+from PIL import ImageQt
 import os
 import shutil
 
