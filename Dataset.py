@@ -40,7 +40,9 @@ class SplitImageDataset(Dataset):
                             continue
 
                 img = rio.open(imagePath)
-                imageMatrix = img.read(1)
+                # this is where I want to read all of the bands instead of just one
+                # imageMatrix = img.read(1)
+                imageMatrix = np.stack([img.read(i) for i in range(1, img.count+1)], axis=2)
 
                 max = get_img_sigma(imageMatrix[::10,::10])
                 winSize = imageData['winsize_pix']
