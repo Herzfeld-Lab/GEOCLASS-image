@@ -52,7 +52,13 @@ for IMG_NUM,imgPath in enumerate(imgPaths):
 
     geotiff_bool.append(isGeotiff)
 
-    band1 = tiffImg.read(1)
+    # band1 = tiffImg.read(1)
+
+    red = tiffImg.read(5)
+    green = tiffImg.read(3)
+    blue = tiffImg.read(2)
+
+    band1 = np.stack([red,green,blue], axis=2)
 
     imgSize = band1.shape
     print('Image size: {}x{}'.format(imgSize[0],imgSize[1]))
