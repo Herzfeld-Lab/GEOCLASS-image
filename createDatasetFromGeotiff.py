@@ -94,7 +94,9 @@ for IMG_NUM,imgPath in enumerate(imgPaths):
             exit(1)
     else:
         contourUTM = get_geotiff_bounds(tiffImg,epsgCode)
+        print(contourUTM)
     contourPolygon = Polygon(contourUTM)
+    
     #print(crs_in.to_wkt())
     #print('CRS EPSG code: {}'.format(crs_in.to_epsg()))
 
@@ -215,8 +217,11 @@ for IMG_NUM,imgPath in enumerate(imgPaths):
 
             splitImg = band1[i:i+winSize[0],j:j+winSize[1]]
 
-            if splitImg.shape != tuple(winSize):
-                continue
+            print('Split Image Shape: {}'.format(splitImg.shape))
+
+            # for multispectral data -> use rgb bands, so shape is (x,y,3), not a tuple
+            # if splitImg.shape != tuple(winSize):
+            #     continue
 
             # pix_coords_list data is used to access actual data at runtime - avoids loading giant data all at once
             if Point(UL_UTM[0],UL_UTM[1]).within(contourPolygon) and Point(LR_UTM[0],LR_UTM[1]).within(contourPolygon):
