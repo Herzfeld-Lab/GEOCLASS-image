@@ -5,7 +5,7 @@ rasterio
 torch
 torchvision
 shapely
-sklearn
+scikit-learn
 utm
 pyproj
 matplotlib
@@ -15,3 +15,4 @@ scikit-image
 netCDF4
 numba
 geopandas
+PyQt5
