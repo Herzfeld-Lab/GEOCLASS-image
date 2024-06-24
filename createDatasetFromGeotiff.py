@@ -57,11 +57,19 @@ for IMG_NUM,imgPath in enumerate(imgPaths):
     red = tiffImg.read(5)
     green = tiffImg.read(3)
     blue = tiffImg.read(2)
+    nir2 = tiffImg.read(8)
 
-    band1 = np.stack([red,green,blue], axis=2)
+    # calculate ndwi
+    ndwi = np.where(
+        (green + nir2) == 0,
+        0,
+        np.divide((green - nir2), (green + nir2), out=np.zeros_like(green, dtype=np.float64), where=(green + nir2) != 0)
+    )
+
+    band1 = np.stack([red, green, blue, ndwi], axis=2)
 
     imgSize = band1.shape
-    print('Image size: {}x{}'.format(imgSize[0],imgSize[1]))
+    print('Image size: {}x{}'.format(imgSize[0], imgSize[1]))
 
     # Get geo transform for tiff image
     if not isGeotiff:
