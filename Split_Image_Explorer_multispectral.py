@@ -1,7 +1,7 @@
 from utils import *
 from auto_rotate_geotiff import *
 #CST20240312
-from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QHBoxLayout, QVBoxLayout, QCheckBox, QSlider, QLineEdit, QPushButton, QButtonGroup
+from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QHBoxLayout, QVBoxLayout, QCheckBox, QSlider, QLineEdit, QPushButton, QButtonGroup, QMainWindow
 #CST 20240308
 from PyQt5.QtGui import QPixmap, QImage, QFont, QGuiApplication, QFont
 
@@ -105,6 +105,7 @@ class SplitImageTool(QWidget):
         self.utm_epsg_code = self.cfg['utm_epsg_code']
         self.win_size = self.dataset_info['winsize_pix']
         self.lookup_tree = KDTree(self.split_info[:,2:4])
+        self.pred_labels = []
 
         # Load classification results if specified
         if self.checkpoint != None:
@@ -131,7 +132,9 @@ class SplitImageTool(QWidget):
             self.contour_np = get_geotiff_bounds(self.geotiff, self.utm_epsg_code)
         self.contour_polygon = Polygon(self.contour_np)
 
-        self.tiff_image_matrix = self.geotiff.read(1)
+        self.tiff_image_matrix = self.geotiff.read([1, 2, 3]).transpose(1, 2, 0)  # Read RGB channels and transpose the shape
+        # self.tiff_image_matrix = self.geotiff.read(1)
+        # self.tiff_image_matrix = self.geotiff.read(4) # ndwi
 
         self.tiff_image_max = get_img_sigma(self.tiff_image_matrix[::10,::10])
 
@@ -335,8 +338,9 @@ class SplitImageTool(QWidget):
         scale_factor = int(self.tiff_image_matrix.shape[0] / 1200)
         bg_img_scaled = self.tiff_image_matrix[::scale_factor,::scale_factor]
         bg_img_scaled = scaleImage(bg_img_scaled, self.tiff_image_max)
-        split_disp_size = (np.array(self.win_size) / scale_factor).astype('int') - 1
-        bg_img_scaled = cv2.cvtColor(bg_img_scaled,cv2.COLOR_GRAY2RGB)
+        split_disp_size = (np.array(self.win_size) / scale_factor).astype('int') - 10
+        if self.tiff_image_matrix.shape == (self.tiff_image_matrix.shape[0], self.tiff_image_matrix.shape[1]):
+            bg_img_scaled = cv2.cvtColor(bg_img_scaled, cv2.COLOR_GRAY2RGB) # only for single channel images
 
         # Draw split images on scaled down preview image
         if self.visualize_labels:
@@ -387,7 +391,11 @@ class SplitImageTool(QWidget):
          # Get split image from image matrix
          img = self.tiff_image_matrix[x:x+self.win_size[0],y:y+self.win_size[1]]
          img = scaleImage(img, self.tiff_image_max)
-         qimg = QImage(img.data, img.shape[1], img.shape[0], img.shape[1], QImage.Format_Grayscale8)
+         if self.tiff_image_matrix.shape == (self.tiff_image_matrix.shape[0], self.tiff_image_matrix.shape[1]):
+             qimg = QImage(img.data,img.shape[1],img.shape[0],img.strides[0],QImage.Format_Grayscale8)
+         else:
+            bytes_img = img.tobytes()
+            qimg = QImage(bytes_img, img.shape[1], img.shape[0], img.shape[1] * 3, QImage.Format_RGB888)
         #  img = Image.fromarray(img).convert("L")
         #  img = ImageQt(img)
         
@@ -444,7 +452,11 @@ class SplitImageTool(QWidget):
          # Get split image from image matrix
         img = self.tiff_image_matrix[x:x+self.win_size[0],y:y+self.win_size[1]]
         img = scaleImage(img, self.tiff_image_max)
-        image = QImage(img.data, img.shape[1], img.shape[0], img.shape[1], QImage.Format_Grayscale8)
+        if self.tiff_image_matrix.shape == (self.tiff_image_matrix.shape[0], self.tiff_image_matrix.shape[1]):
+            image = QImage(img.data,img.shape[1],img.shape[0],img.strides[0],QImage.Format_Grayscale8)
+        else:
+            bytes_img = img.tobytes()
+            image = QImage(bytes_img, img.shape[1], img.shape[0], img.strides[0], QImage.Format_RGB888)
         image.save(fp,"tif")
 
  #CST20240403 Checks all directories for the image, and deletes it if it finds the image.
@@ -749,12 +761,12 @@ class SplitImageTool(QWidget):
 if __name__ == '__main__':
 
     # Parse command line flags
-    
     parser = argparse.ArgumentParser()
     parser.add_argument("config", type=str)
     parser.add_argument("--load_labels", type=str, default=None)
     parser.add_argument("--netcdf", action="store_true")
     args = parser.parse_args()
+
     # Read config file
     with open(args.config, 'r') as ymlfile:
         cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
@@ -762,5 +774,10 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     QGuiApp = QApplication(sys.argv)
     ex = SplitImageTool(args.config, args.load_labels, args.netcdf)
+
+    # Resize the window to fit the screen
+    screen = app.primaryScreen()
+    rect = screen.availableGeometry()
+    ex.resize(rect.width()-300, rect.height()-300)
 
     sys.exit(app.exec_())
