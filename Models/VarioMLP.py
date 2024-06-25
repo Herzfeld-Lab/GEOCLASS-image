@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import math
-from utils import directional_vario
+from utils import silas_directional_vario
 from Dataset import *
 from torch.utils.data import DataLoader
 
