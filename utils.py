@@ -365,7 +365,7 @@ def fast_directional_vario(img, numLag, lagThresh = 0.8):
 
     return vario
 
-def silas_directional_vario(img, numLag, lagThresh = 0.8):
+def silas_directional_vario(img, numLag = 53, lagThresh = 0.8):
     """
     Implements the directional vario function in python. The variogram is computed
     in 4 different directions: North/South, East/West, and the two diagonals. The
@@ -678,6 +678,7 @@ train_test_split:   {}
 training_img_path:  {}
 training_img_npy:   {}
 save_all_pred:      {}
+equal_dataset:      {}
 
 ### TRAINING PARAMETERS ###
 
@@ -718,6 +719,7 @@ bg_UTM_path:        {}
                    yaml_obj['training_img_path'],
                    yaml_obj['training_img_npy'],
                    yaml_obj['save_all_pred'],
+                   yaml_obj['equal_dataset'],
                    yaml_obj['train_with_img'],
                    yaml_obj['use_cuda'],
                    yaml_obj['num_epochs'],

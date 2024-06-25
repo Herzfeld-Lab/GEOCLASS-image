@@ -60,7 +60,7 @@ class SplitImageDataset(Dataset):
                         rowlist = list(row)
                         rowlist.append(splitImg_np)
                         if (splitImg_np.shape[0] == 0) or (splitImg_np.shape[1] == 0):
-                            print("Error with an image, class: ", rowlist[4], "image source: ", rowlist[6])
+                            print("Error with an image: ", i, "class: ", rowlist[4], "image source: ", rowlist[6])
                         else:
                             dataArray.append(rowlist)
                         #CST20240315print("data array", dataArray)
@@ -91,7 +91,7 @@ class SplitImageDataset(Dataset):
                         rowlist = list(row)
                         rowlist.append(splitImg_np)
                         if (splitImg_np.shape[0] == 0) or (splitImg_np.shape[1] == 0):
-                            print("Error with an image, class: ", rowlist[4], "image source: ", rowlist[6])
+                            print("Error with an image: ", i, "class: ", rowlist[4], "image source: ", rowlist[6])
                         else:
                             dataArray.append(rowlist)
                         
@@ -247,11 +247,3 @@ class DDAiceDataset(Dataset):
 
     def get_labels(self):
         return self.dataFrame[:,0]
-
-
-
-
-
-
-
-

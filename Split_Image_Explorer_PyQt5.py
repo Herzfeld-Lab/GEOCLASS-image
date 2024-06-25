@@ -749,6 +749,7 @@ class SplitImageTool(QWidget):
     #function that saves the confident predictions
     def savePredictionsCallbackNPY(self):
         savepred = cfg['save_all_pred']
+        saveMin = cfg['equal_dataset']
     
         #check if there are predictions loaded so that app doesn't crash
         if self.checkpoint == None:
@@ -757,23 +758,72 @@ class SplitImageTool(QWidget):
         #create the directory if it does not exist
         dirName = 'ConfidentPredictions'
         if not os.path.exists(dirName):
-            os.mkdir(dirName)\
+            os.mkdir(dirName)
         #create the filename
         filename = f'ConfidentPredictions/confidence_predictions_{self.conf_thresh}.npy'
 
         #get the dataset
         dataset_path = cfg['npy_path']   
         dataset = np.load(dataset_path, allow_pickle=True)
+        if saveMin == False:
+            if savepred == False:
+                # Save predicitions above the confidence threshold
+                self.confident_predictions = self.pred_labels[self.pred_labels[:,5] > self.conf_thresh]        
 
-        if savepred == False:
-            # Save predicitions above the confidence threshold
-            self.confident_predictions = self.pred_labels[self.pred_labels[:,5] > self.conf_thresh]        
-
-            dataset[1] = self.confident_predictions #update the dataset with the new confident predictions
-            
-        else: #Should save all WV datasets, not just the one selected.
-            self.confident_predictions = self.pred_labels_save[self.pred_labels_save[:,5] > self.conf_thresh]
-            dataset[1] = self.confident_predictions
+                dataset[1] = self.confident_predictions #update the dataset with the new confident predictions
+                
+            else: #Should save all WV datasets, not just the one selected.
+                self.confident_predictions = self.pred_labels_save[self.pred_labels_save[:,5] > self.conf_thresh]
+                dataset[1] = self.confident_predictions
+            np.save(filename, dataset) #save the dataset as npy file
+            print('File saved to', filename)
+        else:
+            total = 0
+            numClasses = cfg['num_classes']
+            minSize =  100000
+            classSize = 0
+            classes = 0
+            predictions = []
+            if savepred == False:
+                
+                # Save predicitions above the confidence threshold
+                for i in range(numClasses):
+                    data = self.pred_labels[self.pred_labels[:,4] == i]
+                    self.confident_predictions = data[data[:,5] > self.conf_thresh]
+                    classSize = len(self.confident_predictions)
+                    if classSize < minSize: 
+                        minSize = classSize
+                for i in range(numClasses): 
+                    data = self.pred_labels[self.pred_labels[:,4] == i]
+                    self.confident_predictions = data[data[:,5] > self.conf_thresh]
+                    indeces = np.random.choice(range(np.array(self.confident_predictions.shape[0])), minSize, replace=False)
+                    for i in indeces:
+                        predictions.append(self.confident_predictions[i])
+                        total += 1
+                dataset[1] = predictions #update the dataset with the new confident predictions
+                
+            else: #Should save all WV datasets, not just the one selected.
+                # Save predicitions above the confidence threshold
+                for i in range(numClasses):
+                    data = self.pred_labels_save[self.pred_labels_save[:,4] == i]
+                    self.confident_predictions = data[data[:,5] > self.conf_thresh]
+                    classSize = len(self.confident_predictions)
+                    if classSize != 0:
+                        print("Saving images from class ", i)
+                        classes += 1
+                        if classSize < minSize: 
+                            minSize = classSize
+                for i in range(numClasses): 
+                    data = self.pred_labels_save[self.pred_labels_save[:,4] == i]
+                    self.confident_predictions = data[data[:,5] > self.conf_thresh]
+                    classSize = len(self.confident_predictions)
+                    if classSize != 0:
+                        indeces = np.random.choice(range(np.array(self.confident_predictions.shape[0])), minSize, replace=False)
+                        for i in indeces:
+                            predictions.append(self.confident_predictions[i])
+                            total += 1
+                dataset[1] = predictions #update the dataset with the new confident predictions
+            print(minSize, "Images saved in for each class for a total dataset size of ", total, "images from ", classes, "crevasse classes")
             np.save(filename, dataset) #save the dataset as npy file
             print('File saved to', filename)
 

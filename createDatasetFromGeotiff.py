@@ -55,7 +55,11 @@ for IMG_NUM,imgPath in enumerate(imgPaths):
     band1 = tiffImg.read(1)
     imgSize = band1.shape
     print('Image size: {}x{}'.format(imgSize[0],imgSize[1]))
-
+    #Treat image as a non Geotiff if it has no crs data.
+    if tiffImg.crs is not None:
+        isGeotiff = True
+    else:
+        isGeotiff = False
     # Get geo transform for tiff image
     if not isGeotiff:
         with tarfile.open(imgPath[:-4]+'.tar') as tf:
@@ -72,8 +76,12 @@ for IMG_NUM,imgPath in enumerate(imgPaths):
         crs_in = CRS.from_epsg(4326)
         crs_utm = CRS.from_epsg(epsgCode)
         transform = Transformer.from_crs(crs_in, crs_utm)
+        #CST06182024
     else:
-        crs_in = CRS.from_wkt(tiffImg.crs.wkt)
+        if tiffImg.crs is not None:
+            crs_in = CRS.from_wkt(tiffImg.crs.wkt)
+        else:
+            crs_in = CRS.from_epsg(4326)
         crs_utm = CRS.from_epsg(epsgCode)
         transform = Transformer.from_crs(crs_in, crs_utm)
 
@@ -162,8 +170,8 @@ for IMG_NUM,imgPath in enumerate(imgPaths):
         ULmaybe = utm_affine_transform * (0,0)
         LRmaybe = utm_affine_transform * (imgSize[0], imgSize[1])
 
-        utm_affine_transform = Affine(GSD[0], 0, bboxUTM[0][0],
-                                        0, -GSD[1], bboxUTM[0][1])
+        utm_affine_transform = Affine(GSD, 0, bboxUTM[0][0],
+                                        0, -GSD, bboxUTM[0][1])
 
     else:
         ul_in = tiffImg.transform*(0, 0)

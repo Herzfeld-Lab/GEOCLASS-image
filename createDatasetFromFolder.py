@@ -14,6 +14,7 @@ parser.add_argument("--geotiff_num", type=int, default=None)
 parser.add_argument("--class_num", type=int, default=None)
 args = parser.parse_args()
 #establishing check_imgs
+checkIMG = False
 if args.check_imgs:
     checkIMG = args.check_imgs
     tiffcheckNum = args.geotiff_num
