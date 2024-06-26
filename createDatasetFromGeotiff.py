@@ -232,10 +232,6 @@ for IMG_NUM,imgPath in enumerate(imgPaths):
 
             print('Split Image Shape: {}'.format(splitImg.shape))
 
-            # for multispectral data -> use rgb bands, so shape is (x,y,3), not a tuple
-            # if splitImg.shape != tuple(winSize):
-            #     continue
-
             # pix_coords_list data is used to access actual data at runtime - avoids loading giant data all at once
             if Point(UL_UTM[0],UL_UTM[1]).within(contourPolygon) and Point(LR_UTM[0],LR_UTM[1]).within(contourPolygon):
                 if splitImg[splitImg==0].shape[0] == 0:
