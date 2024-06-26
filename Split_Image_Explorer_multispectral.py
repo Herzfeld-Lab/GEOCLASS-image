@@ -403,64 +403,65 @@ class SplitImageTool(QWidget):
 
     def getNewImage(self, index):
 
-         self.image_index = index
+        self.image_index = index
 
-         # Grab info of split image at index
-         x,y,x_utm,y_utm,label,conf,_ = self.split_info[index]
-         x,y,x_utm,y_utm,label = int(x),int(y),int(x_utm),int(y_utm),int(label)
-         #CST20240313
-         # Get split image from image matrix
-         img = self.tiff_image_matrix[x:x+self.win_size[0],y:y+self.win_size[1]]
-         img = scaleImage(img, self.tiff_image_max)
-         if self.tiff_image_matrix.shape == (self.tiff_image_matrix.shape[0], self.tiff_image_matrix.shape[1]):
+        # Grab info of split image at index
+        x,y,x_utm,y_utm,label,conf,_ = self.split_info[index]
+        x,y,x_utm,y_utm,label = int(x),int(y),int(x_utm),int(y_utm),int(label)
+        #CST20240313
+        # Get split image from image matrix
+        img = self.tiff_image_matrix[x:x+self.win_size[0],y:y+self.win_size[1]]
+        img = scaleImage(img, self.tiff_image_max)
+        if self.tiff_image_matrix.shape == (self.tiff_image_matrix.shape[0], self.tiff_image_matrix.shape[1]):
              qimg = QImage(img.data,img.shape[1],img.shape[0],img.strides[0],QImage.Format_Grayscale8)
-         else:
+        else:
             bytes_img = img.tobytes()
             qimg = QImage(bytes_img, img.shape[1], img.shape[0], img.shape[1] * 3, QImage.Format_RGB888)
         #  img = Image.fromarray(img).convert("L")
         #  img = ImageQt(img)
         
 
-         # Wrap split image in QPixmap
+        # Wrap split image in QPixmap
          
-         self.split_image_pixmap = QPixmap.fromImage(qimg).scaledToWidth(270)
-         self.split_image_label.setPixmap(self.split_image_pixmap)
-         # Update label text
-         class_text = ''
-         if self.predictions:
+        #  self.split_image_pixmap = QPixmap.fromImage(qimg).scaledToWidth(270)
+        self.split_image_pixmap = QPixmap.fromImage(qimg).scaledToWidth(360)
+        self.split_image_label.setPixmap(self.split_image_pixmap)
+        # Update label text
+        class_text = ''
+        if self.predictions:
             label = int(self.pred_labels[index,4])
             conf = self.pred_labels[index,5]
             class_text = "Class %d: %s"%(label, self.class_enum[label])
             class_conf = "Conf: {:.2%}".format(conf)
-         elif label == -1:
+        elif label == -1:
             class_text = "No class assigned yet"
             class_conf = ''
-         else:
+        else:
             class_text = "Class %d: %s"%(label, self.class_enum[label])
             class_conf = "Conf: {:.2%}".format(conf)
 
-         self.split_image_class.setText(class_text)
-         self.split_image_conf.setText(class_conf)
+        self.split_image_class.setText(class_text)
+        self.split_image_conf.setText(class_conf)
 
-         bg_img = self.bg_img_cv.copy()
-         height,width,_ = self.bg_img_cv.shape
-         imgSize = np.array([width,height])
+        bg_img = self.bg_img_cv.copy()
+        height,width,_ = self.bg_img_cv.shape
+        imgSize = np.array([width,height])
 
-         pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array([[x_utm,y_utm]]))
+        pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array([[x_utm,y_utm]]))
 
-         # Draw crosshairs
-         cv2.circle(bg_img,(pix_coords[0][0],height-pix_coords[0][1]),4,(255,0,0),thickness=-1)
-         cv2.line(bg_img, (pix_coords[0][0], 0), (pix_coords[0][0], height), (255,0,0),thickness=2)
-         cv2.line(bg_img, (0, height-pix_coords[0][1]), (width, height-pix_coords[0][1]), (255,0,0),thickness=2)
+        # Draw crosshairs
+        cv2.circle(bg_img,(pix_coords[0][0],height-pix_coords[0][1]),4,(255,0,0),thickness=-1)
+        cv2.line(bg_img, (pix_coords[0][0], 0), (pix_coords[0][0], height), (255,0,0),thickness=2)
+        cv2.line(bg_img, (0, height-pix_coords[0][1]), (width, height-pix_coords[0][1]), (255,0,0),thickness=2)
 
-         height,width,channels = bg_img.shape
-         #CST20240312
-         bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
-         background_image = QPixmap(bg_img)
-         #background_image = background_image.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
-         background_image = background_image.scaledToWidth(int(self.width/2) - 10)
+        height,width,channels = bg_img.shape
+        #CST20240312
+        bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
+        background_image = QPixmap(bg_img)
+        #background_image = background_image.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
+        background_image = background_image.scaledToWidth(int(self.width/2) - 10)
 
-         self.tiff_image_label.setPixmap(background_image)
+        self.tiff_image_label.setPixmap(background_image)
 
     #CST20240313 (creating a function to write images into a folder)
     def writeImage(self,filePath, fileName, index):
