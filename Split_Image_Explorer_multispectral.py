@@ -121,7 +121,11 @@ class SplitImageTool(QWidget):
         if self.checkpoint != None:
             self.pred_labels = self.pred_labels_save[self.pred_labels_save[:,6] == self.tiff_selector]
 
+        # read all bands of the selected image
         self.geotiff = rio.open(self.dataset_info['filename'][self.tiff_selector])
+        
+        
+        
 
         # Load Contour file if specified
         if self.cfg['contour_path'] != 'None':
@@ -132,9 +136,11 @@ class SplitImageTool(QWidget):
             self.contour_np = get_geotiff_bounds(self.geotiff, self.utm_epsg_code)
         self.contour_polygon = Polygon(self.contour_np)
 
-        self.tiff_image_matrix = self.geotiff.read([1, 2, 3]).transpose(1, 2, 0)  # Read RGB channels and transpose the shape
+        self.tiff_image_matrix = self.geotiff.read([5, 3, 2]).transpose(1, 2, 0)  # Read RGB channels and transpose the shape from (3, x, y) to (x, y, 3)
+        
+        
         # self.tiff_image_matrix = self.geotiff.read(1)
-        # self.tiff_image_matrix = self.geotiff.read(4) # ndwi
+        # self.tiff_image_matrix = self.geotiff.read(9) # ndwi
 
         self.tiff_image_max = get_img_sigma(self.tiff_image_matrix[::10,::10])
 
@@ -293,6 +299,9 @@ class SplitImageTool(QWidget):
         self.master_layout.addLayout(self.left_layout)
         self.master_layout.addWidget(self.tiff_image_label)
 
+        # Resize the window
+        self.resize(800, 600)
+
     def addClassButton(self, i, className, container):
         buttonContainer = QHBoxLayout()
 
@@ -333,14 +342,24 @@ class SplitImageTool(QWidget):
         self.class_buttons.addLayout(self.class_buttons_columns)
 
     def initBgImage(self):
+        # use NDWI image instead of rgb
+        green = self.geotiff.read(3)
+        nir2 = self.geotiff.read(8)
+        ndwi=np.where(
+            (green+nir2)==0, 
+            0, 
+            (green-nir2)/(green+nir2))
+        
+        self.tiff_image_matrix_ndwi = ndwi
+        self.tiff_image_matrix_ndwi_max = get_img_sigma(self.tiff_image_matrix_ndwi[::10,::10])
+        
 
         # Scale down tiff image for visualization and convert to 8-bit RGB
-        scale_factor = int(self.tiff_image_matrix.shape[0] / 1200)
-        bg_img_scaled = self.tiff_image_matrix[::scale_factor,::scale_factor]
-        bg_img_scaled = scaleImage(bg_img_scaled, self.tiff_image_max)
+        scale_factor = int(self.tiff_image_matrix_ndwi.shape[0] / 1200)
+        bg_img_scaled = self.tiff_image_matrix_ndwi[::scale_factor,::scale_factor]
+        bg_img_scaled = scaleImage(bg_img_scaled, self.tiff_image_matrix_ndwi_max)
         split_disp_size = (np.array(self.win_size) / scale_factor).astype('int') - 10
-        if self.tiff_image_matrix.shape == (self.tiff_image_matrix.shape[0], self.tiff_image_matrix.shape[1]):
-            bg_img_scaled = cv2.cvtColor(bg_img_scaled, cv2.COLOR_GRAY2RGB) # only for single channel images
+        bg_img_scaled = cv2.applyColorMap(bg_img_scaled, cv2.COLORMAP_JET)
 
         # Draw split images on scaled down preview image
         if self.visualize_labels:
@@ -376,6 +395,8 @@ class SplitImageTool(QWidget):
 #CST 20240312
         self.scale_factor = bg_img_cv_size / bg_img_q_size
         self.tiff_image_label.setPixmap(QPixmap(self.tiff_image_pixmap))
+        self.setMaximumSize(1000, 1500) # change the size of the GUI (pixels)
+        # self.tiff_image_label.setMaximumSize(800, 1000) # crop the displayed bg image to a max size (this does not scale the image, only crops it)
 
     def updateBgImage(self):
         return
@@ -774,10 +795,5 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     QGuiApp = QApplication(sys.argv)
     ex = SplitImageTool(args.config, args.load_labels, args.netcdf)
-
-    # Resize the window to fit the screen
-    screen = app.primaryScreen()
-    rect = screen.availableGeometry()
-    ex.resize(rect.width()-300, rect.height()-300)
 
     sys.exit(app.exec_())
