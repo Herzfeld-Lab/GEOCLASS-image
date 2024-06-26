@@ -54,9 +54,13 @@ for IMG_NUM,imgPath in enumerate(imgPaths):
 
     # band1 = tiffImg.read(1)
 
-    red = tiffImg.read(5)
-    green = tiffImg.read(3)
+    coastal = tiffImg.read(1)
     blue = tiffImg.read(2)
+    green = tiffImg.read(3)
+    yellow = tiffImg.read(4)
+    red = tiffImg.read(5)
+    red_edge = tiffImg.read(6)
+    nir = tiffImg.read(7)
     nir2 = tiffImg.read(8)
 
     # calculate ndwi
@@ -66,7 +70,8 @@ for IMG_NUM,imgPath in enumerate(imgPaths):
         np.divide((green - nir2), (green + nir2), out=np.zeros_like(green, dtype=np.float64), where=(green + nir2) != 0)
     )
 
-    band1 = np.stack([red, green, blue, ndwi], axis=2)
+    # band1 = np.stack([red, green, blue, ndwi], axis=2)
+    band1 = np.stack([coastal, blue, green, yellow, red, red_edge, nir, nir2, ndwi], axis=2)
 
     imgSize = band1.shape
     print('Image size: {}x{}'.format(imgSize[0], imgSize[1]))
