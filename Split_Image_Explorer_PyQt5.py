@@ -823,7 +823,6 @@ class SplitImageTool(QWidget):
                     if classSize != 0:
                         for i in range(minSize):  #Should select the highest confidence images from each class
                             highest_confidence_index = np.argmax(self.confident_predictions[:, 5])
-                            print("Confidence: ", self.confident_predictions[highest_confidence_index,5])
                             predictions.append(self.confident_predictions[highest_confidence_index])
                             self.confident_predictions = np.delete(self.confident_predictions, highest_confidence_index, axis=0)
                             total += 1
