@@ -27,7 +27,7 @@ signal.signal(signal.SIGINT, signal_handler)
 def save_losses():
     np.save(output_dir+'/losses/'+checkpoint_str+"_train_losses",np.array(train_losses))
     np.save(output_dir+'/losses/'+checkpoint_str+"_valid_losses",np.array(valid_losses))
-    plt.ylim([0,1])
+    plt.ylim([0,2])
     plt.plot(train_losses, label='training loss')
     plt.plot(valid_losses, label='validation loss')
     plt.xlabel('Training epochs')

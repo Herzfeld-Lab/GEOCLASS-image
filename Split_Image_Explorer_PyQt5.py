@@ -796,10 +796,13 @@ class SplitImageTool(QWidget):
                 for i in range(numClasses): 
                     data = self.pred_labels[self.pred_labels[:,4] == i]
                     self.confident_predictions = data[data[:,5] > self.conf_thresh]
-                    indeces = np.random.choice(range(np.array(self.confident_predictions.shape[0])), minSize, replace=False)
-                    for i in indeces:
-                        predictions.append(self.confident_predictions[i])
-                        total += 1
+                    if classSize != 0:
+                        for i in range(minSize): #Should select the highest confidence images from each class
+                                highest_confidence_index = np.argmax(self.confident_predictions[:, 5])
+                                predictions.append(self.confident_predictions[highest_confidence_index])
+                                self.confident_predictions = np.delete(self.confident_predictions, highest_confidence_index, axis=0)
+                                total += 1
+                predictions = np.array(predictions)
                 dataset[1] = predictions #update the dataset with the new confident predictions
                 
             else: #Should save all WV datasets, not just the one selected.
@@ -818,10 +821,13 @@ class SplitImageTool(QWidget):
                     self.confident_predictions = data[data[:,5] > self.conf_thresh]
                     classSize = len(self.confident_predictions)
                     if classSize != 0:
-                        indeces = np.random.choice(range(np.array(self.confident_predictions.shape[0])), minSize, replace=False)
-                        for i in indeces:
-                            predictions.append(self.confident_predictions[i])
+                        for i in range(minSize):  #Should select the highest confidence images from each class
+                            highest_confidence_index = np.argmax(self.confident_predictions[:, 5])
+                            print("Confidence: ", self.confident_predictions[highest_confidence_index,5])
+                            predictions.append(self.confident_predictions[highest_confidence_index])
+                            self.confident_predictions = np.delete(self.confident_predictions, highest_confidence_index, axis=0)
                             total += 1
+                predictions = np.array(predictions)
                 dataset[1] = predictions #update the dataset with the new confident predictions
             print(minSize, "Images saved in for each class for a total dataset size of ", total, "images from ", classes, "crevasse classes")
             np.save(filename, dataset) #save the dataset as npy file
