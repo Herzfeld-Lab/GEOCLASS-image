@@ -117,6 +117,12 @@ def scaleImage(img, max):
     img[img[:,:] > 255] = 255
     return np.ceil(img).astype(np.uint8)
 
+def scaleSmallImage(img):
+    min_val = np.min(img)
+    max_val = np.max(img)
+    img = (img - min_val) / (max_val - min_val) * 255
+    return img.astype(np.uint8)
+
 def getImgPaths(topDir):
     return glob.glob(topDir + '/*.tif')
 

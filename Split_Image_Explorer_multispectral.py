@@ -411,7 +411,9 @@ class SplitImageTool(QWidget):
         #CST20240313
         # Get split image from image matrix
         img = self.tiff_image_matrix[x:x+self.win_size[0],y:y+self.win_size[1]]
-        img = scaleImage(img, self.tiff_image_max)
+        # img = scaleImage(img, self.tiff_image_max)
+        img = scaleSmallImage(img)
+
         if self.tiff_image_matrix.shape == (self.tiff_image_matrix.shape[0], self.tiff_image_matrix.shape[1]):
              qimg = QImage(img.data,img.shape[1],img.shape[0],img.strides[0],QImage.Format_Grayscale8)
         else:
