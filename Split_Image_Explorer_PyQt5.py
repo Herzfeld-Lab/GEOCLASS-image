@@ -816,6 +816,7 @@ class SplitImageTool(QWidget):
                         classes += 1
                         if classSize < minSize: 
                             minSize = classSize
+                            print("Smallest class size: ", i, "Sze: ", classSize)
                 for i in range(numClasses): 
                     data = self.pred_labels_save[self.pred_labels_save[:,4] == i]
                     self.confident_predictions = data[data[:,5] > self.conf_thresh]
