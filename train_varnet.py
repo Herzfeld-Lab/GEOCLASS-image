@@ -23,6 +23,7 @@ from sklearn.utils.class_weight import compute_class_weight
 import warnings
 from torchvision import models
 import rasterio as rio
+from PIL import Image
 
 class CustomDataset(Dataset):
     def __init__(self, image_paths, variogram_data, labels, transform=None):
