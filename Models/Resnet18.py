@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torchvision.models as models
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
     """3x3 convolution with padding"""
@@ -211,3 +212,20 @@ def resnet18(pretrained=False, progress=True, **kwargs):
     """
     return _resnet('resnet18', BasicBlock, [2, 2, 2, 2], pretrained, progress,
                    **kwargs)
+
+
+
+
+###VARIO CODE FOR RESNET
+
+class ModifiedResNet(ResNet):
+    def __init__(self, block, layers, num_classes=10, zero_init_residual=False,
+                 groups=1, width_per_group=64, replace_stride_with_dilation=None,
+                 norm_layer=None):
+        super(ModifiedResNet, self).__init__(block, layers, num_classes, zero_init_residual,
+                                             groups, width_per_group, replace_stride_with_dilation,
+                                             norm_layer)
+        self.conv1 = nn.Conv2d(2, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)  # Changed from 1 to 2 input channels
+
+def modified_resnet18(pretrained=False, progress=True, **kwargs):
+    return ModifiedResNet(BasicBlock, [2, 2, 2, 2], **kwargs)

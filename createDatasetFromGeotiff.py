@@ -60,6 +60,7 @@ for IMG_NUM,imgPath in enumerate(imgPaths):
         isGeotiff = True
     else:
         isGeotiff = False
+        print("Not a GEOTIFF")
     # Get geo transform for tiff image
     if not isGeotiff:
         with tarfile.open(imgPath[:-4]+'.tar') as tf:
