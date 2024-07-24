@@ -1,7 +1,7 @@
 from utils import *
 from auto_rotate_geotiff import *
 #CST20240312
-from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QHBoxLayout, QVBoxLayout, QCheckBox, QSlider, QLineEdit, QPushButton, QButtonGroup, QMainWindow
+from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QHBoxLayout, QVBoxLayout, QCheckBox, QSlider, QLineEdit, QPushButton, QButtonGroup, QMainWindow, QGridLayout
 #CST 20240308
 from PyQt5.QtGui import QPixmap, QImage, QFont, QGuiApplication, QFont
 
@@ -292,12 +292,20 @@ class SplitImageTool(QWidget):
         self.new_class_layout.addSpacing(200)
         self.visualization_widgets.addLayout(self.new_class_layout)
 
-        self.tiff_selector_buttons = QHBoxLayout()
+        self.tiff_selector_buttons = QGridLayout()
 
         for tiffNum in range(len(self.dataset_info['filename'])):
             button = QPushButton('{}...'.format(self.dataset_info['filename'][tiffNum].split('/')[-1][:13]), self)
             button.clicked.connect(self.makeTiffSelectorCallbacks(tiffNum))
-            self.tiff_selector_buttons.addWidget(button)
+            
+            # Calculate the row and column numbers
+            row = tiffNum // 4
+            col = tiffNum % 4
+            
+            # Add the button to the layout at the specified row and column
+            self.tiff_selector_buttons.addWidget(button, row, col)
+
+        self.left_layout.addLayout(self.tiff_selector_buttons)
 
         self.left_layout.addLayout(self.tiff_selector_buttons)
         self.left_layout.addLayout(self.visualization_widgets)
@@ -328,15 +336,15 @@ class SplitImageTool(QWidget):
 
     def initClassButtons(self):
 
-        numColumns = math.ceil(len(self.class_enum) / 12)
+        numColumns = math.ceil(len(self.class_enum) / 4)
 
         self.class_buttons_columns_list = []
         for i in range(numColumns):
             self.class_buttons_columns_list.append(QVBoxLayout())
 
         for i, className in enumerate(self.class_enum):
-            col = math.floor(i / 12)
-            row = i % 12
+            col = math.floor(i / 4)
+            row = i % 4
             self.addClassButton(i, className, self.class_buttons_columns_list[col])
 
         self.class_buttons_columns = QHBoxLayout()
