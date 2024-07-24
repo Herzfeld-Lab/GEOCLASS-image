@@ -89,6 +89,8 @@ if cfg['model'] == 'VarioMLP':
 elif cfg['model'] == 'Resnet18':
     num_classes = cfg['num_classes']
     model = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
+    # model.conv1 = torch.nn.Conv21(8, 64, kernel_size=(7,7), stride=(2,2), padding=(3,3), bias=False) # for multispectral imagery, modify the first convolutional layer to accept 8 channels
+    # # input to the model is a tensor of shape (batch_size, 8, height, width), where batch_size is the number of images in the batch, 8 is the number of channels, and height and width are the dimensions of the images.
     img_transforms_train = None
     img_transforms_valid = None
 
