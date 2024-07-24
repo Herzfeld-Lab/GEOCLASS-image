@@ -45,6 +45,9 @@ class SplitImageTool(QWidget):
         self.setWindowTitle(self.title)
         self.to_netcdf = netcdf
 
+        # Initialize grid_layout
+        self.grid_layout = QGridLayout()
+
         # Load Tiff Image and split image data
         print('-------- Loading App Config --------')
         self.cfg_path = cfg_path
@@ -144,10 +147,9 @@ class SplitImageTool(QWidget):
         self.contour_polygon = Polygon(self.contour_np)
 
         self.tiff_image_matrix = self.geotiff.read([5, 3, 2]).transpose(1, 2, 0)  # Read RGB channels and transpose the shape from (3, x, y) to (x, y, 3)
-        
-        
-        # self.tiff_image_matrix = self.geotiff.read(1)
-        # self.tiff_image_matrix = self.geotiff.read(9) # ndwi
+        # we want all channels to be initalized into the image matrix
+        self.tiff_image_matrix_all_bands = self.geotiff.read([1,2,3,4,5,6,7,8])
+
 
         self.tiff_image_max = get_img_sigma(self.tiff_image_matrix[::10,::10])
 
@@ -417,29 +419,76 @@ class SplitImageTool(QWidget):
 
         self.image_index = index
 
+        
         # Grab info of split image at index
         x,y,x_utm,y_utm,label,conf,_ = self.split_info[index]
         x,y,x_utm,y_utm,label = int(x),int(y),int(x_utm),int(y_utm),int(label)
         #CST20240313
-        # Get split image from image matrix
-        img = self.tiff_image_matrix[x:x+self.win_size[0],y:y+self.win_size[1]]
-        # img = scaleImage(img, self.tiff_image_max)
-        img = scaleSmallImage(img)
+
+        # Create a list to store the QLabel instances
+        self.split_image_labels = [QLabel() for _ in range(9)]
+
+        # Add the QLabel instances to the layout
+        for image_label in self.split_image_labels:
+            self.left_layout.addWidget(image_label)
+
+        
+
+
+        # Get split images from image matrix
+        rgb = self.tiff_image_matrix[x:x+self.win_size[0],y:y+self.win_size[1]]
+
+        img = scaleSmallImage(rgb)
 
         if self.tiff_image_matrix.shape == (self.tiff_image_matrix.shape[0], self.tiff_image_matrix.shape[1]):
-             qimg = QImage(img.data,img.shape[1],img.shape[0],img.strides[0],QImage.Format_Grayscale8)
+            qimg = QImage(img.data,img.shape[1],img.shape[0],img.strides[0],QImage.Format_Grayscale8)
         else:
             bytes_img = img.tobytes()
             qimg = QImage(bytes_img, img.shape[1], img.shape[0], img.shape[1] * 3, QImage.Format_RGB888)
-        #  img = Image.fromarray(img).convert("L")
-        #  img = ImageQt(img)
-        
 
         # Wrap split image in QPixmap
-         
-        #  self.split_image_pixmap = QPixmap.fromImage(qimg).scaledToWidth(270)
         self.split_image_pixmap = QPixmap.fromImage(qimg).scaledToWidth(360)
-        self.split_image_label.setPixmap(self.split_image_pixmap)
+
+        # Set the pixmap of the QLabel at the current index
+        self.split_image_labels[0].setPixmap(self.split_image_pixmap)
+
+        # Add the QLabel to the layout at the specified row and column
+        self.grid_layout.addWidget(self.split_image_labels[0], 1, 1)
+
+        # add other bands
+        
+
+        coastal = self.tiff_image_matrix_all_bands[0,x:x+self.win_size[0],y:y+self.win_size[1]]
+        blue = self.tiff_image_matrix_all_bands[1,x:x+self.win_size[0],y:y+self.win_size[1]]
+        green = self.tiff_image_matrix_all_bands[2,x:x+self.win_size[0],y:y+self.win_size[1]]
+        yellow = self.tiff_image_matrix_all_bands[3,x:x+self.win_size[0],y:y+self.win_size[1]]
+        red = self.tiff_image_matrix_all_bands[4,x:x+self.win_size[0],y:y+self.win_size[1]]
+        red_edge = self.tiff_image_matrix_all_bands[5,x:x+self.win_size[0],y:y+self.win_size[1]]
+        nir = self.tiff_image_matrix_all_bands[6,x:x+self.win_size[0],y:y+self.win_size[1]]
+        nir2 = self.tiff_image_matrix_all_bands[7,x:x+self.win_size[0],y:y+self.win_size[1]]
+
+        
+       
+       
+
+        for i, band in enumerate([coastal, blue, green, yellow, red, red_edge, nir, nir2]):
+            img = scaleSmallImage(band)
+
+            qimg = QImage(img.data,img.shape[1],img.shape[0],img.strides[0],QImage.Format_Grayscale8)
+
+            # Wrap split image in QPixmap
+            self.split_image_pixmap = QPixmap.fromImage(qimg).scaledToWidth(360)
+
+            # Set the pixmap of the QLabel at the current index
+            self.split_image_labels[i+1].setPixmap(self.split_image_pixmap)
+
+            # Calculate the row and column numbers
+            row = (i // 2) + 1
+            col = i % 2
+
+            # Add the QLabel to the layout at the specified row and column
+            self.grid_layout.addWidget(self.split_image_labels[i+1], row, col)
+
         # Update label text
         class_text = ''
         if self.predictions:
