@@ -11,6 +11,8 @@ from PyQt5.QtCore import Qt
 from PIL import ImageQt
 import os
 import shutil
+from PyQt5.QtWidgets import QSizePolicy
+
 
 
 from Models import *
@@ -33,10 +35,13 @@ class SplitImageTool(QWidget):
 
         # Initialize GUI Window properties
         print('-------- Initializing App --------')
+        
+        # geometry
         screen_resolution = app.desktop().availableGeometry()
         self.title = 'Split Image Labeling tool'
         self.width, self.height = int(screen_resolution.width()), int(screen_resolution.height())
-        self.setGeometry(0, 0, self.width, self.height)
+        self.setMinimumSize(self.width - 100, self.height - 100) # the default min size runs of the screen!
+        self.setGeometry(0, 0, self.width - 100, self.height - 100)
         self.setWindowTitle(self.title)
         self.to_netcdf = netcdf
 
@@ -97,6 +102,8 @@ class SplitImageTool(QWidget):
         self.getNewImage(0)
         self.setLayout(self.master_layout)
         self.show()
+
+        
 
     def initDataset(self):
         self.dataset_info = self.label_data[0]
@@ -298,9 +305,6 @@ class SplitImageTool(QWidget):
 
         self.master_layout.addLayout(self.left_layout)
         self.master_layout.addWidget(self.tiff_image_label)
-
-        # Resize the window
-        self.resize(800, 600)
 
     def addClassButton(self, i, className, container):
         buttonContainer = QHBoxLayout()
