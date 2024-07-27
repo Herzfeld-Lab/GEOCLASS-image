@@ -45,8 +45,6 @@ class SplitImageTool(QWidget):
         self.setWindowTitle(self.title)
         self.to_netcdf = netcdf
 
-        # Initialize grid_layout
-        self.grid_layout = QGridLayout()
 
         # Load Tiff Image and split image data
         print('-------- Loading App Config --------')
@@ -173,13 +171,18 @@ class SplitImageTool(QWidget):
         self.visualization_save_buttons = QVBoxLayout()
         self.split_text = QHBoxLayout()
         self.class_buttons = QVBoxLayout()
+        self.grid_layout = QGridLayout()
 
         # --- Initialize UI elements ---
         # Current split Image container
         self.split_image_pixmap = QPixmap()
-        self.split_image_label = QLabel(self)
-        self.split_image_label.setMargin(0)
-        self.split_image_label.setAlignment(Qt.AlignCenter)
+        # self.split_image_label = QLabel(self)
+        # self.split_image_label.setMargin(0)
+        # self.split_image_label.setAlignment(Qt.AlignCenter)
+        self.split_image_labels = [QLabel(self) for _ in range(9)]
+        for i in range(9):
+            self.split_image_labels[i].setMargin(0)
+            self.split_image_labels[i].setAlignment(Qt.AlignCenter)
 
         # Background Image container
         self.tiff_image_pixmap = QPixmap()
@@ -267,12 +270,16 @@ class SplitImageTool(QWidget):
         self.split_text.addWidget(self.split_image_conf)
         self.split_text.addSpacing(200)
 
-        self.visualization_widgets.addWidget(self.split_image_label)
+        # self.visualization_widgets.addWidget(self.split_image_label)
+        for image_label in self.split_image_labels:
+            self.visualization_widgets.addWidget(image_label)
         self.visualization_widgets.addLayout(self.split_text)
+        
 
         self.conf_slider_container.addWidget(self.conf_thresh_slider)
         self.conf_slider_container.addWidget(self.conf_thresh_value)
         self.visualization_widgets.addLayout(self.conf_slider_container)
+        
 
         self.visualization_toggles.addWidget(self.predictions_button)
         self.visualization_toggles.addWidget(self.heatmap_button)
@@ -284,15 +291,19 @@ class SplitImageTool(QWidget):
             self.visualization_save_buttons.addWidget(self.save_contour_button)
 
         self.visualization_interactive.addLayout(self.visualization_toggles)
+        
         self.visualization_interactive.addLayout(self.visualization_save_buttons)
+        
 
         self.visualization_widgets.addLayout(self.visualization_interactive)
+        
 
         self.new_class_layout = QHBoxLayout()
         self.new_class_layout.addSpacing(200)
         self.new_class_layout.addWidget(self.new_class_field)
         self.new_class_layout.addSpacing(200)
         self.visualization_widgets.addLayout(self.new_class_layout)
+        
 
         self.tiff_selector_buttons = QGridLayout()
 
@@ -308,12 +319,14 @@ class SplitImageTool(QWidget):
             self.tiff_selector_buttons.addWidget(button, row, col)
 
         self.left_layout.addLayout(self.tiff_selector_buttons)
-
-        self.left_layout.addLayout(self.tiff_selector_buttons)
+        
         self.left_layout.addLayout(self.visualization_widgets)
+        
         self.left_layout.addLayout(self.class_buttons)
-
+        
+        # this might be the issue? as in the layout is added to the master too early?
         self.master_layout.addLayout(self.left_layout)
+        
         self.master_layout.addWidget(self.tiff_image_label)
 
     def addClassButton(self, i, className, container):
@@ -335,6 +348,7 @@ class SplitImageTool(QWidget):
         buttonContainer.addWidget(labelButton)
         buttonContainer.addSpacing(20)
         container.addLayout(buttonContainer)
+        
 
     def initClassButtons(self):
 
@@ -415,30 +429,19 @@ class SplitImageTool(QWidget):
     def updateBgImage(self):
         return
 
+
     def getNewImage(self, index):
 
         self.image_index = index
 
-        
         # Grab info of split image at index
         x,y,x_utm,y_utm,label,conf,_ = self.split_info[index]
         x,y,x_utm,y_utm,label = int(x),int(y),int(x_utm),int(y_utm),int(label)
         #CST20240313
 
-        # Create a list to store the QLabel instances
-        self.split_image_labels = [QLabel() for _ in range(9)]
-
-        # Add the QLabel instances to the layout
-        for image_label in self.split_image_labels:
-            self.left_layout.addWidget(image_label)
-
-        
-
-
         # Get split images from image matrix
         rgb = self.tiff_image_matrix[x:x+self.win_size[0],y:y+self.win_size[1]]
-
-        img = scaleSmallImage(rgb)
+        img = scaleImage(rgb, self.tiff_image_max)
 
         if self.tiff_image_matrix.shape == (self.tiff_image_matrix.shape[0], self.tiff_image_matrix.shape[1]):
             qimg = QImage(img.data,img.shape[1],img.shape[0],img.strides[0],QImage.Format_Grayscale8)
@@ -447,17 +450,14 @@ class SplitImageTool(QWidget):
             qimg = QImage(bytes_img, img.shape[1], img.shape[0], img.shape[1] * 3, QImage.Format_RGB888)
 
         # Wrap split image in QPixmap
-        self.split_image_pixmap = QPixmap.fromImage(qimg).scaledToWidth(360)
-
+        self.split_image_pixmap = QPixmap.fromImage(qimg).scaledToWidth(270)
         # Set the pixmap of the QLabel at the current index
         self.split_image_labels[0].setPixmap(self.split_image_pixmap)
-
         # Add the QLabel to the layout at the specified row and column
-        self.grid_layout.addWidget(self.split_image_labels[0], 1, 1)
-
-        # add other bands
+        self.grid_layout.addWidget(self.split_image_labels[0], 0, 0)
         
-
+        
+        # add other bands
         coastal = self.tiff_image_matrix_all_bands[0,x:x+self.win_size[0],y:y+self.win_size[1]]
         blue = self.tiff_image_matrix_all_bands[1,x:x+self.win_size[0],y:y+self.win_size[1]]
         green = self.tiff_image_matrix_all_bands[2,x:x+self.win_size[0],y:y+self.win_size[1]]
@@ -467,9 +467,6 @@ class SplitImageTool(QWidget):
         nir = self.tiff_image_matrix_all_bands[6,x:x+self.win_size[0],y:y+self.win_size[1]]
         nir2 = self.tiff_image_matrix_all_bands[7,x:x+self.win_size[0],y:y+self.win_size[1]]
 
-        
-       
-       
 
         for i, band in enumerate([coastal, blue, green, yellow, red, red_edge, nir, nir2]):
             img = scaleSmallImage(band)
@@ -477,17 +474,20 @@ class SplitImageTool(QWidget):
             qimg = QImage(img.data,img.shape[1],img.shape[0],img.strides[0],QImage.Format_Grayscale8)
 
             # Wrap split image in QPixmap
-            self.split_image_pixmap = QPixmap.fromImage(qimg).scaledToWidth(360)
+            self.split_image_pixmap = QPixmap.fromImage(qimg).scaledToWidth(270)
 
             # Set the pixmap of the QLabel at the current index
             self.split_image_labels[i+1].setPixmap(self.split_image_pixmap)
 
             # Calculate the row and column numbers
-            row = (i // 2) + 1
-            col = i % 2
+            row = (i+1) // 3
+            
+            col = (i+1) % 3
 
             # Add the QLabel to the layout at the specified row and column
             self.grid_layout.addWidget(self.split_image_labels[i+1], row, col)
+
+        
 
         # Update label text
         class_text = ''
@@ -525,6 +525,9 @@ class SplitImageTool(QWidget):
         background_image = background_image.scaledToWidth(int(self.width/2) - 10)
 
         self.tiff_image_label.setPixmap(background_image)
+
+        # new line, puts images onto grid but only after first click and the rgb image doesn't show up...
+        self.left_layout.addLayout(self.grid_layout)
 
     #CST20240313 (creating a function to write images into a folder)
     def writeImage(self,filePath, fileName, index):
