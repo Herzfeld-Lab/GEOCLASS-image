@@ -19,6 +19,32 @@ import random
 
 #def load_split_images(img_mat, max, winSize):
 
+class CustomDataset(Dataset):
+    def __init__(self, image_paths, variogram_data, labels, transform=None):
+        self.image_paths = image_paths
+        self.variogram_data = variogram_data
+        self.labels = labels
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.image_paths)
+
+    def __getitem__(self, idx):
+        image_path = self.image_paths[idx]
+        try:
+            image = Image.open(image_path).convert('L')  # Convert to grayscale
+        except Exception as e:
+            print(f"Error opening image at {image_path}: {str(e)}")
+            raise e
+        
+        variogram = self.variogram_data[idx]
+        label = self.labels[idx]
+        
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image, variogram, label
 
 
 class SplitImageDataset(Dataset):
