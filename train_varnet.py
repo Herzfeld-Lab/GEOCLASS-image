@@ -25,32 +25,6 @@ from torchvision import models
 import rasterio as rio
 from PIL import Image
 
-class CustomDataset(Dataset):
-    def __init__(self, image_paths, variogram_data, labels, transform=None):
-        self.image_paths = image_paths
-        self.variogram_data = variogram_data
-        self.labels = labels
-        self.transform = transform
-
-    def __len__(self):
-        return len(self.image_paths)
-
-    def __getitem__(self, idx):
-        image_path = self.image_paths[idx]
-        try:
-            image = Image.open(image_path).convert('L')  # Convert to grayscale
-        except Exception as e:
-            print(f"Error opening image at {image_path}: {str(e)}")
-            raise e
-        
-        variogram = self.variogram_data[idx]
-        label = self.labels[idx]
-        
-
-        if self.transform:
-            image = self.transform(image)
-
-        return image, variogram, label
 
     
 
@@ -240,7 +214,7 @@ if imgTrain:
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485], std=[0.229])  # Use grayscale mean and std
         ])
-
+        print("VARIO TYPE", type(train_var))
         train_dataset = CustomDataset(train_imgs, train_var, train_labels, transform)
         valid_dataset = CustomDataset(test_imgs, test_var, test_labels, transform)
     else:
@@ -273,6 +247,7 @@ if imgTrain:
         batch_size=batch_size,
         shuffle=True
         )
+    
     print("train loader", type(train_loader))
     valid_loader = DataLoader(
         valid_dataset,
@@ -347,6 +322,7 @@ if imgTrain:
         if cfg['model'] == 'VarioNet':
             # Training phase
             for batch_idx, (images, variograms, labels) in enumerate(train_loader):
+
                 if int((len(train_dataset) / batch_size)/10) != 0: #So it won't crash 
                     if batch_idx % int((len(train_dataset) / batch_size)/10) == 0:
                         print('.', end='',flush=True)
@@ -362,6 +338,7 @@ if imgTrain:
                     images = torch.unsqueeze(images,1).float()
                     images = images.view(images.size(0), images.size(2), images.size(3), images.size(4))
                     variograms = torch.unsqueeze(variograms,1).float()
+               
                 optimizer.zero_grad()
                 outputs = model(images, variograms)
                 loss = criterion(outputs, labels)

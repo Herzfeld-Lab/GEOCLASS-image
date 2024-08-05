@@ -14,7 +14,7 @@ Image.MAX_IMAGE_PIXELS = None
 
 import xml.etree.ElementTree as ET
 
-from netCDF4 import Dataset
+#from netCDF4 import Dataset
 
 from pyproj import Transformer, CRS
 
@@ -52,8 +52,8 @@ def draw_split_image_confs(img_mat, scale_factor, split_disp_size, labels, selec
                 img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],1] = c[1]
                 img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],2] = c[2]
 
-
-def to_netCDF(data, filepath):
+##050824
+"""def to_netCDF(data, filepath):
 
     attributes = data[0]
 
@@ -85,7 +85,7 @@ def to_netCDF(data, filepath):
 
     out.setncatts(attributes)
     out.close()
-
+"""
 def unit_vector(vector):
     """ Returns the unit vector of the vector.  """
     return vector / np.linalg.norm(vector)

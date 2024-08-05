@@ -4,12 +4,14 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision.transforms as transforms
 from torchvision import models
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 from PIL import Image
 import numpy as np
 from utils import *
 import cv2
 import rasterio as rio
+
+
 
 def load_images(image_paths):
     images = []
@@ -49,6 +51,63 @@ def collect_image_paths_and_labels(image_folder):
     return image_paths, np.array(variograms), labels, label_map
 
 #Labels are just in order, not the actually class so this needs to change in final implentation
+#Testing Dataset
+
+class TestDataset(Dataset):
+    def __init__(self, imgPath, imgData, labels):
+        imagePaths = getImgPaths(imgPath)
+        imageLabels = labels
+        imageData = imgData
+
+        # Extract all split images and store in dataframe
+        dataArray = []
+        self.varios = []  # Initialize self.varios as an instance attribute
+        
+        for imgNum, imagePath in enumerate(imagePaths):
+            print("\nCalculating Variograms for Image", imgNum)
+            TimageLabels = list(zip(*imageLabels))
+
+            if len(TimageLabels) == 7:  # Training
+                img = rio.open(imagePath)
+                imageMatrix = img.read(1)
+                
+                max_sigma = get_img_sigma(imageMatrix[::10, ::10])
+                winSize = imageData['winsize_pix']
+                
+                for i in range(len(TimageLabels[6])):
+                    if i % 1000 == 0:
+                        print('.', end='', flush=True)
+                    if TimageLabels[6][i] == imgNum:
+                        row = imageLabels[i]
+                        x, y = row[0:2].astype('int')
+                        splitImg_np = imageMatrix[x:x + winSize[0], y:y + winSize[1]]
+                        splitImg_np = scaleImage(splitImg_np, max_sigma)
+                        variogram = silas_directional_vario(splitImg_np)
+                        self.varios.append(variogram)
+                        rowlist = list(row)
+                        rowlist.append(splitImg_np)
+                        if splitImg_np.shape[0] == 0 or splitImg_np.shape[1] == 0:
+                            print("Error with an image: ", i, "class: ", rowlist[4], "image source: ", rowlist[6])
+                        else:
+                            dataArray.append(rowlist)
+            else:
+                print("Error with training or testing data")
+                
+        self.dataFrame = pd.DataFrame(dataArray, columns=['x_pix', 'y_pix', 'x_utm', 'y_utm', 'label', 'conf', 'img_source', 'img_mat'])
+
+    def __len__(self):
+        return len(self.dataFrame)
+
+    def __getitem__(self, idx):
+        splitImg_np = self.dataFrame.iloc[idx, 7]
+        variograms = self.varios[idx]
+
+        splitImg_tensor = torch.from_numpy(splitImg_np)
+        vario_tensor = torch.from_numpy(variograms)
+
+        return splitImg_tensor, vario_tensor
+
+
 # Custom Dataset Class
 class CustomDataset(Dataset):
     def __init__(self, image_paths, variogram_data, labels, transform=None):
@@ -85,7 +144,7 @@ transform = transforms.Compose([
 
 
 
-resnet = models.resnet18(pretrained=True)
+resnet = models.resnet18(pretrained=False)
 
 # Modify the first convolutional layer to accept single-channel input
 num_ftrs = resnet.fc.in_features
@@ -108,14 +167,13 @@ class CombinedNN(nn.Module):
         resnet_output_dim = 512  # This should match the output dimension of ResNet-18
         
         # Define fully connected layers
-        self.fc1 = nn.Linear(variogram_size + 1000, 512) #The 1000 is the size of the image features but I'm not sure if this is always 1000 for resnet18
-        self.fc2 = nn.Linear(512, num_classes)
+        self.fc1 = nn.Linear(variogram_size + 1000, resnet_output_dim) #The 1000 is the size of the image features but I'm not sure if this is always 1000 for resnet18
+        self.fc2 = nn.Linear(resnet_output_dim, num_classes)
 
     def forward(self, image, variogram):
         # Extract image features using ResNet
         image_features = self.resnet(image)
         image_features = image_features.view(image_features.size(0), -1)  # Flatten image features
-        
         # Flatten and process variogram data
         variogram = variogram.float()
         variogram = variogram.view(variogram.size(0), -1)
@@ -125,33 +183,3 @@ class CombinedNN(nn.Module):
         x = torch.relu(self.fc1(combined_features))
         x = self.fc2(x)
         return x
-"""
-image_folder = 'Classification'
-num_classes = 11
-image_paths, variogram_data, labels, label_map = collect_image_paths_and_labels(image_folder)
-variogram_size = variogram_data[0][0].shape[0]*variogram_data[0].shape[0]
-train_size = int(0.8 * len(image_paths))
-train_indeces = np.random.choice(range(np.array(len(image_paths))), train_size, replace=False)
-test_indeces = np.setdiff1d(range(np.array(len(image_paths))), train_indeces)
-#CST20240322 Creating loops so train and test coords aren't 1D
-train_imgs = []
-test_imgs = []
-train_var = []
-test_var = []
-train_labels = []
-test_labels = []
-
-for i in train_indeces:
-    train_imgs.append(image_paths[i])
-    train_var.append(image_paths[i])
-    train_labels.append(image_paths[i])
-for i in test_indeces:
-    test_imgs.append(image_paths[i])
-    test_var.append(image_paths[i])
-    test_labels.append(image_paths[i])
-resnet18 = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
-num_ftrs = resnet18.fc.in_features
-resnet18.fc = nn.Identity()  # Remove the final fully connected layer
-model = CombinedNN(resnet18, variogram_size, num_classes)
-train_dataset = CustomDataset(train_imgs, train_var, train_labels, transform)
-"""
