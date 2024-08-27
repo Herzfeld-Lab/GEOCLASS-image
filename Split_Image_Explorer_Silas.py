@@ -233,6 +233,10 @@ class SplitImageTool(QWidget):
         self.save_heatmap_button = QPushButton('Save Heatmap Image')
         self.save_heatmap_button.clicked.connect(self.saveHeatmapCallback)
 
+         #SAVE CONFIDENCE PREDICTIONS
+        self.save_confidente_predictions_button = QPushButton('Save Confidence Predictions')
+        self.save_confidente_predictions_button.clicked.connect(self.savePredictionsCallbackNPY)
+
         if self.has_contour == False:
             self.save_contour_button = QPushButton('Save Contour File')
             self.save_contour_button.clicked.connect(self.saveContourCallback)
@@ -282,6 +286,8 @@ class SplitImageTool(QWidget):
         self.visualization_toggles.addWidget(self.labels_button)
 
         self.visualization_save_buttons.addWidget(self.save_predictions_button)
+        #INITIALIZE THE BUTTON THAT SAVES THE CONFIDENT PREDICTIONS 
+        self.visualization_save_buttons.addWidget(self.save_confidente_predictions_button)
         self.visualization_save_buttons.addWidget(self.save_heatmap_button)
         if self.has_contour == False:
             self.visualization_save_buttons.addWidget(self.save_contour_button)
@@ -454,7 +460,7 @@ class SplitImageTool(QWidget):
             self.draw_line(qimage, x1, y1, x2, y2, qRgb(0, 0, 0))
 
     def getNewImage(self, index):
-
+        
         self.image_index = index
 
          # Grab info of split image at index
@@ -798,8 +804,94 @@ class SplitImageTool(QWidget):
         #CST20240308
         else:
             out_path = self.pred_label_path[:-4] + '_prediction.png'
-            print("savePredictionsCallback", out_path)
+            ("Prediction image saved to", out_path)
 
+    #function that saves the confident predictions
+    def savePredictionsCallbackNPY(self):
+        savepred = cfg['save_all_pred']
+        saveMin = cfg['equal_dataset']
+    
+        #check if there are predictions loaded so that app doesn't crash
+        if self.checkpoint == None:
+            print('No predictions loaded')
+            return
+        #create the directory if it does not exist
+        dirName = 'ConfidentPredictions'
+        if not os.path.exists(dirName):
+            os.mkdir(dirName)
+        #create the filename
+        filename = f'ConfidentPredictions/confidence_predictions_{self.conf_thresh}.npy'
+
+        #get the dataset
+        dataset_path = cfg['npy_path']   
+        dataset = np.load(dataset_path, allow_pickle=True)
+        if saveMin == False:
+            if savepred == False:
+                # Save predicitions above the confidence threshold
+                self.confident_predictions = self.pred_labels[self.pred_labels[:,5] > self.conf_thresh]        
+
+                dataset[1] = self.confident_predictions #update the dataset with the new confident predictions
+                
+            else: #Should save all WV datasets, not just the one selected.
+                self.confident_predictions = self.pred_labels_save[self.pred_labels_save[:,5] > self.conf_thresh]
+                dataset[1] = self.confident_predictions
+            np.save(filename, dataset) #save the dataset as npy file
+            print('File saved to', filename)
+        else:
+            total = 0
+            numClasses = cfg['num_classes']
+            minSize =  100000
+            classSize = 0
+            classes = 0
+            predictions = []
+            if savepred == False:
+                
+                # Save predicitions above the confidence threshold
+                for i in range(numClasses):
+                    data = self.pred_labels[self.pred_labels[:,4] == i]
+                    self.confident_predictions = data[data[:,5] > self.conf_thresh]
+                    classSize = len(self.confident_predictions)
+                    if classSize < minSize: 
+                        minSize = classSize
+                for i in range(numClasses): 
+                    data = self.pred_labels[self.pred_labels[:,4] == i]
+                    self.confident_predictions = data[data[:,5] > self.conf_thresh]
+                    if classSize != 0:
+                        for i in range(minSize): #Should select the highest confidence images from each class
+                                highest_confidence_index = np.argmax(self.confident_predictions[:, 5])
+                                predictions.append(self.confident_predictions[highest_confidence_index])
+                                self.confident_predictions = np.delete(self.confident_predictions, highest_confidence_index, axis=0)
+                                total += 1
+                predictions = np.array(predictions)
+                dataset[1] = predictions #update the dataset with the new confident predictions
+                
+            else: #Should save all WV datasets, not just the one selected.
+                # Save predicitions above the confidence threshold
+                for i in range(numClasses):
+                    data = self.pred_labels_save[self.pred_labels_save[:,4] == i]
+                    self.confident_predictions = data[data[:,5] > self.conf_thresh]
+                    classSize = len(self.confident_predictions)
+                    if classSize != 0:
+                        print("Saving images from class ", i)
+                        classes += 1
+                        if classSize < minSize: 
+                            minSize = classSize
+                            print("Smallest class size: ", i, "Sze: ", classSize)
+                for i in range(numClasses): 
+                    data = self.pred_labels_save[self.pred_labels_save[:,4] == i]
+                    self.confident_predictions = data[data[:,5] > self.conf_thresh]
+                    classSize = len(self.confident_predictions)
+                    if classSize != 0:
+                        for i in range(minSize):  #Should select the highest confidence images from each class
+                            highest_confidence_index = np.argmax(self.confident_predictions[:, 5])
+                            predictions.append(self.confident_predictions[highest_confidence_index])
+                            self.confident_predictions = np.delete(self.confident_predictions, highest_confidence_index, axis=0)
+                            total += 1
+                predictions = np.array(predictions)
+                dataset[1] = predictions #update the dataset with the new confident predictions
+            print(minSize, "Images saved in for each class for a total dataset size of ", total, "images from ", classes, "crevasse classes")
+            np.save(filename, dataset) #save the dataset as npy file
+            print('File saved to', filename)
 
     def saveHeatmapCallback(self):
         if self.predictions:
@@ -838,7 +930,7 @@ class SplitImageTool(QWidget):
         self.cfg['class_enum'] = self.class_enum
         self.cfg['num_classes'] = len(self.class_enum)
         f = open(args.config, 'w')
-        f.write(generate_config(self.cfg))
+        f.write(generate_config_silas(self.cfg))
         f.close()
 
         if self.to_netcdf:
