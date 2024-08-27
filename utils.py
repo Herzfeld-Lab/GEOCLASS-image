@@ -17,11 +17,13 @@ import xml.etree.ElementTree as ET
 from netCDF4 import Dataset
 
 from pyproj import Transformer, CRS
-
+import yaml
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 from Dataset import *
 import time, utm
+
+
 
 @njit
 def draw_split_image_labels(img_mat, scale_factor, split_disp_size, labels, selected_classes, cmap):
@@ -240,6 +242,47 @@ def plot_geotif_bbox(xmlPath, contourPath, bgImgPath, bgUTMPath):
     cv2.imwrite(bgImgPath[:-4]+'.jpg', bgImg)
     #cv2.waitKey(0)
     #cv2.destroyAllWindows()
+
+def get_varios(img, numLag):
+    imSize = img.shape
+    if (imSize[0] == 201 and imSize[1] == 268) or (imSize[0] == 268 and imSize[1] == 201):
+        return silas_directional_vario(img, numLag)
+    else:
+        print("Use an image size of (201,268) for best results")
+        return fast_directional_vario(img, numLag)
+
+def load_images(image_paths):
+    images = []
+    for path in image_paths:
+        img = cv2.imread(path, cv2.IMREAD_UNCHANGED)  # Load image with alpha channel if present
+        if img is None:
+            print(f"Error: Could not read image at {path}")
+        else:
+            images.append(img)
+    return images
+
+def collect_image_paths_and_labels(image_folder, numLag):
+    image_paths = []
+    labels = []
+    variograms = []
+
+    for label_name in os.listdir(image_folder):
+        label_path = os.path.join(image_folder, label_name)
+        if os.path.isdir(label_path):
+            label_index = int(label_name)
+            for img_name in os.listdir(label_path):
+                if img_name.endswith(('png', 'tiff', 'tif')):
+                    img_path = os.path.join(label_path, img_name)
+                    image_paths.append(img_path)
+                    labels.append(label_index)
+                    # Load image and convert to numpy array
+                    image = Image.open(img_path).convert('RGB')
+                    image_np = np.array(image)
+                    variogram = get_varios(image_np, numLag)
+                    variograms.append(variogram)
+    return image_paths, np.array(variograms), labels
+
+
 
 #@njit
 #Not refrenced 

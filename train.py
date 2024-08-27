@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import os
 import sys
 import argparse
+from utils import *
 from datetime import datetime
 import random
 from Models import *
@@ -93,6 +94,9 @@ if cfg['model'] == 'VarioMLP':
 
 elif cfg['model'] == 'Resnet18':
     num_classes = cfg['num_classes']
+    vario_num_lag = cfg['vario_num_lag']
+    image_folder = cfg['training_img_path']
+    image_paths, variogram_data, labels = collect_image_paths_and_labels(image_folder, vario_num_lag)
     model = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
     img_transforms_train = None
     img_transforms_valid = None
@@ -112,31 +116,52 @@ else:
 
 print(model)
 if imgTrain:
-    # Perform train/test split
-    label_path = cfg['training_img_npy']
-    labeled_data = np.load(label_path, allow_pickle=True)
-    labelInfo = labeled_data[0]
-    dataset_labeled = labeled_data[1]
-    dataset = np.load(dataset_path, allow_pickle=True)
-    dataset_info = dataset[0]
-    dataset_coords = dataset[1]
+    if cfg['model'] == 'Resnet18':
+        train_size = int(cfg['train_test_split'] * len(image_paths))
+        train_indeces = np.random.choice(range(np.array(len(image_paths))), train_size, replace=False)
+        test_indeces = np.setdiff1d(range(np.array(len(image_paths))), train_indeces)
+        #CST20240322 Creating loops so train and test coords aren't 1D
+        train_imgs = []
+        test_imgs = []
+        train_var = []
+        test_var = []
+        train_labels = []
+        test_labels = []
 
-    train_size = int(cfg['train_test_split'] * dataset_labeled.shape[0])
+        for i in train_indeces:
+            train_imgs.append(image_paths[i])
+            train_var.append(variogram_data[i])
+            train_labels.append(labels[i])
+        for i in test_indeces:
+            test_imgs.append(image_paths[i])
+            test_var.append(variogram_data[i])
+            test_labels.append(labels[i])
+    else:
+        # Perform train/test split
+        label_path = cfg['training_img_npy']
+        labeled_data = np.load(label_path, allow_pickle=True)
+        labelInfo = labeled_data[0]
+        dataset_labeled = labeled_data[1]
+        dataset = np.load(dataset_path, allow_pickle=True)
+        dataset_info = dataset[0]
+        dataset_coords = dataset[1]
 
-    train_indeces = np.random.choice(range(np.array(dataset_labeled.shape[0])), train_size, replace=False)
-    test_indeces = np.setdiff1d(range(np.array(dataset_labeled.shape[0])), train_indeces)
-    #CST20240322 Creating loops so train and test coords aren't 1D
-    train_coords = []
-    test_coords = []
+        train_size = int(cfg['train_test_split'] * dataset_labeled.shape[0])
 
-    for i in train_indeces:
-        train_coords.append(dataset_labeled[i])
-    for i in test_indeces:
-        test_coords.append(dataset_labeled[[i]])
+        train_indeces = np.random.choice(range(np.array(dataset_labeled.shape[0])), train_size, replace=False)
+        test_indeces = np.setdiff1d(range(np.array(dataset_labeled.shape[0])), train_indeces)
+        #CST20240322 Creating loops so train and test coords aren't 1D
+        train_coords = []
+        test_coords = []
+
+        for i in train_indeces:
+            train_coords.append(dataset_labeled[i])
+        for i in test_indeces:
+            test_coords.append(dataset_labeled[[i]])
     
     print('----- Initializing Dataset -----')
 
-    if cfg['model'] == 'VarioMLP' or cfg['model'] == 'Resnet18':
+    if cfg['model'] == 'VarioMLP':
         train_dataset = SplitImageDataset(
             imgPath = topDir,
             imgData = dataset_info,
@@ -152,7 +177,16 @@ if imgTrain:
             train = True,
             transform = img_transforms_valid
             )
-
+    elif cfg['model'] == 'Resnet18':
+        trainImages = load_images(train_imgs)
+        testImages = load_images(test_imgs)
+        transform = transforms.Compose([
+            transforms.Resize((224, 224)),  # Resize images to match ResNet18 input size
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485], std=[0.229])  # Use grayscale mean and std
+        ])
+        train_dataset = FromFolderDataset(cfg['model'], train_imgs, train_var, train_labels, transform)
+        valid_dataset = FromFolderDataset(cfg['model'], test_imgs, test_var, test_labels, transform)
     else:
         train_dataset = DDAiceDataset(
             dataPath = topDir,
