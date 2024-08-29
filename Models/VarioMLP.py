@@ -11,10 +11,13 @@ class VarioMLP(nn.Module):
     doxygen test
     """
 
-    def __init__(self, num_classes, vario_num_lag, hidden_layers = [3,3]):
+    def __init__(self, num_classes, vario_num_lag, hidden_layers = [3,3], varnet = False):
         super(VarioMLP, self).__init__()
         #CST05312024
-        self.input_size = vario_num_lag * 3
+        if varnet:
+            self.input_size = vario_num_lag * 4
+        else:
+            self.input_size = vario_num_lag * 3
         self.output_size = num_classes
         self.hidden_size = [int(i * self.input_size) for i in hidden_layers]
         self.num_lag = vario_num_lag

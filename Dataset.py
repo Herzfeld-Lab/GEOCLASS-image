@@ -16,6 +16,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 import pandas as pd
 import random
+import numpy
 
 #def load_split_images(img_mat, max, winSize):
 
@@ -116,7 +117,42 @@ class SplitImageDataset(Dataset):
 
         else:
             return splitImg_tensor
+#For training by a folder of images
+class FromFolderDataset(Dataset):
+    def __init__(self, model, image_paths, variogram_data, labels, transform=None):
+        self.model = model
+        if self.model == 'VarioNet':
+            self.image_paths = image_paths
+            self.variogram_data = variogram_data
+            self.labels = labels
+            self.transform = transform
+        else:
+            self.image_paths = image_paths
+            self.labels = labels
+            self.transform = transform
+            
 
+    def __len__(self):
+        return len(self.image_paths)
+
+    def __getitem__(self, idx):
+        image_path = self.image_paths[idx]
+        try:
+            image = Image.open(image_path)
+        except Exception as e:
+            print(f"Error opening image at {image_path}: {str(e)}")
+            raise e
+        IMGnp = numpy.array(image)
+        
+        label = int(self.labels[idx])
+        if self.transform:
+            image = self.transform(image)
+        if self.model == 'VarioNet':
+            variogram = self.variogram_data[idx]/100 #decreases effect on network
+            return IMGnp, variogram, int(label)
+        else:
+            return IMGnp, int(label)
+        
 
 
 class RandomRotateVario(object):

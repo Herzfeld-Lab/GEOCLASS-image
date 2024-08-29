@@ -69,21 +69,12 @@ elif cfg['model'] == 'VarioNet': #Only works for training via images as of now
     num_classes = cfg['num_classes']
     image_folder = cfg['training_img_path']
     vario_num_lag = cfg['vario_num_lag']
-    image_paths, variogram_data, labels, label_map = collect_image_paths_and_labels(image_folder)
-    resnet = models.resnet18(pretrained=True)
-    # Modify ResNet-18 for single-channel input
-    original_conv1 = resnet.conv1
-    resnet.conv1 = nn.Conv2d(1, original_conv1.out_channels, kernel_size=original_conv1.kernel_size, 
-                            stride=original_conv1.stride, padding=original_conv1.padding, bias=original_conv1.bias)
-
-    # Initialize the new layer's weights by averaging the original layer's weights
-    with torch.no_grad():
-        resnet.conv1.weight = nn.Parameter(torch.mean(original_conv1.weight, dim=1, keepdim=True))
-
+    image_paths, variogram_data, labels = collect_image_paths_and_labels(image_folder)
     # Calculate the size of the variogram data
     #variogram_size = variogram_data.shape[0] * variogram_data.shape[1] * vario_num_lag  # 212
-    variogram_size = 1*4*53
-    model = CombinedNN(resnet, variogram_size, num_classes)
+    variogram_size = 1*4*vario_num_lag
+    model = CombinedNN.varionet(variogram_size, num_classes, pretrained=False)
+    img_transforms_valid = None
 
 elif cfg['model'] == 'DDAiceNet':
     ddaBool = True
@@ -126,41 +117,16 @@ if cfg['model'] == 'VarioMLP' or cfg['model'] == 'Resnet18':
         train = False,
         transform = img_transforms_valid
         )
+
 elif cfg['model'] == 'VarioNet':
     
     valid_dataset = TestDataset(
         imgPath = topDir,
         imgData = dataset_info,
         labels = dataset_labels,
+        train = False
         )
-    """
-    imgPath = topDir
-    imgData = dataset_info
-    labels = dataset_labels
-    imagePaths = getImgPaths(imgPath)
-    imageLabels = labels
-    imageData = imgData
-    TimageLabels = list(zip(*imageLabels)) #CST20240322 this may fail or not work as expected now
-    a=0
-    variograms = []
-    for imgNum,imagePath in enumerate(imagePaths):
-            img = rio.open(imagePath)
-            imageMatrix = img.read(1)
-                
-            max = get_img_sigma(imageMatrix[::10,::10])
-            winSize = imageData['winsize_pix']
-            #CST 20240322
-            for i in range(0,len(TimageLabels[6])):
-                if i%100==0:
-                    print(i)
-                if TimageLabels[6][i]==imgNum:
-                    row = imageLabels[i]
-                    x,y = row[0:2].astype('int')
-                    splitImg_np = imageMatrix[x:x+winSize[0],y:y+winSize[1]]
-                    splitImg_np = scaleImage(splitImg_np, max)
-                    var = silas_directional_vario(splitImg_np)
-                variograms.append(var)      
-    """ 
+
 else:
     valid_dataset = DDAiceDataset(
         dataPath = topDir,
@@ -171,7 +137,7 @@ else:
         )
 
 
-print('Test set size: \t%d images'%(len(valid_dataset)))
+print('\nTest set size: \t%d images'%(len(valid_dataset)))
 
 print('----- Initializing DataLoader -----')
 
@@ -233,8 +199,8 @@ if cfg['model'] == 'VarioNet':
         # Move batch to GPU
         if args.cuda:
             images = images.to(device)
-            varios = varios.to(device)
-        varios = torch.unsqueeze(varios,1).float()
+            #varios = varios.to(device)
+        #varios = torch.unsqueeze(varios,1).float()
         images = torch.unsqueeze(images,1).float()
         
         # Compute forward pass
@@ -291,5 +257,5 @@ dataset[1] = split_info
 #data.append(confs)
 np.save(output_dir+"/labels/labeled_"+checkpoint_str, dataset)
 
-"""if args.netCDF:
-    to_netCDF(dataset)"""
+if args.netCDF:
+    to_netCDF(dataset)

@@ -12,9 +12,11 @@ import argparse
 from datetime import datetime
 import random
 from Models import *
-from VarioNet import CombinedNN
+from VarioNet import CombinedModel
 from VarioNet import collect_image_paths_and_labels
 from VarioNet import load_images
+from VarioNet import FromFolderDataset
+from VarioNet import *
 import yaml
 import signal
 from sklearn.utils.class_weight import compute_class_weight
@@ -24,7 +26,8 @@ import warnings
 from torchvision import models
 import rasterio as rio
 from PIL import Image
-
+from VarioNet import TestDataset
+import torch.nn.functional as F
 
     
 
@@ -103,6 +106,9 @@ if cfg['model'] == 'VarioMLP':
 
 elif cfg['model'] == 'Resnet18':
     num_classes = cfg['num_classes']
+    image_folder = cfg['training_img_path']
+    vario_num_lag = cfg['vario_num_lag']
+    image_paths, variogram_data, labels = collect_image_paths_and_labels(image_folder)
     model = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
     img_transforms_train = None
     img_transforms_valid = None
@@ -111,21 +117,13 @@ elif cfg['model'] == 'VarioNet': #Only works for training via images as of now
     num_classes = cfg['num_classes']
     image_folder = cfg['training_img_path']
     vario_num_lag = cfg['vario_num_lag']
-    image_paths, variogram_data, labels, label_map = collect_image_paths_and_labels(image_folder)
-    resnet = models.resnet18(pretrained=True)
-    # Modify ResNet-18 for single-channel input
-    original_conv1 = resnet.conv1
-    resnet.conv1 = nn.Conv2d(1, original_conv1.out_channels, kernel_size=original_conv1.kernel_size, 
-                            stride=original_conv1.stride, padding=original_conv1.padding, bias=original_conv1.bias)
-
-    # Initialize the new layer's weights by averaging the original layer's weights
-    with torch.no_grad():
-        resnet.conv1.weight = nn.Parameter(torch.mean(original_conv1.weight, dim=1, keepdim=True))
+    image_paths, variogram_data, labels = collect_image_paths_and_labels(image_folder)
+    #resnet = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
 
     # Calculate the size of the variogram data
     #variogram_size = variogram_data.shape[0] * variogram_data.shape[1] * vario_num_lag  # 212
-    variogram_size = 1*4*53
-    model = CombinedNN(resnet, variogram_size, num_classes)
+    variogram_size = 1*4*vario_num_lag
+    model = CombinedModel(vario_num_lag, num_classes)
     
     img_transforms_train = None
     img_transforms_valid = None
@@ -146,7 +144,7 @@ else:
 print(model)
 if imgTrain:
     # Perform train/test split
-    if cfg['model'] == 'VarioNet':
+    if cfg['model'] == 'VarioNet' or cfg['model'] == 'Resnet18':
         train_size = int(cfg['train_test_split'] * len(image_paths))
         train_indeces = np.random.choice(range(np.array(len(image_paths))), train_size, replace=False)
         test_indeces = np.setdiff1d(range(np.array(len(image_paths))), train_indeces)
@@ -190,7 +188,7 @@ if imgTrain:
     
     print('----- Initializing Dataset -----')
 
-    if cfg['model'] == 'VarioMLP' or cfg['model'] == 'Resnet18':
+    if cfg['model'] == 'VarioMLP':
         train_dataset = SplitImageDataset(
             imgPath = topDir,
             imgData = dataset_info,
@@ -206,7 +204,8 @@ if imgTrain:
             train = True,
             transform = img_transforms_valid
             )
-    elif cfg['model'] == 'VarioNet':
+
+    elif cfg['model'] == 'VarioNet' or cfg['model'] == 'Resnet18':
         trainImages = load_images(train_imgs)
         testImages = load_images(test_imgs)
         transform = transforms.Compose([
@@ -214,9 +213,8 @@ if imgTrain:
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485], std=[0.229])  # Use grayscale mean and std
         ])
-        print("VARIO TYPE", type(train_var))
-        train_dataset = CustomDataset(train_imgs, train_var, train_labels, transform)
-        valid_dataset = CustomDataset(test_imgs, test_var, test_labels, transform)
+        train_dataset = FromFolderDataset(cfg['model'], train_imgs, train_var, train_labels, transform)
+        valid_dataset = FromFolderDataset(cfg['model'], test_imgs, test_var, test_labels, transform)
     else:
         train_dataset = DDAiceDataset(
             dataPath = topDir,
@@ -247,6 +245,7 @@ if imgTrain:
         batch_size=batch_size,
         shuffle=True
         )
+
     
     print("train loader", type(train_loader))
     valid_loader = DataLoader(
@@ -310,7 +309,7 @@ if imgTrain:
 
     train_losses = []
     valid_losses = []
-
+    varioLoss = []
     # X = tensor
     # Y = label
 
@@ -322,7 +321,6 @@ if imgTrain:
         if cfg['model'] == 'VarioNet':
             # Training phase
             for batch_idx, (images, variograms, labels) in enumerate(train_loader):
-
                 if int((len(train_dataset) / batch_size)/10) != 0: #So it won't crash 
                     if batch_idx % int((len(train_dataset) / batch_size)/10) == 0:
                         print('.', end='',flush=True)
@@ -332,11 +330,11 @@ if imgTrain:
                 if args.cuda:
                     images, variograms, labels = images.to(device), variograms.to(device), labels.to(device)
                     images = torch.unsqueeze(images,1).float()
-                    images = images.view(images.size(0), images.size(2), images.size(3), images.size(4))
+                    #images = images.view(images.size(0), images.size(2), images.size(3), images.size(4))
                     variograms = torch.unsqueeze(variograms,1).float()
                 else:
                     images = torch.unsqueeze(images,1).float()
-                    images = images.view(images.size(0), images.size(2), images.size(3), images.size(4))
+                    #images = images.view(images.size(0), images.size(2), images.size(3), images.size(4))
                     variograms = torch.unsqueeze(variograms,1).float()
                
                 optimizer.zero_grad()
@@ -344,51 +342,39 @@ if imgTrain:
                 loss = criterion(outputs, labels)
                 loss.backward()
                 optimizer.step()
-
                 sum_loss += loss.item()
             train_losses.append(sum_loss/batch_idx)
             # Validation phase
+            print('running validation')
             model.eval()
             val_loss = 0.0
             correct = 0
-            """
-            for batch_idx, (images, variograms, labels) in enumerate(valid_loader):
-                if args.cuda:
-                    images, variograms, labels = images.to(device), variograms.to(device), labels.to(device)
-                    images = torch.unsqueeze(images,1).float()
-                    images = images.view(images.size(0), images.size(2), images.size(3), images.size(4))
-                    variograms = torch.unsqueeze(variograms,1).float()
-                else:
-                    images = torch.unsqueeze(images,1).float()
-                    images = images.view(images.size(0), images.size(2), images.size(3), images.size(4))
-                    variograms = torch.unsqueeze(variograms,1).float()
+            total_variogram_loss= 0.0
+            varioLoss = []
 
-                # Compute forward pass
-                Y_hat = model.forward(images, variograms)
-                # Calculate training loss
-                loss = loss + float(criterion(Y_hat, labels))
-                """
             with torch.no_grad():
                 for batch_idx, (images, variograms, labels) in enumerate(valid_loader):
                     if args.cuda:
                         images, variograms, labels = images.to(device), variograms.to(device), labels.to(device)
                         images = torch.unsqueeze(images,1).float()
-                        images = images.view(images.size(0), images.size(2), images.size(3), images.size(4))
+                        #images = images.view(images.size(0), images.size(2), images.size(3), images.size(4))
                         variograms = torch.unsqueeze(variograms,1).float()
                     else:
                         images = torch.unsqueeze(images,1).float()
-                        images = images.view(images.size(0), images.size(2), images.size(3), images.size(4))
+                        #images = images.view(images.size(0), images.size(2), images.size(3), images.size(4))
                         variograms = torch.unsqueeze(variograms,1).float()
                     outputs = model(images, variograms)
                     loss = criterion(outputs, labels)
                     val_loss += loss.item()
+                    #variogram_validation = model(images, variogram=variograms)
+                    #variogram_loss = criterion(variogram_validation, labels)
+                    #total_variogram_loss += variogram_loss.item()
                     pred = outputs.argmax(dim=1, keepdim=True)
                     correct += pred.eq(labels.view_as(pred)).sum().item()
        
             valid_losses.append(val_loss/batch_idx)
-            
+            #varioLoss.append(total_variogram_loss/batch_idx)
 
-            
 
         else:
             for batch_idx,(X,Y) in enumerate(train_loader):
@@ -400,7 +386,6 @@ if imgTrain:
                 else:
                     print("ERROR: The length of the training dataset is too small") #CST 20240318
                     sys.exit(0)
-
                 # Move batch to GPU
                 if args.cuda:
                     X,Y = X.to(device),Y.to(device)
@@ -409,7 +394,8 @@ if imgTrain:
                 else:
                     #X = X.view((X.shape[0],1,-1)).float()
                     X = torch.unsqueeze(X,1).float()
-
+                #if cfg['model'] == 'Resnet18':
+                    #X = X.view(X.size(0), X.size(2), X.size(3), X.size(4))
                 # Compute forward pass
                 Y_hat = model.forward(X)
 
@@ -432,7 +418,6 @@ if imgTrain:
                 print("ERROR: The length of the training dataset is too small") #CST 20240318
                 sys.exit(0)
 
-
             print('running validation')
 
             #Valid
@@ -446,7 +431,8 @@ if imgTrain:
                 else:
                     #X = X.view((X.shape[0],1,-1)).float()
                     X = torch.unsqueeze(X,1).float()
-
+                #if cfg['model'] == 'Resnet18':
+                    #X = X.view(X.size(0), X.size(2), X.size(3), X.size(4))
                 # Compute forward pass
                 Y_hat = model.forward(X)
 
@@ -454,7 +440,10 @@ if imgTrain:
                 loss = loss + float(criterion(Y_hat, Y))
 
             valid_losses.append(loss/batch_idx)
-        print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
+        if cfg['model'] == 'VarioNet':
+            #print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}\tVARIO LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1],varioLoss[-1]))
+        
+            print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
 
         print('saving checkpoint')
         # Save checkpoint
@@ -519,8 +508,19 @@ else:
             transform = img_transforms_valid
             )
     elif cfg['model'] == 'VarioNet':
-        print("VarioNet is not supported with non image training")
-        sys.exit()
+        train_dataset = TestDataset(
+            imgPath = topDir,
+            imgData = dataset_info,
+            labels = train_coords,
+            train = True,
+        )
+
+        valid_dataset = TestDataset(
+            imgPath = topDir,
+            imgData = dataset_info,
+            labels = test_coords,
+            train = True,
+            )
     else:
         train_dataset = DDAiceDataset(
             dataPath = topDir,
@@ -623,67 +623,118 @@ else:
         print("EPOCH: {} ".format(epoch),end='',flush=True)
 
         sum_loss = 0
-        for batch_idx,(X,Y) in enumerate(train_loader):
-            
-            #CST20240315 else make program exit and say train data set is too low
-            if int((len(train_dataset) / batch_size)/10) != 0: #So it won't crash 
-                if batch_idx % int((len(train_dataset) / batch_size)/10) == 0:
-                    print('.', end='',flush=True)
+        if cfg['model'] == 'VarioNet':
+            # Training phase
+            for batch_idx, (images, variograms, labels) in enumerate(train_loader):
+                if int((len(train_dataset) / batch_size)/10) != 0: #So it won't crash 
+                    if batch_idx % int((len(train_dataset) / batch_size)/10) == 0:
+                        print('.', end='',flush=True)
+                else:
+                    print("ERROR: The length of the training dataset is too small") #CST 20240318
+                    sys.exit(0)
+                if args.cuda:
+                    images, variograms, labels = images.to(device), variograms.to(device), labels.to(device)
+                    images = torch.unsqueeze(images,1).float()
+                    #images = images.view(images.size(0), images.size(2), images.size(3), images.size(4))
+                    variograms = torch.unsqueeze(variograms,1).float()
+                else:
+                    images = torch.unsqueeze(images,1).float()
+                    #images = images.view(images.size(0), images.size(2), images.size(3), images.size(4))
+                    variograms = torch.unsqueeze(variograms,1).float()
+               
+                optimizer.zero_grad()
+                outputs = model(images, variograms)
+                loss = criterion(outputs, labels)
+                loss.backward()
+                optimizer.step()
+
+                sum_loss += loss.item()
+            train_losses.append(sum_loss/batch_idx)
+            # Validation phase
+            model.eval()
+            val_loss = 0.0
+            correct = 0
+
+            with torch.no_grad():
+                for batch_idx, (images, variograms, labels) in enumerate(valid_loader):
+                    if args.cuda:
+                        images, variograms, labels = images.to(device), variograms.to(device), labels.to(device)
+                        images = torch.unsqueeze(images,1).float()
+                        #images = images.view(images.size(0), images.size(2), images.size(3), images.size(4))
+                        variograms = torch.unsqueeze(variograms,1).float()
+                    else:
+                        images = torch.unsqueeze(images,1).float()
+                        #images = images.view(images.size(0), images.size(2), images.size(3), images.size(4))
+                        variograms = torch.unsqueeze(variograms,1).float()
+                    outputs = model(images, variograms)
+                    loss = criterion(outputs, labels)
+                    val_loss += loss.item()
+                    pred = outputs.argmax(dim=1, keepdim=True)
+                    correct += pred.eq(labels.view_as(pred)).sum().item()
+       
+            valid_losses.append(val_loss/batch_idx)
+        else:
+            for batch_idx,(X,Y) in enumerate(train_loader):
+                
+                #CST20240315 else make program exit and say train data set is too low
+                if int((len(train_dataset) / batch_size)/10) != 0: #So it won't crash 
+                    if batch_idx % int((len(train_dataset) / batch_size)/10) == 0:
+                        print('.', end='',flush=True)
+                else:
+                    print("ERROR: The length of the training dataset is too small") #CST 20240318
+                    sys.exit(0)
+
+                # Move batch to GPU
+                if args.cuda:
+                    X,Y = X.to(device),Y.to(device)
+                    #X = X.view((X.shape[0],1,-1)).float()
+                    X = torch.unsqueeze(X,1).float()
+                else:
+                    #X = X.view((X.shape[0],1,-1)).float()
+                    X = torch.unsqueeze(X,1).float()
+
+                # Compute forward pass
+                Y_hat = model.forward(X)
+
+                # Calculate training loss
+                loss = criterion(Y_hat, Y)
+
+                # Perform backprop and zero gradient
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                optimizer.zero_grad()
+
+                sum_loss = sum_loss + float(criterion(Y_hat, Y))
+
+                #print("EPOCH: %d\t BATCH: %d\tTRAIN LOSS = %f"%(epoch,batch_idx,loss.item()))
+                #Make exit if batch_idx is zero
+            if batch_idx != 0:
+                train_losses.append(sum_loss/batch_idx)
             else:
                 print("ERROR: The length of the training dataset is too small") #CST 20240318
                 sys.exit(0)
 
-            # Move batch to GPU
-            if args.cuda:
-                X,Y = X.to(device),Y.to(device)
-                #X = X.view((X.shape[0],1,-1)).float()
-                X = torch.unsqueeze(X,1).float()
-            else:
-                #X = X.view((X.shape[0],1,-1)).float()
-                X = torch.unsqueeze(X,1).float()
 
-            # Compute forward pass
-            Y_hat = model.forward(X)
+            print('running validation')
 
-            # Calculate training loss
-            loss = criterion(Y_hat, Y)
+            #Valid
+            loss = 0
+            for batch_idx,(X,Y) in enumerate(valid_loader):
+                # Move batch to GPU
+                if args.cuda:
+                    X,Y = X.to(device),Y.to(device)
+                    #X = X.view((X.shape[0],1,-1)).float()
+                    X = torch.unsqueeze(X,1).float()
+                else:
+                    #X = X.view((X.shape[0],1,-1)).float()
+                    X = torch.unsqueeze(X,1).float()
 
-            # Perform backprop and zero gradient
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
+                # Compute forward pass
+                Y_hat = model.forward(X)
 
-            sum_loss = sum_loss + float(criterion(Y_hat, Y))
-
-            #print("EPOCH: %d\t BATCH: %d\tTRAIN LOSS = %f"%(epoch,batch_idx,loss.item()))
-            #Make exit if batch_idx is zero
-        if batch_idx != 0:
-            train_losses.append(sum_loss/batch_idx)
-        else:
-            print("ERROR: The length of the training dataset is too small") #CST 20240318
-            sys.exit(0)
-
-
-        print('running validation')
-
-        #Valid
-        loss = 0
-        for batch_idx,(X,Y) in enumerate(valid_loader):
-            # Move batch to GPU
-            if args.cuda:
-                X,Y = X.to(device),Y.to(device)
-                #X = X.view((X.shape[0],1,-1)).float()
-                X = torch.unsqueeze(X,1).float()
-            else:
-                #X = X.view((X.shape[0],1,-1)).float()
-                X = torch.unsqueeze(X,1).float()
-
-            # Compute forward pass
-            Y_hat = model.forward(X)
-
-            # Calculate training loss
-            loss = loss + float(criterion(Y_hat, Y))
+                # Calculate training loss
+                loss = loss + float(criterion(Y_hat, Y))
 
         valid_losses.append(loss/batch_idx)
         print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))

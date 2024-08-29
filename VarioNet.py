@@ -4,14 +4,28 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision.transforms as transforms
 from torchvision import models
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset as dataset
 from PIL import Image
 import numpy as np
 from utils import *
 import cv2
 import rasterio as rio
+import numpy
+import yaml
+import argparse
+from Models import *
+from Models import VarioMLP
+from Models import Resnet18
 
 
+parser = argparse.ArgumentParser()
+parser.add_argument("config", type=str)
+parser.add_argument("-c", "--cuda", action="store_true")
+parser.add_argument("--load_checkpoint", type=str, default=None)
+parser.add_argument("--netCDF", action="store_true")
+args = parser.parse_args()
+with open(args.config, 'r') as ymlfile:
+    cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
 def load_images(image_paths):
     images = []
@@ -28,16 +42,11 @@ def collect_image_paths_and_labels(image_folder):
     image_paths = []
     labels = []
     variograms = []
-    label_map = {}  # To store the mapping from folder names to label indices
-    label_counter = 0
 
     for label_name in os.listdir(image_folder):
         label_path = os.path.join(image_folder, label_name)
         if os.path.isdir(label_path):
-            if label_name not in label_map:
-                label_map[label_name] = label_counter
-                label_counter += 1
-            label_index = label_map[label_name]
+            label_index = int(label_name)
             for img_name in os.listdir(label_path):
                 if img_name.endswith(('png', 'tiff', 'tif')):
                     img_path = os.path.join(label_path, img_name)
@@ -46,19 +55,27 @@ def collect_image_paths_and_labels(image_folder):
                     # Load image and convert to numpy array
                     image = Image.open(img_path).convert('RGB')
                     image_np = np.array(image)
-                    variogram = silas_directional_vario(image_np)
+                    variogram = get_varios(image_np)
                     variograms.append(variogram)
-    return image_paths, np.array(variograms), labels, label_map
+    return image_paths, np.array(variograms), labels
 
-#Labels are just in order, not the actually class so this needs to change in final implentation
+def get_varios(img):
+    numLag = cfg['vario_num_lag']
+    imSize = img.shape
+    if (imSize[0] == 201 and imSize[1] == 268) or (imSize[0] == 268 and imSize[1] == 201):
+        return silas_directional_vario(img, numLag)
+    else:
+        print("Use an image size of (201,268) for best results")
+        return fast_directional_vario(img, numLag)
+#Labels are just in order, not the actual class so this needs to change in final implentation
 #Testing Dataset
 
-class TestDataset(Dataset):
-    def __init__(self, imgPath, imgData, labels):
+class TestDataset(dataset):
+    def __init__(self, imgPath, imgData, labels, train):
+        self.train = train
         imagePaths = getImgPaths(imgPath)
         imageLabels = labels
         imageData = imgData
-
         # Extract all split images and store in dataframe
         dataArray = []
         self.varios = []  # Initialize self.varios as an instance attribute
@@ -66,8 +83,13 @@ class TestDataset(Dataset):
         for imgNum, imagePath in enumerate(imagePaths):
             print("\nCalculating Variograms for Image", imgNum)
             TimageLabels = list(zip(*imageLabels))
-
+            a=0
             if len(TimageLabels) == 7:  # Training
+                for i in range(0,len(TimageLabels[6])):
+                    if TimageLabels[6][i]==imgNum:
+                        a=1
+                if self.train and a == 0:
+                            continue
                 img = rio.open(imagePath)
                 imageMatrix = img.read(1)
                 
@@ -82,11 +104,41 @@ class TestDataset(Dataset):
                         x, y = row[0:2].astype('int')
                         splitImg_np = imageMatrix[x:x + winSize[0], y:y + winSize[1]]
                         splitImg_np = scaleImage(splitImg_np, max_sigma)
-                        variogram = silas_directional_vario(splitImg_np)
+                        variogram = get_varios(splitImg_np)
                         self.varios.append(variogram)
                         rowlist = list(row)
                         rowlist.append(splitImg_np)
                         if splitImg_np.shape[0] == 0 or splitImg_np.shape[1] == 0:
+                            print("Error with an image: ", i, "class: ", rowlist[4], "image source: ", rowlist[6])
+                        else:
+                            dataArray.append(rowlist)
+            elif len(TimageLabels) == 1: #testing
+                    # If training, and there are no labeled split images from tiff image, skip loading it
+                for i in range(0,len(TimageLabels[0])):
+                    if TimageLabels[0][i][6]==imgNum:
+                        a=1
+                if self.train and a == 0:
+                            continue
+                    
+
+                img = rio.open(imagePath)
+                imageMatrix = img.read(1)
+                
+                max = get_img_sigma(imageMatrix[::10,::10])
+                winSize = imageData['winsize_pix']
+                #CST 20240329
+                for i in range(0,len(TimageLabels[0])):
+                    if TimageLabels[0][i][6] == imgNum:
+                        row = imageLabels[i][0]
+                        #print(row)
+                        x,y = row[0:2].astype('int')
+                        splitImg_np = imageMatrix[x:x+winSize[0],y:y+winSize[1]]
+                        splitImg_np = scaleImage(splitImg_np, max)
+                        variogram = get_varios(splitImg_np)
+                        self.varios.append(variogram)
+                        rowlist = list(row)
+                        rowlist.append(splitImg_np)
+                        if (splitImg_np.shape[0] == 0) or (splitImg_np.shape[1] == 0):
                             print("Error with an image: ", i, "class: ", rowlist[4], "image source: ", rowlist[6])
                         else:
                             dataArray.append(rowlist)
@@ -100,21 +152,31 @@ class TestDataset(Dataset):
 
     def __getitem__(self, idx):
         splitImg_np = self.dataFrame.iloc[idx, 7]
-        variograms = self.varios[idx]
+        variograms = self.varios[idx]/100 #decreases effect on network
 
         splitImg_tensor = torch.from_numpy(splitImg_np)
         vario_tensor = torch.from_numpy(variograms)
-
-        return splitImg_tensor, vario_tensor
+        if self.train:
+            label = int(self.dataFrame.iloc[idx,4])
+            return (splitImg_tensor, vario_tensor, label)
+        else:
+            return splitImg_tensor, vario_tensor
 
 
 # Custom Dataset Class
-class CustomDataset(Dataset):
-    def __init__(self, image_paths, variogram_data, labels, transform=None):
-        self.image_paths = image_paths
-        self.variogram_data = variogram_data
-        self.labels = labels
-        self.transform = transform
+class FromFolderDataset(dataset):
+    def __init__(self, model, image_paths, variogram_data, labels, transform=None):
+        self.model = model
+        if self.model == 'VarioNet':
+            self.image_paths = image_paths
+            self.variogram_data = variogram_data
+            self.labels = labels
+            self.transform = transform
+        else:
+            self.image_paths = image_paths
+            self.labels = labels
+            self.transform = transform
+            
 
     def __len__(self):
         return len(self.image_paths)
@@ -122,18 +184,20 @@ class CustomDataset(Dataset):
     def __getitem__(self, idx):
         image_path = self.image_paths[idx]
         try:
-            image = rio.open(image_path)
+            image = Image.open(image_path)
         except Exception as e:
             print(f"Error opening image at {image_path}: {str(e)}")
             raise e
+        IMGnp = numpy.array(image)
         
-        variogram = self.variogram_data[idx]
-        label = self.labels[idx]
-
+        label = int(self.labels[idx])
         if self.transform:
             image = self.transform(image)
-
-        return image, variogram, label
+        if self.model == 'VarioNet':
+            variogram = self.variogram_data[idx]/100 #decreases effect on network
+            return IMGnp, variogram, int(label)
+        else:
+            return IMGnp, int(label)
 
 # Define transforms
 transform = transforms.Compose([
@@ -142,44 +206,32 @@ transform = transforms.Compose([
     transforms.Normalize(mean=[0.485], std=[0.229])  # Use grayscale mean and std
 ])
 
-
-
-resnet = models.resnet18(pretrained=False)
-
-# Modify the first convolutional layer to accept single-channel input
-num_ftrs = resnet.fc.in_features
-original_conv1 = resnet.conv1
-resnet.conv1 = nn.Conv2d(1, original_conv1.out_channels, kernel_size=original_conv1.kernel_size, 
-                         stride=original_conv1.stride, padding=original_conv1.padding, bias=original_conv1.bias)
-
-# Initialize the new layer's weights by averaging the original layer's weights
-with torch.no_grad():
-    resnet.conv1.weight = nn.Parameter(torch.mean(original_conv1.weight, dim=1, keepdim=True))
-
-
-# Define the custom neural network
-class CombinedNN(nn.Module):
-    def __init__(self, resnet, variogram_size, num_classes):
-        super(CombinedNN, self).__init__()
-        self.resnet = resnet
+class CombinedModel(nn.Module):
+    def __init__(self, vario_num_lag, num_classes):
+        super(CombinedModel, self).__init__()
+        # Initialize the VarioMLP model
+        self.vario_mlp = VarioMLP.VarioMLP(num_classes=num_classes, vario_num_lag=vario_num_lag, varnet=True)
         
-        # Determine the output dimension of ResNet's final layer
-        resnet_output_dim = 512  # This should match the output dimension of ResNet-18
+        # Initialize the ResNet18 model
+        self.resnet18 = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
         
-        # Define fully connected layers
-        self.fc1 = nn.Linear(variogram_size + 1000, resnet_output_dim) #The 1000 is the size of the image features but I'm not sure if this is always 1000 for resnet18
-        self.fc2 = nn.Linear(resnet_output_dim, num_classes)
+        # Adjust this according to your needs
+        combined_output_size = num_classes * 2
+        
+        # Final fully connected layer to combine the outputs
+        self.fc = nn.Linear(combined_output_size, num_classes)
 
-    def forward(self, image, variogram):
-        # Extract image features using ResNet
-        image_features = self.resnet(image)
-        image_features = image_features.view(image_features.size(0), -1)  # Flatten image features
-        # Flatten and process variogram data
-        variogram = variogram.float()
-        variogram = variogram.view(variogram.size(0), -1)
-        # Concatenate image features and variogram features
-        combined_features = torch.cat((image_features, variogram), dim=1)
-        # Forward pass through fully connected layers
-        x = torch.relu(self.fc1(combined_features))
-        x = self.fc2(x)
-        return x
+    def forward(self, image_data, variogram_data):
+        # Forward pass through VarioMLP
+        vario_out = self.vario_mlp(variogram_data)
+        
+        # Forward pass through ResNet18
+        resnet_out = self.resnet18(image_data)
+        
+        # Concatenate the outputs
+        combined_out = torch.cat((vario_out, resnet_out), dim=1)
+        
+        # Final output
+        final_out = self.fc(combined_out)
+        
+        return final_out

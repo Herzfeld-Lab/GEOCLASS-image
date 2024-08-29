@@ -535,7 +535,8 @@ class SplitImageTool(QWidget):
         self.tiff_image_label.setPixmap(background_image)
 
         # new line, puts images onto grid but only after first click and the rgb image doesn't show up...
-        self.left_layout.addLayout(self.grid_layout)
+        self.left_layout.addLayout(self.grid_layout) #something about this causes a warning: QLayout::addChildLayout: layout "" already has a parent
+        self.master_layout.addLayout(self.left_layout)
 
     #CST20240313 (creating a function to write images into a folder)
     def writeImage(self,filePath, fileName, index):
