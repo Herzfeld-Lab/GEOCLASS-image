@@ -207,28 +207,26 @@ transform = transforms.Compose([
 ])
 
 class CombinedModel(nn.Module):
-    def __init__(self, vario_num_lag, num_classes):
+    def __init__(self, vario_mlp, resnet18, num_classes):
         super(CombinedModel, self).__init__()
-        # Initialize the VarioMLP model
-        self.vario_mlp = VarioMLP.VarioMLP(num_classes=num_classes, vario_num_lag=vario_num_lag, varnet=True)
+        self.vario_mlp = vario_mlp
+        self.resnet18 = resnet18
         
-        # Initialize the ResNet18 model
-        self.resnet18 = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
+        # Freeze the weights of VarioMLP and ResNet18
+        for param in self.vario_mlp.parameters():
+            param.requires_grad = False
+        for param in self.resnet18.parameters():
+            param.requires_grad = False
         
-        # Adjust this according to your needs
+        # Final fully connected layer after combining features
         combined_output_size = num_classes * 2
-        
-        # Final fully connected layer to combine the outputs
         self.fc = nn.Linear(combined_output_size, num_classes)
 
     def forward(self, image_data, variogram_data):
-        # Forward pass through VarioMLP
         vario_out = self.vario_mlp(variogram_data)
-        
-        # Forward pass through ResNet18
         resnet_out = self.resnet18(image_data)
         
-        # Concatenate the outputs
+        # Combine the outputs (e.g., concatenation)
         combined_out = torch.cat((vario_out, resnet_out), dim=1)
         
         # Final output

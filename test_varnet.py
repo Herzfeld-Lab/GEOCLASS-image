@@ -13,7 +13,7 @@ import argparse
 from datetime import datetime
 import random
 from Models import *
-from VarioNet import CombinedNN
+from VarioNet import CombinedModel
 from VarioNet import collect_image_paths_and_labels
 from VarioNet import load_images
 from VarioNet import TestDataset
@@ -73,7 +73,7 @@ elif cfg['model'] == 'VarioNet': #Only works for training via images as of now
     # Calculate the size of the variogram data
     #variogram_size = variogram_data.shape[0] * variogram_data.shape[1] * vario_num_lag  # 212
     variogram_size = 1*4*vario_num_lag
-    model = CombinedNN.varionet(variogram_size, num_classes, pretrained=False)
+    model = CombinedModel(vario_num_lag, num_classes)
     img_transforms_valid = None
 
 elif cfg['model'] == 'DDAiceNet':
@@ -193,35 +193,41 @@ confs = []
 
 if cfg['model'] == 'VarioNet':
 
-    for batch_idx, (images, varios) in enumerate(valid_loader):
-        if batch_idx % 100 == 0:
-            print(batch_idx)
-        # Move batch to GPU
-        if args.cuda:
-            images = images.to(device)
-            #varios = varios.to(device)
-        #varios = torch.unsqueeze(varios,1).float()
-        images = torch.unsqueeze(images,1).float()
-        
-        # Compute forward pass
-        Y_hat = model(images, varios)
+    with torch.no_grad():  # No need to calculate gradients during testing
+        for batch_idx, (images, variograms) in enumerate(valid_loader):
+            
+            if batch_idx % 100 == 0:
+                print(f"Processing batch {batch_idx}")
 
-        sm = softmax(Y_hat)
+            # Move data to GPU
+            if args.cuda:
+                images = images.to(device)
+                variograms = variograms.to(device)
 
-        conf = sm.max()
+            # Unsqueeze if needed (add a channel dimension for grayscale images)
+            images = torch.unsqueeze(images, 1).float()
+            variograms = variograms.float()  # Ensure variograms are floats
 
-        if conf > 0:
-            labels.append(torch.argmax(Y_hat))
-            confs.append(conf.item())
-        else:
-            labels.append(num_classes)
+            # Compute forward pass through the combined model
+            Y_hat = model(images, variograms)
 
+            # Apply softmax to get probabilities
+            sm = softmax(Y_hat)
+
+            # Get the max confidence score and corresponding label
+            conf = sm.max()
+
+            if conf > 0:
+                labels.append(torch.argmax(Y_hat))
+                confs.append(conf.item())
+            else:
+                labels.append(num_classes)
 else:              
     for batch_idx,X in enumerate(valid_loader):
 
         if batch_idx % 100 == 0:
-            print(batch_idx)
-            
+            print(f"Processing batch {batch_idx}")
+                
         # Move batch to GPU
         if args.cuda:
             X = X.to(device)

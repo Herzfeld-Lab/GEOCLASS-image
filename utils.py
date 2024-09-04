@@ -728,6 +728,7 @@ equal_dataset:      {}
 train_with_img: {}
 use_cuda:       {}
 num_epochs:     {}
+fine_epochs:    {}
 learning_rate:  {}
 batch_size:     {}
 optimizer:      {}
@@ -766,6 +767,7 @@ bg_UTM_path:        {}
                    yaml_obj['train_with_img'],
                    yaml_obj['use_cuda'],
                    yaml_obj['num_epochs'],
+                   yaml_obj['fine_epochs'],
                    yaml_obj['learning_rate'],
                    yaml_obj['batch_size'],
                    yaml_obj['optimizer'],

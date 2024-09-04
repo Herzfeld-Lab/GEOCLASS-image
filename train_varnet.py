@@ -75,6 +75,7 @@ with open(args.config, 'r') as ymlfile:
 learning_rate = float(cfg['learning_rate'])
 batch_size = cfg['batch_size']
 num_epochs = cfg['num_epochs']
+fine_epochs = cfg['fine_epochs']
 hidden_layers = cfg['hidden_layers']
 imgTrain = cfg['train_with_img']
 
@@ -123,7 +124,7 @@ elif cfg['model'] == 'VarioNet': #Only works for training via images as of now
     # Calculate the size of the variogram data
     #variogram_size = variogram_data.shape[0] * variogram_data.shape[1] * vario_num_lag  # 212
     variogram_size = 1*4*vario_num_lag
-    model = CombinedModel(vario_num_lag, num_classes)
+    #model = CombinedModel(vario_num_lag, num_classes)
     
     img_transforms_train = None
     img_transforms_valid = None
@@ -140,11 +141,20 @@ elif cfg['model'] == 'DDAiceNet':
 else:
     print("Error: Model \'{}\' not recognized".format(cfg['model']))
     exit(1)
-
-print(model)
+if cfg['model'] == 'VarioNet':
+    print("VarioNet")
+else:
+    print(model)
 if imgTrain:
     # Perform train/test split
     if cfg['model'] == 'VarioNet' or cfg['model'] == 'Resnet18':
+        label_path = cfg['training_img_npy']
+        labeled_data = np.load(label_path, allow_pickle=True)
+        labelInfo = labeled_data[0]
+        dataset_labeled = labeled_data[1]
+        dataset = np.load(dataset_path, allow_pickle=True)
+        dataset_info = dataset[0]
+        dataset_coords = dataset[1]
         train_size = int(cfg['train_test_split'] * len(image_paths))
         train_indeces = np.random.choice(range(np.array(len(image_paths))), train_size, replace=False)
         test_indeces = np.setdiff1d(range(np.array(len(image_paths))), train_indeces)
@@ -155,15 +165,19 @@ if imgTrain:
         test_var = []
         train_labels = []
         test_labels = []
+        train_coords = []
+        test_coords = []
 
         for i in train_indeces:
             train_imgs.append(image_paths[i])
             train_var.append(variogram_data[i])
             train_labels.append(labels[i])
+            train_coords.append(dataset_labeled[i])
         for i in test_indeces:
             test_imgs.append(image_paths[i])
             test_var.append(variogram_data[i])
             test_labels.append(labels[i])
+            test_coords.append(dataset_labeled[[i]])
     else:
         label_path = cfg['training_img_npy']
         labeled_data = np.load(label_path, allow_pickle=True)
@@ -205,7 +219,38 @@ if imgTrain:
             transform = img_transforms_valid
             )
 
-    elif cfg['model'] == 'VarioNet' or cfg['model'] == 'Resnet18':
+    elif cfg['model'] == 'VarioNet':
+        trainImages = load_images(train_imgs)
+        testImages = load_images(test_imgs)
+        transform = transforms.Compose([
+            transforms.Resize((224, 224)),  # Resize images to match ResNet18 input size
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485], std=[0.229])  # Use grayscale mean and std
+        ])
+        var_transforms_train = transforms.Compose([
+        DirectionalVario(vario_num_lag),
+        RandomRotateVario(),
+        ])
+        
+        train_dataset = FromFolderDataset(cfg['model'], train_imgs, train_var, train_labels, transform)
+        valid_dataset = FromFolderDataset(cfg['model'], test_imgs, test_var, test_labels, transform)
+
+        vario_dataset = SplitImageDataset(
+            imgPath = topDir,
+            imgData = dataset_info,
+            labels = train_coords,
+            train = True,
+            transform = var_transforms_train
+            )
+        image_dataset = SplitImageDataset(
+            imgPath = topDir,
+            imgData = dataset_info,
+            labels = train_coords,
+            train = True,
+            transform = img_transforms_train
+            )
+
+    elif cfg['model'] == 'Resnet18':
         trainImages = load_images(train_imgs)
         testImages = load_images(test_imgs)
         transform = transforms.Compose([
@@ -239,7 +284,7 @@ if imgTrain:
     # for i in range(num_classes):
     #     print('Class {}: {} - {} valid images'.format(i,classEnum[i],len(test_coords[test_coords[:,4] == i])))
     print('----- Initializing DataLoader -----')
-
+    
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
@@ -274,16 +319,17 @@ if imgTrain:
     else:
         # Initialize loss critereron and gradient descent optimizer
         criterion = torch.nn.CrossEntropyLoss()
-        optimizer = optim.Adam(model.parameters(),lr=learning_rate)
+        if cfg['model'] != 'VarioNet':
+            optimizer = optim.Adam(model.parameters(),lr=learning_rate)
 
     # Load model checkpoint
-    if args.load_checkpoint:
+    if args.load_checkpoint and cfg['model'] != 'VarioNet':
         checkpoint_path = args.load_checkpoint
         checkpoint = torch.load(checkpoint_path)
         model.load_state_dict(checkpoint['state_dict'])
 
     # Initialize cuda
-    if args.cuda:
+    if args.cuda and cfg['model'] != 'VarioNet':
         print('----- Initializing CUDA -----')
         torch.cuda.set_device(0)
         device = torch.device("cuda:0")
@@ -312,41 +358,121 @@ if imgTrain:
     varioLoss = []
     # X = tensor
     # Y = label
+    if cfg['model'] == 'VarioNet':
+            sum_loss = 0
+            print("Training VarioMLP")
+            vario_mlp = VarioMLP.VarioMLP(num_classes, vario_num_lag, hidden_layers=hidden_layers) 
+            optimizer_vario = torch.optim.Adam(vario_mlp.parameters(), lr=learning_rate)
+            vario_loader = DataLoader(
+                vario_dataset,
+                batch_size=batch_size,
+                shuffle=True
+                )
+            
+            for epoch in range(num_epochs):
+                vario_mlp.train()
+                for batch_idx, (X,Y) in enumerate(vario_loader):
+                    if args.cuda:
+                        X,Y = X.to(device),Y.to(device)
+                    X = torch.unsqueeze(X,1).float()
+                    Y_hat = vario_mlp.forward(X)
+                    # Calculate training loss
+                    loss = criterion(Y_hat, Y)
+                    # Perform backprop and zero gradient
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+                    optimizer.zero_grad()
+                    
 
-    for epoch in range(num_epochs):
+                print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}")
 
-        print("EPOCH: {} ".format(epoch),end='',flush=True)
+            # Save VarioMLP model
+            torch.save(vario_mlp.state_dict(), 'vario_mlp.pth')
+            #Resnet
+            print("Training Resnet18")
+            resnet18 = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
+            optimizer_resnet = torch.optim.Adam(resnet18.parameters(), lr=learning_rate)
+            criterion = nn.CrossEntropyLoss()
+            image_loader = DataLoader(
+                image_dataset,
+                batch_size=batch_size,
+                shuffle=True
+                )
+            # Train loop for ResNet18
+            for epoch in range(num_epochs):
+                resnet18.train()
+                for batch_idx, (X,Y) in enumerate(image_loader):
+                    if args.cuda:
+                        X,Y = X.to(device),Y.to(device)
+                    X = torch.unsqueeze(X,1).float()
+                    Y_hat = resnet18.forward(X)
+                    # Calculate training loss
+                    loss = criterion(Y_hat, Y)
+                    # Perform backprop and zero gradient
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+                    optimizer.zero_grad()
 
-        sum_loss = 0
-        if cfg['model'] == 'VarioNet':
-            # Training phase
-            for batch_idx, (images, variograms, labels) in enumerate(train_loader):
-                if int((len(train_dataset) / batch_size)/10) != 0: #So it won't crash 
-                    if batch_idx % int((len(train_dataset) / batch_size)/10) == 0:
-                        print('.', end='',flush=True)
-                else:
-                    print("ERROR: The length of the training dataset is too small") #CST 20240318
-                    sys.exit(0)
-                if args.cuda:
-                    images, variograms, labels = images.to(device), variograms.to(device), labels.to(device)
+                print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}")
+
+            # Save ResNet18 model
+            torch.save(resnet18.state_dict(), 'resnet18.pth')
+
+
+
+
+            vario_mlp.load_state_dict(torch.load('vario_mlp.pth'))
+            resnet18.load_state_dict(torch.load('resnet18.pth'))
+            combined_model = CombinedModel(vario_mlp, resnet18, num_classes)
+            model = combined_model
+            if args.cuda:
+                print('----- Initializing CUDA -----')
+                torch.cuda.set_device(0)
+                device = torch.device("cuda:0")
+                combined_model.cuda()
+                #optimizer.cuda()
+
+            optimizer = optim.Adam(combined_model.parameters(),lr=learning_rate)
+            for epoch in range(num_epochs):
+                combined_model.train()
+                for images, variograms, labels in train_loader:
+                    if args.cuda:
+                        images, variograms, labels = images.to(device), variograms.to(device), labels.to(device)
                     images = torch.unsqueeze(images,1).float()
-                    #images = images.view(images.size(0), images.size(2), images.size(3), images.size(4))
                     variograms = torch.unsqueeze(variograms,1).float()
-                else:
+                    optimizer.zero_grad()
+                    outputs = combined_model(images, variograms)
+                    loss = criterion(outputs, labels)
+                    loss.backward()
+                    optimizer.step()
+
+            for param in combined_model.parameters():
+                param.requires_grad = True
+
+            # Fine-tune with a smaller learning rate
+            optimizer_finetune = torch.optim.Adam(combined_model.parameters(), lr=1e-6)
+
+            # Fine-tuning loop
+            for epoch in range(fine_epochs):
+                combined_model.train()
+                for batch_idx, (images, variograms, labels) in enumerate(train_loader):
+                    if args.cuda:
+                        images, variograms, labels = images.to(device), variograms.to(device), labels.to(device)
                     images = torch.unsqueeze(images,1).float()
-                    #images = images.view(images.size(0), images.size(2), images.size(3), images.size(4))
                     variograms = torch.unsqueeze(variograms,1).float()
-               
-                optimizer.zero_grad()
-                outputs = model(images, variograms)
-                loss = criterion(outputs, labels)
-                loss.backward()
-                optimizer.step()
-                sum_loss += loss.item()
+                    optimizer_finetune.zero_grad()
+                    outputs = combined_model(images, variograms)
+                    loss = criterion(outputs, labels)
+                    loss.backward()
+                    optimizer_finetune.step()
+                    sum_loss += loss.item()
             train_losses.append(sum_loss/batch_idx)
+
             # Validation phase
             print('running validation')
-            model.eval()
+            combined_model.eval()
             val_loss = 0.0
             correct = 0
             total_variogram_loss= 0.0
@@ -356,14 +482,10 @@ if imgTrain:
                 for batch_idx, (images, variograms, labels) in enumerate(valid_loader):
                     if args.cuda:
                         images, variograms, labels = images.to(device), variograms.to(device), labels.to(device)
-                        images = torch.unsqueeze(images,1).float()
-                        #images = images.view(images.size(0), images.size(2), images.size(3), images.size(4))
-                        variograms = torch.unsqueeze(variograms,1).float()
-                    else:
-                        images = torch.unsqueeze(images,1).float()
-                        #images = images.view(images.size(0), images.size(2), images.size(3), images.size(4))
-                        variograms = torch.unsqueeze(variograms,1).float()
-                    outputs = model(images, variograms)
+                    images = torch.unsqueeze(images,1).float()
+                    variograms = torch.unsqueeze(variograms,1).float()
+                    
+                    outputs = combined_model(images, variograms)
                     loss = criterion(outputs, labels)
                     val_loss += loss.item()
                     #variogram_validation = model(images, variogram=variograms)
@@ -373,9 +495,15 @@ if imgTrain:
                     correct += pred.eq(labels.view_as(pred)).sum().item()
        
             valid_losses.append(val_loss/batch_idx)
-            #varioLoss.append(total_variogram_loss/batch_idx)
+    for epoch in range(num_epochs):
 
+        print("EPOCH: {} ".format(epoch),end='',flush=True)
 
+        sum_loss = 0
+        
+
+        if cfg['model'] == 'VarioNet':
+            print("")
         else:
             for batch_idx,(X,Y) in enumerate(train_loader):
                 
@@ -440,10 +568,9 @@ if imgTrain:
                 loss = loss + float(criterion(Y_hat, Y))
 
             valid_losses.append(loss/batch_idx)
-        if cfg['model'] == 'VarioNet':
-            #print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}\tVARIO LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1],varioLoss[-1]))
         
-            print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
+        
+        print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
 
         print('saving checkpoint')
         # Save checkpoint
@@ -755,3 +882,76 @@ else:
                 'optimizer' : optimizer.state_dict()}
     torch.save(checkpoint, checkpoint_path)
     save_losses()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    """
+            # Training phase
+            for batch_idx, (images, variograms, labels) in enumerate(train_loader):
+                if int((len(train_dataset) / batch_size)/10) != 0: #So it won't crash 
+                    if batch_idx % int((len(train_dataset) / batch_size)/10) == 0:
+                        print('.', end='',flush=True)
+                else:
+                    print("ERROR: The length of the training dataset is too small") #CST 20240318
+                    sys.exit(0)
+                if args.cuda:
+                    images, variograms, labels = images.to(device), variograms.to(device), labels.to(device)
+                    images = torch.unsqueeze(images,1).float()
+                    #images = images.view(images.size(0), images.size(2), images.size(3), images.size(4))
+                    variograms = torch.unsqueeze(variograms,1).float()
+                else:
+                    images = torch.unsqueeze(images,1).float()
+                    #images = images.view(images.size(0), images.size(2), images.size(3), images.size(4))
+                    variograms = torch.unsqueeze(variograms,1).float()
+               
+                optimizer.zero_grad()
+                outputs = model(images, variograms)
+                loss = criterion(outputs, labels)
+                loss.backward()
+                optimizer.step()
+                sum_loss += loss.item()
+            train_losses.append(sum_loss/batch_idx)
+            # Validation phase
+            print('running validation')
+            model.eval()
+            val_loss = 0.0
+            correct = 0
+            total_variogram_loss= 0.0
+            varioLoss = []
+
+            with torch.no_grad():
+                for batch_idx, (images, variograms, labels) in enumerate(valid_loader):
+                    if args.cuda:
+                        images, variograms, labels = images.to(device), variograms.to(device), labels.to(device)
+                        images = torch.unsqueeze(images,1).float()
+                        #images = images.view(images.size(0), images.size(2), images.size(3), images.size(4))
+                        variograms = torch.unsqueeze(variograms,1).float()
+                    else:
+                        images = torch.unsqueeze(images,1).float()
+                        #images = images.view(images.size(0), images.size(2), images.size(3), images.size(4))
+                        variograms = torch.unsqueeze(variograms,1).float()
+                    outputs = model(images, variograms)
+                    loss = criterion(outputs, labels)
+                    val_loss += loss.item()
+                    #variogram_validation = model(images, variogram=variograms)
+                    #variogram_loss = criterion(variogram_validation, labels)
+                    #total_variogram_loss += variogram_loss.item()
+                    pred = outputs.argmax(dim=1, keepdim=True)
+                    correct += pred.eq(labels.view_as(pred)).sum().item()
+       
+            valid_losses.append(val_loss/batch_idx)
+            #varioLoss.append(total_variogram_loss/batch_idx)
+"""
