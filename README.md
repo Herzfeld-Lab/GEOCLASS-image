@@ -1,13 +1,13 @@
-# NN_Class User Guide and Documentation
+# GEOCLASS-image User Guide and Documentation
 
-The following is a guide for installing and running the NN_Class software, along with a comprehensive documentation of its features and instructions for how to expand its functionality. The tool and accompanying scripts which make up this repository are suitable for applications in which it is desirable to characterize and classify different sub-regions within large [GeoTIFF images](https://en.wikipedia.org/wiki/GeoTIFF), especially in cases when pre-existing labelled training datasets are not available. The example use-case outlined in this guide consists of classifying glacier surface types from [WorldView](https://www.satimagingcorp.com/satellite-sensors/worldview-2/) images using a Variogram-based Naural Network Classification Model. When using this repository, please report any bugs by [submitting an issue](https://github.com/Herzfeld-Lab/NN_Class/issues/new) with a description of the bug, along with your operating system/version and any relevant screenshots or terminal output.
+The following is a guide for installing and running the GEOCLASS-image software, along with a comprehensive documentation of its features and instructions for how to expand its functionality. The tool and accompanying scripts which make up this repository are suitable for applications in which it is desirable to characterize and classify different sub-regions within large [GeoTIFF images](https://en.wikipedia.org/wiki/GeoTIFF), especially in cases when pre-existing labelled training datasets are not available. The example use-case outlined in this guide consists of classifying glacier surface types from [WorldView](https://www.satimagingcorp.com/satellite-sensors/worldview-2/) images using a Variogram-based Naural Network Classification Model. When using this repository, please report any bugs by [submitting an issue](https://github.com/Herzfeld-Lab/GEOCLASS-image/issues/new) with a description of the bug, along with your operating system/version and any relevant screenshots or terminal output.
 
 # Table of Contents
 
 - [Installation](#installation)
   * [Operating System](#operating-system)
   * [Required Packages](#required-packages)
-  * [NN_Class Installation](#nn_class-installation)
+  * [GEOCLASS-image Installation](#GEOCLASS-image-installation)
 - [Configuration](#configuration)
   * [Setting up the Config Folder](#setting-up-the-config-folder)
   * [Setting up the Data Folder](#setting-up-the-data-folder)
@@ -42,7 +42,7 @@ The following is a guide for installing and running the NN_Class software, along
 
 # Installation
 ## Operating System
-The NN_Class software is meant to run on UNIX-based operating systems, primarily MacOS and Ubuntu. It has been tested on the following systems:
+The GEOCLASS-image software is meant to run on UNIX-based operating systems, primarily MacOS and Ubuntu. It has been tested on the following systems:
 - MacOS 10.14 "Mojave"
 - MacOS 10.15 "Catalina"
 - Ubuntu 18.04 "Bionic Beaver"
@@ -53,35 +53,35 @@ It may be possible to run this software on Windows using the [Windows Linux Subs
 **Note:** Installing and using this software requires basic beginner-level knowledge of using UNIX terminal commands. If you are running Ubuntu, you are likely already familiar with basic terminal commands. If you are running MacOS and have not used the terminal, [here is a basic guide](https://www.makeuseof.com/tag/beginners-guide-mac-terminal/)
 ## Required Packages
 Before setting up the repository, make sure you have python 3.x, pip and git installed on your machine. These should be installed on your machine by default. To check your version of python/pip and upgrade if necessary, follow [this guide for Ubuntu](https://phoenixnap.com/kb/how-to-install-python-3-ubuntu) or [this guide for MacOS](https://opensource.com/article/19/5/python-3-default-mac). For git, follow [this guide](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) Next, you should create and activate a virtual environment, because your computer may be missing certain packages used in this program such as, numba, PyQt5, torch, and more. These packages should all be downloaded in the same virtual environment so they are stored together and are readily available. Once all the necessary packages are installed in the environment, simply activate it before running any scripts. Here is [a guide](https://realpython.com/python-virtual-environments-a-primer/) on creating, activating, and installing packages for a virtual environment. Lastly, ensure that you have administrative privileges, otherwise you won't be able to run this code.
-## NN_Class Installation
+## GEOCLASS-image Installation
 To download the repository, open up a terminal and navigate to the directory in which you want this repository to live. Then, run:
 
 ```
-git clone https://github.com/Herzfeld-Lab/NN_Class.git
+git clone https://github.com/Herzfeld-Lab/GEOCLASS-image.git
 ```
 
 If you don't have an ssh key for github set up on your machine, it will ask for your github username and password in the terminal. If you want to set up an ssh key to make things easier in the future, you can follow the tutorial [here](https://help.github.com/en/github/authenticating-to-github/connecting-to-github-with-ssh)
 
-Once it's finished downloading, navigate into the `NN_Class` directory and run the install dependencies script:
+Once it's finished downloading, navigate into the `GEOCLASS-image` directory and run the install dependencies script:
 
 ```
-cd NN_Class
+cd GEOCLASS-image
 ./install_dependencies.sh
 ```
 
 This will probably take some time.
 # Configuration
-Within the top-level project directory, there are 3 main sub-directories that the user will interact with. First, the `NN_Class/Config/` directory, which contains configuration parameters for the classification model, training algorithm and dataset. Second is the `NN_Class/Data/` directory, which contains the GeoTIFF images which comprise a dataset. Lastly, the `NN_Class/Output/` directory contains output from the training, testing and visualization scripts in the form of model checkpoints, classification results and figures.
+Within the top-level project directory, there are 3 main sub-directories that the user will interact with. First, the `GEOCLASS-image/Config/` directory, which contains configuration parameters for the classification model, training algorithm and dataset. Second is the `GEOCLASS-image/Data/` directory, which contains the GeoTIFF images which comprise a dataset. Lastly, the `GEOCLASS-image/Output/` directory contains output from the training, testing and visualization scripts in the form of model checkpoints, classification results and figures.
 ## Setting up the Data Folder
-Each GeoTIFF image dataset should have its own sub-directory in `NN_Class/Data`. This directory should contain one or more GeoTIFF-formatted images that all contain data from the same [UTM Zone](https://en.wikipedia.org/wiki/Universal_Transverse_Mercator_coordinate_system). For the example project followed in this guide, a `Data/Negri_WV` directory was created, which contains 5 GeoTIFF images of the Negribreen Glacier taken by the WorldView-1 and WorldView-2 satellites.
+Each GeoTIFF image dataset should have its own sub-directory in `GEOCLASS-image/Data`. This directory should contain one or more GeoTIFF-formatted images that all contain data from the same [UTM Zone](https://en.wikipedia.org/wiki/Universal_Transverse_Mercator_coordinate_system). For the example project followed in this guide, a `Data/Negri_WV` directory was created, which contains 5 GeoTIFF images of the Negribreen Glacier taken by the WorldView-1 and WorldView-2 satellites.
 ## Setting up the Config Folder
-Each individual classification project should have its own sub-directory in `NN_Class/Config`. At a minimum, this directory should contain:
+Each individual classification project should have its own sub-directory in `GEOCLASS-image/Config`. At a minimum, this directory should contain:
 1. A YAML-formatted `.config` file which defines all necessary parameters and filepaths for the classification task (described in detail below)
 2. A `.npy`-formatted 'contour' file containing a list of UTM coordinates which define the boundaries of the area-of-interest for the classification task.
 
-There is an example Config folder with the above files included in `NN_Class/Config/mlp_test_negri`, which contains the configuration for classifying surface types of the Negribreen Glacier from WorldView GeoTIFF images. The easiest way to set up your own project is to copy this folder, and change the necessary parameters. In order to create your own area-of-interest contour file, skip to the [Generating a Contour File](#generating-a-contour-file) section before proceeding with the rest of this tutorial.
+There is an example Config folder with the above files included in `GEOCLASS-image/Config/mlp_test_negri`, which contains the configuration for classifying surface types of the Negribreen Glacier from WorldView GeoTIFF images. The easiest way to set up your own project is to copy this folder, and change the necessary parameters. In order to create your own area-of-interest contour file, skip to the [Generating a Contour File](#generating-a-contour-file) section before proceeding with the rest of this tutorial.
 ## Config Parameters
-The YAML-formatted `.config` file contains all of the configuration parameters for a classification task. To create your own config file, simply copy the example provided in `NN_Class/Config/mlp_test_negri/mlp_test_negri.config` and change the parameters to fit your task. The config file must have the exact format provided in the example file for the NN_Class software to work. The parameters in the config file are split into 5 categories, which are defined as follows:
+The YAML-formatted `.config` file contains all of the configuration parameters for a classification task. To create your own config file, simply copy the example provided in `GEOCLASS-image/Config/mlp_test_negri/mlp_test_negri.config` and change the parameters to fit your task. The config file must have the exact format provided in the example file for the GEOCLASS-image software to work. The parameters in the config file are split into 5 categories, which are defined as follows:
 ### Model Parameters
 The model parameters define the hyperparameters of the classification model. Some of these parameters are only relevant to the provided VarioMLP model, implemented in `Models/VarioMLP.py`. For the other provided Resnet18 model (implemented in `Models/Resnet18.py`), set these parameters to `None`.
 - `model`: This defines which Neural Network model to be used. The example project uses VarioMLP.
