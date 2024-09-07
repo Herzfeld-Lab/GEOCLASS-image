@@ -46,6 +46,8 @@ topDir = cfg['img_path']
 dataset_path = cfg['npy_path']
 train_path = cfg['train_path']
 valid_path = cfg['valid_path']
+alpha = cfg['alpha']
+beta = cfg['beta']
 
 # Initialize NN model as specified by config file
 print('----- Initializing Neural Network Model -----')
@@ -69,11 +71,15 @@ elif cfg['model'] == 'VarioNet': #Only works for training via images as of now
     num_classes = cfg['num_classes']
     image_folder = cfg['training_img_path']
     vario_num_lag = cfg['vario_num_lag']
+    hidden_layers = cfg['hidden_layers']
     image_paths, variogram_data, labels = collect_image_paths_and_labels(image_folder)
     # Calculate the size of the variogram data
     #variogram_size = variogram_data.shape[0] * variogram_data.shape[1] * vario_num_lag  # 212
-    variogram_size = 1*4*vario_num_lag
-    model = CombinedModel(vario_num_lag, num_classes)
+    vario_mlp = VarioMLP.VarioMLP(num_classes, vario_num_lag, hidden_layers=hidden_layers)
+    vario_mlp.load_state_dict(torch.load('vario_mlp.pth'))
+    resnet18 = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
+    resnet18.load_state_dict(torch.load('resnet18.pth'))
+    model = CombinedModel(vario_mlp, resnet18, num_classes, alpha, beta)
     img_transforms_valid = None
 
 elif cfg['model'] == 'DDAiceNet':
@@ -193,34 +199,32 @@ confs = []
 
 if cfg['model'] == 'VarioNet':
 
-    with torch.no_grad():  # No need to calculate gradients during testing
-        for batch_idx, (images, variograms) in enumerate(valid_loader):
+    for batch_idx, (images, variograms) in enumerate(valid_loader):
             
-            if batch_idx % 100 == 0:
+        if batch_idx % 100 == 0:
                 print(f"Processing batch {batch_idx}")
 
             # Move data to GPU
-            if args.cuda:
+        if args.cuda:
                 images = images.to(device)
                 variograms = variograms.to(device)
 
             # Unsqueeze if needed (add a channel dimension for grayscale images)
-            images = torch.unsqueeze(images, 1).float()
-            variograms = variograms.float()  # Ensure variograms are floats
+        images = torch.unsqueeze(images, 1).float()
+        variograms = variograms.float()  # Ensure variograms are floats
 
             # Compute forward pass through the combined model
-            Y_hat = model(images, variograms)
-
+        Y_hat = model.forward(images, variograms)
             # Apply softmax to get probabilities
-            sm = softmax(Y_hat)
+        sm = softmax(Y_hat)
 
             # Get the max confidence score and corresponding label
-            conf = sm.max()
+        conf = sm.max()
 
-            if conf > 0:
-                labels.append(torch.argmax(Y_hat))
+        if conf > 0:
+                labels.append(int(torch.argmax(Y_hat)))
                 confs.append(conf.item())
-            else:
+        else:
                 labels.append(num_classes)
 else:              
     for batch_idx,X in enumerate(valid_loader):

@@ -246,7 +246,6 @@ class SplitImageTool(QWidget):
         self.conf_thresh_value.setMargin(0)
         self.conf_thresh_value.setAlignment(Qt.AlignCenter)
         self.conf_thresh_value.setFont(QFont("Helvetica", 13, QFont.Bold))
-
         self.conf_thresh_slider = QSlider(Qt.Horizontal)
         self.conf_thresh_slider.setFocusPolicy(Qt.StrongFocus)
         self.conf_thresh_slider.setTickPosition(QSlider.TicksBothSides)
@@ -255,6 +254,7 @@ class SplitImageTool(QWidget):
         self.conf_thresh_slider.setMinimum(0)
         self.conf_thresh_slider.setMaximum(99)
         self.conf_thresh_slider.setValue(0)
+        
         low = np.floor(np.array(self.conf_cmap.colors[0])*255)
         mid = np.floor(np.array(self.conf_cmap.colors[50])*255)
         high = np.floor(np.array(self.conf_cmap.colors[99])*255)

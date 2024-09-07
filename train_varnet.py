@@ -379,10 +379,10 @@ if imgTrain:
                     # Calculate training loss
                     loss = criterion(Y_hat, Y)
                     # Perform backprop and zero gradient
-                    optimizer.zero_grad()
+                    optimizer_vario.zero_grad()
                     loss.backward()
-                    optimizer.step()
-                    optimizer.zero_grad()
+                    optimizer_vario.step()
+                    optimizer_vario.zero_grad()
                     
 
                 print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}")
@@ -410,16 +410,15 @@ if imgTrain:
                     # Calculate training loss
                     loss = criterion(Y_hat, Y)
                     # Perform backprop and zero gradient
-                    optimizer.zero_grad()
+                    optimizer_resnet.zero_grad()
                     loss.backward()
-                    optimizer.step()
-                    optimizer.zero_grad()
+                    optimizer_resnet.step()
+                    optimizer_resnet.zero_grad()
 
                 print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}")
 
             # Save ResNet18 model
             torch.save(resnet18.state_dict(), 'resnet18.pth')
-
 
 
 
@@ -433,7 +432,7 @@ if imgTrain:
                 device = torch.device("cuda:0")
                 combined_model.cuda()
                 #optimizer.cuda()
-
+            print("Training VarioNet")
             optimizer = optim.Adam(combined_model.parameters(),lr=learning_rate)
             for epoch in range(num_epochs):
                 combined_model.train()
@@ -447,7 +446,7 @@ if imgTrain:
                     loss = criterion(outputs, labels)
                     loss.backward()
                     optimizer.step()
-
+                print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}")
             for param in combined_model.parameters():
                 param.requires_grad = True
 
@@ -455,6 +454,7 @@ if imgTrain:
             optimizer_finetune = torch.optim.Adam(combined_model.parameters(), lr=1e-6)
 
             # Fine-tuning loop
+            print("Fine Tuning VarioNet")
             for epoch in range(fine_epochs):
                 combined_model.train()
                 for batch_idx, (images, variograms, labels) in enumerate(train_loader):
@@ -468,6 +468,7 @@ if imgTrain:
                     loss.backward()
                     optimizer_finetune.step()
                     sum_loss += loss.item()
+                print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}")
             train_losses.append(sum_loss/batch_idx)
 
             # Validation phase

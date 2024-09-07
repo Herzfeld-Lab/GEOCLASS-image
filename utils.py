@@ -729,6 +729,8 @@ train_with_img: {}
 use_cuda:       {}
 num_epochs:     {}
 fine_epochs:    {}
+alpha:          {}
+beta:           {}
 learning_rate:  {}
 batch_size:     {}
 optimizer:      {}

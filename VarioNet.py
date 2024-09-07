@@ -13,6 +13,7 @@ import rasterio as rio
 import numpy
 import yaml
 import argparse
+import torch.nn.functional as F
 from Models import *
 from Models import VarioMLP
 from Models import Resnet18
@@ -55,8 +56,19 @@ def collect_image_paths_and_labels(image_folder):
                     # Load image and convert to numpy array
                     image = Image.open(img_path).convert('RGB')
                     image_np = np.array(image)
-                    variogram = get_varios(image_np)
-                    variograms.append(variogram)
+                    vario = get_varios(image_np)
+                    #Random rotate of varios
+                    rand = random.uniform(0,1)
+
+                    if rand < 0.25:
+                        vario=np.concatenate((vario[0,:],vario[1,:],vario[2,:]))
+                    elif rand < 0.5:
+                        vario=np.concatenate((vario[1,:],vario[0,:],vario[2,:]))
+                    elif rand < 0.75:
+                        vario=np.concatenate((vario[0,:],vario[1,:],vario[3,:]))
+                    elif rand < 1:
+                        vario=np.concatenate((vario[1,:],vario[0,:],vario[3,:]))
+                    variograms.append(vario)
     return image_paths, np.array(variograms), labels
 
 def get_varios(img):
@@ -104,8 +116,19 @@ class TestDataset(dataset):
                         x, y = row[0:2].astype('int')
                         splitImg_np = imageMatrix[x:x + winSize[0], y:y + winSize[1]]
                         splitImg_np = scaleImage(splitImg_np, max_sigma)
-                        variogram = get_varios(splitImg_np)
-                        self.varios.append(variogram)
+                        vario = get_varios(splitImg_np)
+                        #Random rotate of varios
+                        rand = random.uniform(0,1)
+                        if rand < 0.25:
+                            vario=np.concatenate((vario[0,:],vario[1,:],vario[2,:]))
+                        elif rand < 0.5:
+                            vario=np.concatenate((vario[1,:],vario[0,:],vario[2,:]))
+                        elif rand < 0.75:
+                            vario=np.concatenate((vario[0,:],vario[1,:],vario[3,:]))
+                        elif rand < 1:
+                            vario=np.concatenate((vario[1,:],vario[0,:],vario[3,:]))
+
+                        self.varios.append(vario)
                         rowlist = list(row)
                         rowlist.append(splitImg_np)
                         if splitImg_np.shape[0] == 0 or splitImg_np.shape[1] == 0:
@@ -152,10 +175,12 @@ class TestDataset(dataset):
 
     def __getitem__(self, idx):
         splitImg_np = self.dataFrame.iloc[idx, 7]
-        variograms = self.varios[idx]/100 #decreases effect on network
-
+        vario = self.varios[idx] #decreases effect on network
+        
+        
         splitImg_tensor = torch.from_numpy(splitImg_np)
-        vario_tensor = torch.from_numpy(variograms)
+        vario_tensor = torch.from_numpy(vario)
+        
         if self.train:
             label = int(self.dataFrame.iloc[idx,4])
             return (splitImg_tensor, vario_tensor, label)
@@ -207,7 +232,7 @@ transform = transforms.Compose([
 ])
 
 class CombinedModel(nn.Module):
-    def __init__(self, vario_mlp, resnet18, num_classes):
+    def __init__(self, vario_mlp, resnet18, num_classes, a=0.5, b=0.5):
         super(CombinedModel, self).__init__()
         self.vario_mlp = vario_mlp
         self.resnet18 = resnet18
@@ -219,17 +244,22 @@ class CombinedModel(nn.Module):
             param.requires_grad = False
         
         # Final fully connected layer after combining features
-        combined_output_size = num_classes * 2
-        self.fc = nn.Linear(combined_output_size, num_classes)
+        combined_output_size = num_classes
+        self.fc1 = nn.Linear(combined_output_size, 256)  # Bottleneck
+        self.fc2 = nn.Linear(256, num_classes)
+
+        self.alpha = nn.Parameter(torch.tensor(a))
+        self.beta = nn.Parameter(torch.tensor(b))
 
     def forward(self, image_data, variogram_data):
         vario_out = self.vario_mlp(variogram_data)
         resnet_out = self.resnet18(image_data)
         
-        # Combine the outputs (e.g., concatenation)
-        combined_out = torch.cat((vario_out, resnet_out), dim=1)
+        # Weighted sum fusion
+        combined_out = self.alpha * vario_out + self.beta * resnet_out
         
-        # Final output
-        final_out = self.fc(combined_out)
+        # Bottleneck layer
+        combined_out = F.relu(self.fc1(combined_out))
+        final_out = self.fc2(combined_out)
         
         return final_out
