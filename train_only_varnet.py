@@ -114,13 +114,7 @@ print("VarioNet")
 
 if imgTrain:
     # Perform train/test split
-    label_path = cfg['training_img_npy']
-    labeled_data = np.load(label_path, allow_pickle=True)
-    labelInfo = labeled_data[0]
-    dataset_labeled = labeled_data[1]
-    dataset = np.load(dataset_path, allow_pickle=True)
-    dataset_info = dataset[0]
-    dataset_coords = dataset[1]
+
     train_size = int(cfg['train_test_split'] * len(image_paths))
     train_indeces = np.random.choice(range(np.array(len(image_paths))), train_size, replace=False)
     test_indeces = np.setdiff1d(range(np.array(len(image_paths))), train_indeces)
@@ -131,19 +125,15 @@ if imgTrain:
     test_var = []
     train_labels = []
     test_labels = []
-    train_coords = []
-    test_coords = []
 
     for i in train_indeces:
         train_imgs.append(image_paths[i])
         train_var.append(variogram_data[i])
         train_labels.append(labels[i])
-        train_coords.append(dataset_labeled[i])
     for i in test_indeces:
         test_imgs.append(image_paths[i])
         test_var.append(variogram_data[i])
         test_labels.append(labels[i])
-        test_coords.append(dataset_labeled[[i]])
     
     print('----- Initializing Dataset -----')
 
@@ -155,89 +145,114 @@ if imgTrain:
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485], std=[0.229])  # Use grayscale mean and std
         ])
-    var_transforms_train = transforms.Compose([
-        DirectionalVario(vario_num_lag),
-        RandomRotateVario(),
-        ])
         
     train_dataset = FromFolderDataset(cfg['model'], train_imgs, train_var, train_labels, transform)
     valid_dataset = FromFolderDataset(cfg['model'], test_imgs, test_var, test_labels, transform)
 
-    vario_dataset = SplitImageDataset(
-            imgPath = topDir,
-            imgData = dataset_info,
-            labels = train_coords,
-            train = True,
-            transform = var_transforms_train
-            )
-    image_dataset = SplitImageDataset(
-            imgPath = topDir,
-            imgData = dataset_info,
-            labels = train_coords,
-            train = True,
-            transform = img_transforms_train
-            )
          #CST20240315
-    print('Training set size: \t%d images'%(len(train_dataset)))
+else:
+    # Perform train/test split
+    dataset = np.load(dataset_path, allow_pickle=True)
+    dataset_info = dataset[0]
+    dataset_coords = dataset[1]
+    if ddaBool:
+        dataset_labeled = dataset_coords[dataset_coords[:,0] != -1]
+    else:
+        dataset_labeled = dataset_coords[dataset_coords[:,4] != -1]
+
+    train_size = int(cfg['train_test_split'] * dataset_labeled.shape[0])
+
+    train_indeces = np.random.choice(range(np.array(dataset_labeled.shape[0])), train_size, replace=False)
+    test_indeces = np.setdiff1d(range(np.array(dataset_labeled.shape[0])), train_indeces)
+    #CST20240322 Creating loops so train and test coords aren't 1D
+    train_coords = []
+    test_coords = []
+    for i in train_indeces:
+        train_coords.append(dataset_labeled[i])
+    for i in test_indeces:
+        test_coords.append(dataset_labeled[[i]])
+    #print("train size", train_size)#CST20240318
+    #print("train_indeces", train_indeces) #CST20240315
+    #print("dataset labeled", dataset_labeled) #CST20240315
+    #print("train coords", train_coords) #CST20240315
+
+    # Initialize Datasets and DataLoaders
+    print('----- Initializing Dataset -----')
+
+    train_dataset = TestDataset(
+            imgPath = topDir,
+            imgData = dataset_info,
+            labels = train_coords,
+            train = True,
+        )
+
+    valid_dataset = TestDataset(
+            imgPath = topDir,
+            imgData = dataset_info,
+            labels = test_coords,
+            train = True,
+            )
+
+print('Training set size: \t%d images'%(len(train_dataset)))
     # for i in range(num_classes):
     #     print('Class {}: {} - {} train images'.format(i,classEnum[i],len(train_coords[train_coords[:,4] == i])))
     # print('Validation set size: \t%d images'%(len(valid_dataset)))
     # for i in range(num_classes):
     #     print('Class {}: {} - {} valid images'.format(i,classEnum[i],len(test_coords[test_coords[:,4] == i])))
-    print('----- Initializing DataLoader -----')
+print('----- Initializing DataLoader -----')
     
-    train_loader = DataLoader(
+train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
         shuffle=True
         )
 
     
-    print("train loader", type(train_loader))
-    valid_loader = DataLoader(
+print("train loader", type(train_loader))
+valid_loader = DataLoader(
         valid_dataset,
         batch_size=1,
         shuffle=False
         )
 
 
-    criterion = torch.nn.CrossEntropyLoss()
+criterion = torch.nn.CrossEntropyLoss()
 
     # Create directory for model checkpoints and output
-    print('----- Initializing Output Directory -----')
-    now = datetime.now()
-    date_str = now.strftime("%d-%m-%Y_%H:%M")
-    config_str = args.config.split('/')[1]
-    output_dir = 'Output/%s_%s'%(config_str, date_str)
-    checkpoint_str = ''
-    if not os.path.exists(output_dir): os.mkdir(output_dir)
-    if not os.path.exists(output_dir+'/checkpoints'): os.mkdir(output_dir+'/checkpoints')
-    if not os.path.exists(output_dir+'/labels'): os.mkdir(output_dir+'/labels')
-    if not os.path.exists(output_dir+'/losses'): os.mkdir(output_dir+'/losses')
-    print('Output saved at %s'%(output_dir))
+print('----- Initializing Output Directory -----')
+now = datetime.now()
+date_str = now.strftime("%d-%m-%Y_%H:%M")
+config_str = args.config.split('/')[1]
+output_dir = 'Output/%s_%s'%(config_str, date_str)
+checkpoint_str = ''
+if not os.path.exists(output_dir): os.mkdir(output_dir)
+if not os.path.exists(output_dir+'/checkpoints'): os.mkdir(output_dir+'/checkpoints')
+if not os.path.exists(output_dir+'/labels'): os.mkdir(output_dir+'/labels')
+if not os.path.exists(output_dir+'/losses'): os.mkdir(output_dir+'/losses')
+print('Output saved at %s'%(output_dir))
 
-    save_params()
+save_params()
 
-    print('----- Training -----')
+print('----- Training -----')
 
-    train_losses = []
-    valid_losses = []
-    vario_mlp = VarioMLP.VarioMLP(num_classes, vario_num_lag, hidden_layers=hidden_layers)
-    resnet18 = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
-    vario_mlp.load_state_dict(torch.load('vario_mlp.pth'))
-    resnet18.load_state_dict(torch.load('resnet18.pth'))
-    combined_model = CombinedModel(vario_mlp, resnet18, num_classes, a = alpha, b = beta)
-    model = combined_model
-    if args.cuda:
+train_losses = []
+valid_losses = []
+vario_mlp = VarioMLP.VarioMLP(num_classes, vario_num_lag, hidden_layers=hidden_layers)
+resnet18 = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
+vario_mlp.load_state_dict(torch.load('vario_mlp.pth'))
+resnet18.load_state_dict(torch.load('resnet18.pth'))
+combined_model = CombinedModel(vario_mlp, resnet18, num_classes, a = alpha, b = beta)
+model = combined_model
+if args.cuda:
         print('----- Initializing CUDA -----')
         torch.cuda.set_device(0)
         device = torch.device("cuda:0")
         combined_model.cuda()
         #optimizer.cuda()
-    print("Training VarioNet")
+print("Training VarioNet")
  
-    optimizer = optim.Adam(combined_model.parameters(),lr=learning_rate)
-    for epoch in range(num_epochs):
+optimizer = optim.Adam(combined_model.parameters(),lr=learning_rate)
+for epoch in range(num_epochs):
         sum_loss = 0
         print("EPOCH: {} ".format(epoch),end='',flush=True)
         for batch_idx, (images, variograms, labels) in enumerate(train_loader):
@@ -272,18 +287,18 @@ if imgTrain:
         valid_losses.append(loss/batch_idx)
 
         print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
-    for param in combined_model.parameters():
+for param in combined_model.parameters():
         param.requires_grad = True
 
             # Fine-tune with a smaller learning rate
-    optimizer_finetune = torch.optim.Adam(combined_model.parameters(), lr=1e-6)
+optimizer_finetune = torch.optim.Adam(combined_model.parameters(), lr= 1e-7)
 
             # Fine-tuning loop
-    print("Fine Tuning VarioNet")
+print("Fine Tuning VarioNet")
     
-    valid_losses = []
-    train_losses = []
-    for epoch in range(fine_epochs):
+valid_losses = []
+train_losses = []
+for epoch in range(fine_epochs):
         sum_loss = 0
         print("EPOCH: {} ".format(epoch),end='',flush=True)
         for batch_idx, (images, variograms, labels) in enumerate(train_loader):

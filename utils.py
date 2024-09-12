@@ -770,6 +770,8 @@ bg_UTM_path:        {}
                    yaml_obj['use_cuda'],
                    yaml_obj['num_epochs'],
                    yaml_obj['fine_epochs'],
+                   yaml_obj['alpha'],
+                   yaml_obj['beta'],
                    yaml_obj['learning_rate'],
                    yaml_obj['batch_size'],
                    yaml_obj['optimizer'],
