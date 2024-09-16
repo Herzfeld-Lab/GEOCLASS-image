@@ -157,8 +157,19 @@ class TestDataset(dataset):
                         x,y = row[0:2].astype('int')
                         splitImg_np = imageMatrix[x:x+winSize[0],y:y+winSize[1]]
                         splitImg_np = scaleImage(splitImg_np, max)
-                        variogram = get_varios(splitImg_np)
-                        self.varios.append(variogram)
+                        vario = get_varios(splitImg_np)
+                        #Random rotate of varios
+                        rand = random.uniform(0,1)
+                        if rand < 0.25:
+                            vario=np.concatenate((vario[0,:],vario[1,:],vario[2,:]))
+                        elif rand < 0.5:
+                            vario=np.concatenate((vario[1,:],vario[0,:],vario[2,:]))
+                        elif rand < 0.75:
+                            vario=np.concatenate((vario[0,:],vario[1,:],vario[3,:]))
+                        elif rand < 1:
+                            vario=np.concatenate((vario[1,:],vario[0,:],vario[3,:]))
+
+                        self.varios.append(vario)
                         rowlist = list(row)
                         rowlist.append(splitImg_np)
                         if (splitImg_np.shape[0] == 0) or (splitImg_np.shape[1] == 0):
@@ -180,7 +191,6 @@ class TestDataset(dataset):
         
         splitImg_tensor = torch.from_numpy(splitImg_np)
         vario_tensor = torch.from_numpy(vario)
-        
         if self.train:
             label = int(self.dataFrame.iloc[idx,4])
             return (splitImg_tensor, vario_tensor, label)

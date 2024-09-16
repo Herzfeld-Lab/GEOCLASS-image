@@ -271,8 +271,8 @@ for epoch in range(num_epochs):
         train_losses.append(sum_loss/batch_idx)
 
         print('running validation')
-        valid_losses = []
 
+        loss = 0
         for batch_idx, (images, variograms, labels) in enumerate(valid_loader):
             if args.cuda:
                 images, variograms, labels = images.to(device), variograms.to(device), labels.to(device)
@@ -287,17 +287,28 @@ for epoch in range(num_epochs):
         valid_losses.append(loss/batch_idx)
 
         print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
+
+        checkpoint_str = "epoch_" + str(epoch)
+
+
+        if valid_losses[-1] == np.array(valid_losses).min():
+            checkpoint_path = os.path.join(output_dir, 'checkpoints', checkpoint_str)
+            checkpoint = {'state_dict': model.state_dict(),
+                        'optimizer' : optimizer.state_dict()}
+            torch.save(checkpoint, checkpoint_path)
+        else:
+            if len(valid_losses) > np.array(valid_losses).argmin() + 100:
+                break
 for param in combined_model.parameters():
         param.requires_grad = True
 
             # Fine-tune with a smaller learning rate
-optimizer_finetune = torch.optim.Adam(combined_model.parameters(), lr= 1e-7)
+optimizer_finetune = torch.optim.Adam(combined_model.parameters(), lr= 5e-6)
 
             # Fine-tuning loop
 print("Fine Tuning VarioNet")
     
-valid_losses = []
-train_losses = []
+
 for epoch in range(fine_epochs):
         sum_loss = 0
         print("EPOCH: {} ".format(epoch),end='',flush=True)
@@ -336,7 +347,7 @@ for epoch in range(fine_epochs):
 
         print('saving checkpoint')
             # Save checkpoint
-        checkpoint_str = "epoch_" + str(epoch)
+        checkpoint_str = "epoch_" + str(int(epoch)+int(num_epochs))
 
 
         if valid_losses[-1] == np.array(valid_losses).min():
