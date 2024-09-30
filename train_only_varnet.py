@@ -248,6 +248,7 @@ if args.cuda:
         torch.cuda.set_device(0)
         device = torch.device("cuda:0")
         combined_model.cuda()
+        model.cuda()
         #optimizer.cuda()
 print("Training VarioNet")
  

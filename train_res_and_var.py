@@ -89,13 +89,13 @@ print("VarioNet")
 if imgTrain:
     image_paths, variogram_data, labels = collect_image_paths_and_labels(image_folder)
     # Perform train/test split
-    label_path = cfg['training_img_npy']
-    labeled_data = np.load(label_path, allow_pickle=True)
-    labelInfo = labeled_data[0]
-    dataset_labeled = labeled_data[1]
-    dataset = np.load(dataset_path, allow_pickle=True)
-    dataset_info = dataset[0]
-    dataset_coords = dataset[1]
+    #label_path = cfg['training_img_npy']
+    #labeled_data = np.load(label_path, allow_pickle=True)
+    #labelInfo = labeled_data[0]
+    #dataset_labeled = labeled_data[1]
+    #dataset = np.load(dataset_path, allow_pickle=True)
+    #dataset_info = dataset[0]
+    #dataset_coords = dataset[1]
     train_size = int(cfg['train_test_split'] * len(image_paths))
     train_indeces = np.random.choice(range(np.array(len(image_paths))), train_size, replace=False)
     test_indeces = np.setdiff1d(range(np.array(len(image_paths))), train_indeces)
@@ -113,12 +113,12 @@ if imgTrain:
         train_imgs.append(image_paths[i])
         train_var.append(variogram_data[i])
         train_labels.append(labels[i])
-        train_coords.append(dataset_labeled[i])
+        #train_coords.append(dataset_labeled[i])
     for i in test_indeces:
         test_imgs.append(image_paths[i])
         test_var.append(variogram_data[i])
         test_labels.append(labels[i])
-        test_coords.append(dataset_labeled[[i]])
+        #test_coords.append(dataset_labeled[[i]])
     
     print('----- Initializing Dataset -----')
 
@@ -138,7 +138,10 @@ if imgTrain:
     train_dataset = FromFolderDataset(cfg['model'], train_imgs, train_var, train_labels, transform)
     valid_dataset = FromFolderDataset(cfg['model'], test_imgs, test_var, test_labels, transform)
 
-    vario_dataset = SplitImageDataset(
+
+    vario_dataset = FromFolderDataset('VarioMLP', train_imgs, train_var, train_labels, transform)
+    vario_valid_dataset = FromFolderDataset('VarioMLP', train_imgs, train_var, train_labels, transform)
+    """vario_dataset = SplitImageDataset(
             imgPath = topDir,
             imgData = dataset_info,
             labels = train_coords,
@@ -151,7 +154,7 @@ if imgTrain:
             labels = test_coords,
             train = True,
             transform = var_transforms
-            )
+            )"""
     image_dataset = FromFolderDataset('Resnet18', train_imgs, train_var, train_labels, transform)
     image_valid_dataset = FromFolderDataset('Resnet18', test_imgs, test_var, test_labels, transform)
          #CST20240315

@@ -1,9 +1,9 @@
 from utils import *
 from auto_rotate_geotiff import *
 #CST20240312
-from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QHBoxLayout, QVBoxLayout, QCheckBox, QSlider, QLineEdit, QPushButton, QButtonGroup
+from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QHBoxLayout, QVBoxLayout, QCheckBox, QSlider, QLineEdit, QPushButton, QButtonGroup, QMainWindow, QGridLayout
 #CST 20240308
-from PyQt5.QtGui import QPixmap, QImage, QFont, QGuiApplication, QFont
+from PyQt5.QtGui import QPixmap, QImage, QFont, QGuiApplication, QFont, qRgb
 
 from PyQt5.QtCore import Qt
 
@@ -33,12 +33,16 @@ class SplitImageTool(QWidget):
 
         # Initialize GUI Window properties
         print('-------- Initializing App --------')
+        
+        # geometry
         screen_resolution = app.desktop().availableGeometry()
         self.title = 'Split Image Labeling tool'
         self.width, self.height = int(screen_resolution.width()), int(screen_resolution.height())
-        self.setGeometry(0, 0, self.width, self.height)
+        self.setMinimumSize(self.width - 100, self.height - 100) # the default min size runs of the screen!
+        self.setGeometry(0, 0, self.width - 100, self.height - 100)
         self.setWindowTitle(self.title)
         self.to_netcdf = netcdf
+
 
         # Load Tiff Image and split image data
         print('-------- Loading App Config --------')
@@ -52,6 +56,7 @@ class SplitImageTool(QWidget):
         self.tiff_selector = 0
         self.checkpoint = checkpoint
         self.label_path = self.cfg['npy_path']
+        self.lagstep = self.cfg['vario_num_lag']
         self.label_data = np.load(self.label_path, allow_pickle=True)
         self.split_info_save = self.label_data[1]
 
@@ -98,6 +103,8 @@ class SplitImageTool(QWidget):
         self.setLayout(self.master_layout)
         self.show()
 
+        
+
     def initDataset(self):
         self.dataset_info = self.label_data[0]
         self.split_info = self.split_info_save[self.split_info_save[:,6] == self.tiff_selector]
@@ -135,9 +142,6 @@ class SplitImageTool(QWidget):
 
         self.tiff_image_max = get_img_sigma(self.tiff_image_matrix[::10,::10])
 
-    
-        
-
     def clearLayout(self, layout):
         if layout is not None:
             while layout.count():
@@ -146,10 +150,8 @@ class SplitImageTool(QWidget):
                     child.widget().deleteLater()
                 elif child.layout() is not None:
                     self.clearLayout(child.layout())
-    
+
     def initUI(self):
-        
-        
 
         self.master_layout = QHBoxLayout()
         self.left_layout = QVBoxLayout()
@@ -160,6 +162,7 @@ class SplitImageTool(QWidget):
         self.visualization_save_buttons = QVBoxLayout()
         self.split_text = QHBoxLayout()
         self.class_buttons = QVBoxLayout()
+        self.grid_layout = QGridLayout()
 
         # --- Initialize UI elements ---
         # Current split Image container
@@ -167,6 +170,11 @@ class SplitImageTool(QWidget):
         self.split_image_label = QLabel(self)
         self.split_image_label.setMargin(0)
         self.split_image_label.setAlignment(Qt.AlignCenter)
+        #self.split_image_labels = [QLabel() for _ in self.lagstep]
+        self.split_image_labels = [QLabel(self) for _ in range(4)]
+        for i in range(4):
+            self.split_image_labels[i].setMargin(0)
+            self.split_image_labels[i].setAlignment(Qt.AlignCenter)
 
         # Background Image container
         self.tiff_image_pixmap = QPixmap()
@@ -222,7 +230,7 @@ class SplitImageTool(QWidget):
         self.save_heatmap_button = QPushButton('Save Heatmap Image')
         self.save_heatmap_button.clicked.connect(self.saveHeatmapCallback)
 
-        #SAVE CONFIDENCE PREDICTIONS
+         #SAVE CONFIDENCE PREDICTIONS
         self.save_confidente_predictions_button = QPushButton('Save Confidence Predictions')
         self.save_confidente_predictions_button.clicked.connect(self.savePredictionsCallbackNPY)
 
@@ -235,7 +243,6 @@ class SplitImageTool(QWidget):
         self.conf_thresh_value.setMargin(0)
         self.conf_thresh_value.setAlignment(Qt.AlignCenter)
         self.conf_thresh_value.setFont(QFont("Helvetica", 13, QFont.Bold))
-
         self.conf_thresh_slider = QSlider(Qt.Horizontal)
         self.conf_thresh_slider.setFocusPolicy(Qt.StrongFocus)
         self.conf_thresh_slider.setTickPosition(QSlider.TicksBothSides)
@@ -244,6 +251,7 @@ class SplitImageTool(QWidget):
         self.conf_thresh_slider.setMinimum(0)
         self.conf_thresh_slider.setMaximum(99)
         self.conf_thresh_slider.setValue(0)
+        
         low = np.floor(np.array(self.conf_cmap.colors[0])*255)
         mid = np.floor(np.array(self.conf_cmap.colors[50])*255)
         high = np.floor(np.array(self.conf_cmap.colors[99])*255)
@@ -258,50 +266,71 @@ class SplitImageTool(QWidget):
         self.split_text.addWidget(self.split_image_conf)
         self.split_text.addSpacing(200)
 
-        self.visualization_widgets.addWidget(self.split_image_label)
+        # self.visualization_widgets.addWidget(self.split_image_label)
+        for image_label in self.split_image_labels:
+            self.visualization_widgets.addWidget(image_label)
         self.visualization_widgets.addLayout(self.split_text)
+        self.visualization_widgets.addWidget(self.split_image_label)
+        
 
         self.conf_slider_container.addWidget(self.conf_thresh_slider)
         self.conf_slider_container.addWidget(self.conf_thresh_value)
         self.visualization_widgets.addLayout(self.conf_slider_container)
         
-        #INITIALIZE THE BUTTON THAT SAVES THE CONFIDENT PREDICTIONS 
-        self.visualization_save_buttons.addWidget(self.save_confidente_predictions_button)
 
         self.visualization_toggles.addWidget(self.predictions_button)
         self.visualization_toggles.addWidget(self.heatmap_button)
         self.visualization_toggles.addWidget(self.labels_button)
 
         self.visualization_save_buttons.addWidget(self.save_predictions_button)
+        #INITIALIZE THE BUTTON THAT SAVES THE CONFIDENT PREDICTIONS 
+        self.visualization_save_buttons.addWidget(self.save_confidente_predictions_button)
         self.visualization_save_buttons.addWidget(self.save_heatmap_button)
         if self.has_contour == False:
             self.visualization_save_buttons.addWidget(self.save_contour_button)
 
         self.visualization_interactive.addLayout(self.visualization_toggles)
+        
         self.visualization_interactive.addLayout(self.visualization_save_buttons)
+        
 
         self.visualization_widgets.addLayout(self.visualization_interactive)
+        
 
         self.new_class_layout = QHBoxLayout()
         self.new_class_layout.addSpacing(200)
         self.new_class_layout.addWidget(self.new_class_field)
         self.new_class_layout.addSpacing(200)
         self.visualization_widgets.addLayout(self.new_class_layout)
-
-        self.tiff_selector_buttons = QHBoxLayout()
         
+
+        self.tiff_selector_buttons = QGridLayout()
+
         for tiffNum in range(len(self.dataset_info['filename'])):
             button = QPushButton('{}...'.format(self.dataset_info['filename'][tiffNum].split('/')[-1][:13]), self)
             button.clicked.connect(self.makeTiffSelectorCallbacks(tiffNum))
-            button.clicked.connect(self.getTiffnum(tiffNum))
-            self.tiff_selector_buttons.addWidget(button)
+            
+            # Calculate the row and column numbers
+            row = tiffNum // 4
+            col = tiffNum % 4
+            
+            # Add the button to the layout at the specified row and column
+            self.tiff_selector_buttons.addWidget(button, row, col)
 
         self.left_layout.addLayout(self.tiff_selector_buttons)
+        
         self.left_layout.addLayout(self.visualization_widgets)
+        
         self.left_layout.addLayout(self.class_buttons)
-
+        
+        self.left_layout.addLayout(self.grid_layout) #something about this causes a warning: QLayout::addChildLayout: layout "" already has a parent
+        # this might be the issue? as in the layout is added to the master too early?
         self.master_layout.addLayout(self.left_layout)
+        
         self.master_layout.addWidget(self.tiff_image_label)
+
+        
+
 
     def addClassButton(self, i, className, container):
         buttonContainer = QHBoxLayout()
@@ -322,18 +351,19 @@ class SplitImageTool(QWidget):
         buttonContainer.addWidget(labelButton)
         buttonContainer.addSpacing(20)
         container.addLayout(buttonContainer)
+        
 
     def initClassButtons(self):
 
-        numColumns = math.ceil(len(self.class_enum) / 12)
+        numColumns = math.ceil(len(self.class_enum) / 4)
 
         self.class_buttons_columns_list = []
         for i in range(numColumns):
             self.class_buttons_columns_list.append(QVBoxLayout())
 
         for i, className in enumerate(self.class_enum):
-            col = math.floor(i / 12)
-            row = i % 12
+            col = math.floor(i / 4)
+            row = i % 4
             self.addClassButton(i, className, self.class_buttons_columns_list[col])
 
         self.class_buttons_columns = QHBoxLayout()
@@ -341,9 +371,8 @@ class SplitImageTool(QWidget):
             self.class_buttons_columns.addLayout(column)
 
         self.class_buttons.addLayout(self.class_buttons_columns)
-
+    
     def initBgImage(self):
-
         # Scale down tiff image for visualization and convert to 8-bit RGB
         scale_factor = int(self.tiff_image_matrix.shape[0] / 1200)
         bg_img_scaled = self.tiff_image_matrix[::scale_factor,::scale_factor]
@@ -388,63 +417,123 @@ class SplitImageTool(QWidget):
 
     def updateBgImage(self):
         return
+    #For graphing variograms
+    def draw_line(self, img, x1, y1, x2, y2, color):
+        """Draw a simple line on a QImage."""
+        dx = abs(x2 - x1)
+        dy = abs(y2 - y1)
+        sx = 1 if x1 < x2 else -1
+        sy = 1 if y1 < y2 else -1
+        err = dx - dy
+
+        while True:
+            if 0 <= x1 < img.width() and 0 <= y1 < img.height():
+                img.setPixel(x1, y1, color)
+            if x1 == x2 and y1 == y2:
+                break
+            e2 = 2 * err
+            if e2 > -dy:
+                err -= dy
+                x1 += sx
+            if e2 < dx:
+                err += dx
+                y1 += sy
+
+    def draw_variogram_on_image(self, vario, qimage):
+        width = qimage.width()
+        height = qimage.height()
+        
+        # Normalize vario values to fit within image dimensions
+        max_value = max(vario)
+        min_value = min(vario)
+        
+        for i in range(len(vario) - 1):
+            x1 = int(i * width / len(vario))
+            y1 = int((vario[i] - min_value) * height / (max_value - min_value))
+            x2 = int((i + 1) * width / len(vario))
+            y2 = int((vario[i + 1] - min_value) * height / (max_value - min_value))
+            
+            # Ensure coordinates are within bounds
+            y1 = height - min(max(y1, 0), height - 1)
+            y2 = height - min(max(y2, 0), height - 1)
+            
+            # Draw line on the image (basic line drawing algorithm)
+            self.draw_line(qimage, x1, y1, x2, y2, qRgb(0, 0, 0))
 
     def getNewImage(self, index):
-
-         self.image_index = index
+        
+        self.image_index = index
 
          # Grab info of split image at index
-         x,y,x_utm,y_utm,label,conf,_ = self.split_info[index]
-         x,y,x_utm,y_utm,label = int(x),int(y),int(x_utm),int(y_utm),int(label)
-         #CST20240313
-         # Get split image from image matrix
-         img = self.tiff_image_matrix[x:x+self.win_size[0],y:y+self.win_size[1]]
-         img = scaleImage(img, self.tiff_image_max)
-         qimg = QImage(img.data, img.shape[1], img.shape[0], img.shape[1], QImage.Format_Grayscale8)
-         img = Image.fromarray(img).convert("L")
-         #img = ImageQt(img) CST 06142024
+        x,y,x_utm,y_utm,label,conf,_ = self.split_info[index]
+        x,y,x_utm,y_utm,label = int(x),int(y),int(x_utm),int(y_utm),int(label)
+        #CST20240313
+        # Get split image from image matrix
+        img = self.tiff_image_matrix[x:x+self.win_size[0],y:y+self.win_size[1]]
+        img = scaleImage(img, self.tiff_image_max)
+        variograms = silas_directional_vario(img)
+        qimg = QImage(img.data, img.shape[1], img.shape[0], img.shape[1], QImage.Format_Grayscale8)
+        image = Image.fromarray(img).convert("L")
+         # Wrap split image in QPixmap       
+        self.split_image_pixmap = QPixmap.fromImage(qimg).scaledToWidth(270)
+        self.split_image_label.setPixmap(self.split_image_pixmap)
         
 
-         # Wrap split image in QPixmap
-         
-         self.split_image_pixmap = QPixmap.fromImage(qimg).scaledToWidth(270)
-         self.split_image_label.setPixmap(self.split_image_pixmap)
-         # Update label text
-         class_text = ''
-         if self.predictions:
+        self.variograms = variograms
+        
+        
+        for i, vario in enumerate(self.variograms):
+            qimage = QImage(img.shape[1], img.shape[0], QImage.Format_RGB32)
+            qimage.fill(Qt.white)
+
+            # Convert variogram data to image plot
+            self.draw_variogram_on_image(vario, qimage)
+            
+            row = i // 2
+            col = i % 2
+
+            # Wrap split image in QPixmap
+            split_image_pixmap = QPixmap.fromImage(qimage).scaledToWidth(270)
+
+            # Set the pixmap of the QLabel at the current index
+            self.split_image_labels[i].setPixmap(split_image_pixmap)
+            self.grid_layout.addWidget(self.split_image_labels[i], row, col)
+        # Update label text
+        class_text = ''
+        if self.predictions:
             label = int(self.pred_labels[index,4])
             conf = self.pred_labels[index,5]
             class_text = "Class %d: %s"%(label, self.class_enum[label])
             class_conf = "Conf: {:.2%}".format(conf)
-         elif label == -1:
+        elif label == -1:
             class_text = "No class assigned yet"
             class_conf = ''
-         else:
+        else:
             class_text = "Class %d: %s"%(label, self.class_enum[label])
             class_conf = "Conf: {:.2%}".format(conf)
 
-         self.split_image_class.setText(class_text)
-         self.split_image_conf.setText(class_conf)
+        self.split_image_class.setText(class_text)
+        self.split_image_conf.setText(class_conf)
 
-         bg_img = self.bg_img_cv.copy()
-         height,width,_ = self.bg_img_cv.shape
-         imgSize = np.array([width,height])
+        bg_img = self.bg_img_cv.copy()
+        height,width,_ = self.bg_img_cv.shape
+        imgSize = np.array([width,height])
 
-         pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array([[x_utm,y_utm]]))
+        pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array([[x_utm,y_utm]]))
 
-         # Draw crosshairs
-         cv2.circle(bg_img,(pix_coords[0][0],height-pix_coords[0][1]),4,(255,0,0),thickness=-1)
-         cv2.line(bg_img, (pix_coords[0][0], 0), (pix_coords[0][0], height), (255,0,0),thickness=2)
-         cv2.line(bg_img, (0, height-pix_coords[0][1]), (width, height-pix_coords[0][1]), (255,0,0),thickness=2)
+        # Draw crosshairs
+        cv2.circle(bg_img,(pix_coords[0][0],height-pix_coords[0][1]),4,(255,0,0),thickness=-1)
+        cv2.line(bg_img, (pix_coords[0][0], 0), (pix_coords[0][0], height), (255,0,0),thickness=2)
+        cv2.line(bg_img, (0, height-pix_coords[0][1]), (width, height-pix_coords[0][1]), (255,0,0),thickness=2)
 
-         height,width,channels = bg_img.shape
-         #CST20240312
-         bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
-         background_image = QPixmap(bg_img)
-         #background_image = background_image.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
-         background_image = background_image.scaledToWidth(int(self.width/2) - 10)
+        height,width,channels = bg_img.shape
+        #CST20240312
+        bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
+        background_image = QPixmap(bg_img)
+        #background_image = background_image.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
+        background_image = background_image.scaledToWidth(int(self.width/2) - 10)
 
-         self.tiff_image_label.setPixmap(background_image)
+        self.tiff_image_label.setPixmap(background_image)
 
     #CST20240313 (creating a function to write images into a folder)
     def writeImage(self,filePath, fileName, index):

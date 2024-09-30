@@ -301,15 +301,23 @@ class SplitImageTool(QWidget):
         
 
         self.new_class_layout = QHBoxLayout()
+
+        self.tiff_selector_buttons = QHBoxLayout()
+
+        for tiffNum in range(len(self.dataset_info['filename'])):
+            button = QPushButton('{}...'.format(self.dataset_info['filename'][tiffNum].split('/')[-1][:13]), self)
+            button.clicked.connect(self.makeTiffSelectorCallbacks(tiffNum))
+            button.clicked.connect(self.getTiffnum(tiffNum))
+            self.tiff_selector_buttons.addWidget(button)
+
         self.new_class_layout.addSpacing(200)
         self.new_class_layout.addWidget(self.new_class_field)
         self.new_class_layout.addSpacing(200)
         self.visualization_widgets.addLayout(self.new_class_layout)
         
 
-        self.tiff_selector_buttons = QGridLayout()
 
-        for tiffNum in range(len(self.dataset_info['filename'])):
+        """for tiffNum in range(len(self.dataset_info['filename'])):
             button = QPushButton('{}...'.format(self.dataset_info['filename'][tiffNum].split('/')[-1][:13]), self)
             button.clicked.connect(self.makeTiffSelectorCallbacks(tiffNum))
             
@@ -318,7 +326,7 @@ class SplitImageTool(QWidget):
             col = tiffNum % 4
             
             # Add the button to the layout at the specified row and column
-            self.tiff_selector_buttons.addWidget(button, row, col)
+            self.tiff_selector_buttons.addWidget(button, row, col)"""
 
         self.left_layout.addLayout(self.tiff_selector_buttons)
         
@@ -333,7 +341,7 @@ class SplitImageTool(QWidget):
         self.master_layout.addWidget(self.tiff_image_label)
 
         
-
+    
 
     def addClassButton(self, i, className, container):
         buttonContainer = QHBoxLayout()
@@ -577,11 +585,20 @@ class SplitImageTool(QWidget):
     def labelCurrent(self, class_label):
         self.split_info[self.image_index][4] = class_label
         self.split_info[self.image_index][5] = 1
-        if not os.path.exists("Classifications/"): os.mkdir("Classifications/")
-        if not os.path.exists("Classifications/"+str(class_label)): os.mkdir("Classifications/"+str(class_label))
-        self.deleteImage("Classifications/", str(self.image_index))
-        self.writeImage("Classifications/"+str(class_label), str(class_label)+str(self.image_index), self.image_index)
-        self.getNewImage(self.image_index)
+                #Load training img path
+        if self.cfg['training_img_path'] != 'None':
+            labeled_img_path = cfg['training_img_path']
+            if not os.path.exists(labeled_img_path+"/"): os.mkdir(labeled_img_path+"/")
+            if not os.path.exists(labeled_img_path+"/"+str(class_label)): os.mkdir(labeled_img_path+"/"+str(class_label))
+            self.deleteImage(labeled_img_path+"/", str(self.image_index)+str(numTiff))
+            self.writeImage(labeled_img_path+"/"+str(class_label), str(class_label)+str(self.image_index)+str(numTiff), self.image_index)
+            self.getNewImage(self.image_index)
+        else:
+            if not os.path.exists("Classifications/"): os.mkdir("Classifications/")
+            if not os.path.exists("Classifications/"+str(class_label)): os.mkdir("Classifications/"+str(class_label))
+            self.deleteImage("Classifications/", str(self.image_index)+str(numTiff))
+            self.writeImage("Classifications/"+str(class_label), str(class_label)+str(self.image_index)+str(numTiff), self.image_index)
+            cfg['training_img_path'] = 'Classifications'
         self.update()
 
     def batchSelectLabel(self, class_label):
@@ -593,14 +610,21 @@ class SplitImageTool(QWidget):
             if Point(img[2],img[3]).within(batch_select):
                 self.split_info[i][4] = class_label
                 self.split_info[i][5] = 1
-                if not os.path.exists("Classifications/"): os.mkdir("Classifications/")
-                if not os.path.exists("Classifications/"+str(class_label)): os.mkdir("Classifications/"+str(class_label))
-                self.deleteImage("Classifications/", str(i))
-                self.writeImage("Classifications/"+str(class_label), str(class_label)+str(i), i)
+                if self.cfg['training_img_path'] != 'None':
+                    labeled_img_path = self.cfg['training_img_path']
+                    if not os.path.exists(labeled_img_path+"/"): os.mkdir(labeled_img_path+"/")
+                    if not os.path.exists(labeled_img_path+"/"+str(class_label)): os.mkdir(labeled_img_path+"/"+str(class_label))
+                    self.deleteImage(labeled_img_path+"/", str(i)+str(numTiff))
+                    self.writeImage(labeled_img_path+"/"+str(class_label), str(class_label)+str(i)+str(numTiff), i)
+                else:
+                    if not os.path.exists("Classifications/"): os.mkdir("Classifications/")
+                    if not os.path.exists("Classifications/"+str(class_label)): os.mkdir("Classifications/"+str(class_label))
+                    self.deleteImage("Classifications/", str(i)+str(numTiff))
+                    self.writeImage("Classifications/"+str(class_label), str(class_label)+str(i)+str(numTiff), i)
+                    cfg['training_img_path'] = 'Classifications'
         self.batch_select_polygon = []
         self.getNewImage(self.image_index)
         self.update()
-
 
     def getMousePosUTM(self, event):
 
@@ -743,6 +767,13 @@ class SplitImageTool(QWidget):
             self.initBgImage()
             self.getNewImage(0)
         return tiff_selector_callback
+
+    def getTiffnum(self, tiff):
+        def getNum():
+            global numTiff
+            numTiff = tiff
+            #print("GEOTIFF number", numTiff)
+        return getNum
 
     @pyqtSlot()
     def on_click(self):

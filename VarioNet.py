@@ -207,6 +207,10 @@ class FromFolderDataset(dataset):
             self.variogram_data = variogram_data
             self.labels = labels
             self.transform = transform
+        elif self.model == 'VarioMLP':
+            self.variogram_data = variogram_data
+            self.labels = labels
+            self.transform = transform
         else:
             self.image_paths = image_paths
             self.labels = labels
@@ -214,9 +218,15 @@ class FromFolderDataset(dataset):
             
 
     def __len__(self):
+        if self.model == 'VarioMLP':
+            return len(self.labels)
         return len(self.image_paths)
 
     def __getitem__(self, idx):
+        label = int(self.labels[idx])
+        if self.model == 'VarioMLP':
+            variogram = self.variogram_data[idx]
+            return variogram, int(label)
         image_path = self.image_paths[idx]
         try:
             image = Image.open(image_path)
@@ -255,8 +265,12 @@ class CombinedModel(nn.Module):
         
         # Final fully connected layer after combining features
         combined_output_size = num_classes
-        self.fc1 = nn.Linear(combined_output_size, 256)  # Bottleneck
-        self.fc2 = nn.Linear(256, num_classes)
+        self.fc1 = nn.Linear(combined_output_size, 256)  # Bottleneck 1
+        self.residual_fc1 = nn.Linear(combined_output_size, 256)
+        #self.fc2 = nn.Linear(64, 128) # Bottleneck 2
+        #self.residual_fc2 = nn.Linear(64, 128)
+        self.fc3 = nn.Linear(256, num_classes) 
+
 
         self.alpha = nn.Parameter(torch.tensor(a))
         self.beta = nn.Parameter(torch.tensor(b))
@@ -269,7 +283,12 @@ class CombinedModel(nn.Module):
         combined_out = self.alpha * vario_out + self.beta * resnet_out
         
         # Bottleneck layer
+        residual = self.residual_fc1(combined_out)  # Store original combined features
         combined_out = F.relu(self.fc1(combined_out))
-        final_out = self.fc2(combined_out)
+        combined_out = combined_out + residual  # Add back original combined features
+        #residual = self.residual_fc2(combined_out)
+        #combined_out = F.relu(self.fc2(combined_out))
+        #combined_out = combined_out + residual
+        final_out = self.fc3(combined_out)
         
         return final_out
