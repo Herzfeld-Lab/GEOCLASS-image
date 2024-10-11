@@ -130,7 +130,11 @@ elif cfg['model'] == 'VarioNet':
         imgPath = topDir,
         imgData = dataset_info,
         labels = dataset_labels,
-        train = False
+        train = False,
+        transform = transforms.Compose([
+        DirectionalVario(vario_num_lag),
+        DefaultRotateVario(),
+    ])
         )
 
 else:

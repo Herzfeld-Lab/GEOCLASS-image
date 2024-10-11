@@ -83,17 +83,17 @@ def get_varios(img):
 #Testing Dataset
 
 class TestDataset(dataset):
-    def __init__(self, imgPath, imgData, labels, train):
+    def __init__(self, imgPath, imgData, labels, train, transform = None):
         self.train = train
         imagePaths = getImgPaths(imgPath)
         imageLabels = labels
         imageData = imgData
+        self.transform = transform
         # Extract all split images and store in dataframe
         dataArray = []
         self.varios = []  # Initialize self.varios as an instance attribute
         
         for imgNum, imagePath in enumerate(imagePaths):
-            print("\nCalculating Variograms for Image", imgNum)
             TimageLabels = list(zip(*imageLabels))
             a=0
             if len(TimageLabels) == 7:  # Training
@@ -109,26 +109,11 @@ class TestDataset(dataset):
                 winSize = imageData['winsize_pix']
                 
                 for i in range(len(TimageLabels[6])):
-                    if i % 1000 == 0:
-                        print('.', end='', flush=True)
                     if TimageLabels[6][i] == imgNum:
                         row = imageLabels[i]
                         x, y = row[0:2].astype('int')
                         splitImg_np = imageMatrix[x:x + winSize[0], y:y + winSize[1]]
                         splitImg_np = scaleImage(splitImg_np, max_sigma)
-                        vario = get_varios(splitImg_np)
-                        #Random rotate of varios
-                        rand = random.uniform(0,1)
-                        if rand < 0.25:
-                            vario=np.concatenate((vario[0,:],vario[1,:],vario[2,:]))
-                        elif rand < 0.5:
-                            vario=np.concatenate((vario[1,:],vario[0,:],vario[2,:]))
-                        elif rand < 0.75:
-                            vario=np.concatenate((vario[0,:],vario[1,:],vario[3,:]))
-                        elif rand < 1:
-                            vario=np.concatenate((vario[1,:],vario[0,:],vario[3,:]))
-
-                        self.varios.append(vario)
                         rowlist = list(row)
                         rowlist.append(splitImg_np)
                         if splitImg_np.shape[0] == 0 or splitImg_np.shape[1] == 0:
@@ -157,19 +142,6 @@ class TestDataset(dataset):
                         x,y = row[0:2].astype('int')
                         splitImg_np = imageMatrix[x:x+winSize[0],y:y+winSize[1]]
                         splitImg_np = scaleImage(splitImg_np, max)
-                        vario = get_varios(splitImg_np)
-                        #Random rotate of varios
-                        rand = random.uniform(0,1)
-                        if rand < 0.25:
-                            vario=np.concatenate((vario[0,:],vario[1,:],vario[2,:]))
-                        elif rand < 0.5:
-                            vario=np.concatenate((vario[1,:],vario[0,:],vario[2,:]))
-                        elif rand < 0.75:
-                            vario=np.concatenate((vario[0,:],vario[1,:],vario[3,:]))
-                        elif rand < 1:
-                            vario=np.concatenate((vario[1,:],vario[0,:],vario[3,:]))
-
-                        self.varios.append(vario)
                         rowlist = list(row)
                         rowlist.append(splitImg_np)
                         if (splitImg_np.shape[0] == 0) or (splitImg_np.shape[1] == 0):
@@ -186,11 +158,11 @@ class TestDataset(dataset):
 
     def __getitem__(self, idx):
         splitImg_np = self.dataFrame.iloc[idx, 7]
-        vario = self.varios[idx] #decreases effect on network
-        
+        if self.transform:
+            vario_tensor = self.transform(splitImg_np)
         
         splitImg_tensor = torch.from_numpy(splitImg_np)
-        vario_tensor = torch.from_numpy(vario)
+
         if self.train:
             label = int(self.dataFrame.iloc[idx,4])
             return (splitImg_tensor, vario_tensor, int(label))
