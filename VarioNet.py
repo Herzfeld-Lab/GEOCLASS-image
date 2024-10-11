@@ -193,7 +193,7 @@ class TestDataset(dataset):
         vario_tensor = torch.from_numpy(vario)
         if self.train:
             label = int(self.dataFrame.iloc[idx,4])
-            return (splitImg_tensor, vario_tensor, label)
+            return (splitImg_tensor, vario_tensor, int(label))
         else:
             return splitImg_tensor, vario_tensor
 

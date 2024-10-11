@@ -1,0 +1,18 @@
+{"time":"2024-10-10T14:03:12.154286966-06:00","level":"INFO","msg":"using version","core version":"0.18.3"}
+{"time":"2024-10-10T14:03:12.154302165-06:00","level":"INFO","msg":"created symlink","path":"/home/twickler/ws/GEOCLASS-image/NN_Class/wandb/run-20241010_140312-bn55hsk3/logs/debug-core.log"}
+{"time":"2024-10-10T14:03:12.171548715-06:00","level":"ERROR","msg":"dialing: google: could not find default credentials. See https://cloud.google.com/docs/authentication/external/set-up-adc for more information"}
+{"time":"2024-10-10T14:03:12.173625598-06:00","level":"INFO","msg":"created new stream","id":"bn55hsk3"}
+{"time":"2024-10-10T14:03:12.173637229-06:00","level":"INFO","msg":"stream: started","id":"bn55hsk3"}
+{"time":"2024-10-10T14:03:12.173659904-06:00","level":"INFO","msg":"handler: started","stream_id":{"value":"bn55hsk3"}}
+{"time":"2024-10-10T14:03:12.173673325-06:00","level":"INFO","msg":"sender: started","stream_id":{"value":"bn55hsk3"}}
+{"time":"2024-10-10T14:03:12.173693103-06:00","level":"INFO","msg":"writer: Do: started","stream_id":{"value":"bn55hsk3"}}
+{"time":"2024-10-10T14:03:12.302848146-06:00","level":"INFO","msg":"wandb-core","!BADKEY":null}
+{"time":"2024-10-10T14:03:12.303859863-06:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2024-10-10T14:06:25.672906426-06:00","level":"INFO","msg":"stream: closing","id":"bn55hsk3"}
+{"time":"2024-10-10T14:06:25.672924622-06:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2024-10-10T14:06:25.674244453-06:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2024-10-10T14:06:26.7558008-06:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2024-10-10T14:06:26.844946754-06:00","level":"INFO","msg":"handler: closed","stream_id":{"value":"bn55hsk3"}}
+{"time":"2024-10-10T14:06:26.8450568-06:00","level":"INFO","msg":"sender: closed","stream_id":{"value":"bn55hsk3"}}
+{"time":"2024-10-10T14:06:26.845042988-06:00","level":"INFO","msg":"writer: Close: closed","stream_id":{"value":"bn55hsk3"}}
+{"time":"2024-10-10T14:06:26.845303063-06:00","level":"INFO","msg":"stream: closed","id":"bn55hsk3"}

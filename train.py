@@ -18,6 +18,8 @@ from sklearn.utils.class_weight import compute_class_weight
 import warnings
 from sklearn.utils.class_weight import compute_class_weight
 import warnings
+import wandb
+
 
 # Handle Ctrl-C event (manual stop training)
 def signal_handler(sig, frame):
@@ -47,6 +49,18 @@ def save_params():
         for key,value in params.items():
             f.write('%s:%s\n' % (key, value))
 
+wandb.init(
+    # set the wandb project where this run will be logged
+    project="my-awesome-project",
+
+    # track hyperparameters and run metadata
+    config={
+    "learning_rate": 0.02,
+    "architecture": "CNN",
+    "dataset": "CIFAR-100",
+    "epochs": 10,
+    }
+)
 
 # Parse command line flags
 parser = argparse.ArgumentParser()
@@ -82,6 +96,7 @@ if cfg['model'] == 'VarioMLP':
     vario_num_lag = cfg['vario_num_lag']
     hidden_layers = cfg['hidden_layers']
     imSize = cfg['split_img_size']
+    image_folder = cfg['training_img_path']
     model = VarioMLP.VarioMLP(num_classes, vario_num_lag, hidden_layers=hidden_layers) 
     img_transforms_train = transforms.Compose([
         DirectionalVario(model.num_lag),
@@ -91,6 +106,7 @@ if cfg['model'] == 'VarioMLP':
         DirectionalVario(model.num_lag),
         DefaultRotateVario(),
     ])
+    
 
 elif cfg['model'] == 'Resnet18':
     num_classes = cfg['num_classes']
@@ -177,9 +193,9 @@ if imgTrain:
             train = True,
             transform = img_transforms_valid
             )
+        #train_dataset = FromFolderDataset('VarioMLP', train_imgs, train_var, train_labels, None)
+        #valid_dataset = FromFolderDataset('VarioMLP', train_imgs, train_var, train_labels, None)
     elif cfg['model'] == 'Resnet18':
-        trainImages = load_images(train_imgs)
-        testImages = load_images(test_imgs)
         transform = transforms.Compose([
             transforms.Resize((224, 224)),  # Resize images to match ResNet18 input size
             transforms.ToTensor(),
@@ -351,6 +367,7 @@ if imgTrain:
             loss = loss + float(criterion(Y_hat, Y))
 
         valid_losses.append(loss/batch_idx)
+        wandb.log({"acc": train_losses[-1], "loss": valid_losses[-1]})
         print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
 
         print('saving checkpoint')
@@ -369,6 +386,7 @@ if imgTrain:
                 'optimizer' : optimizer.state_dict()}
     torch.save(checkpoint, checkpoint_path)
     save_losses()
+    wandb.finish()
 
 else:
     # Perform train/test split

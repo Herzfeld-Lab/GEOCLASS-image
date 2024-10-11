@@ -84,7 +84,6 @@ img_transforms_valid = None
 
 
 
-print("VarioNet")
 
 if imgTrain:
     image_paths, variogram_data, labels = collect_image_paths_and_labels(image_folder)
@@ -139,8 +138,8 @@ if imgTrain:
     valid_dataset = FromFolderDataset(cfg['model'], test_imgs, test_var, test_labels, transform)
 
 
-    vario_dataset = FromFolderDataset('VarioMLP', train_imgs, train_var, train_labels, transform)
-    vario_valid_dataset = FromFolderDataset('VarioMLP', train_imgs, train_var, train_labels, transform)
+    vario_dataset = FromFolderDataset('VarioMLP', train_imgs, train_var, train_labels, None)
+    vario_valid_dataset = FromFolderDataset('VarioMLP', train_imgs, train_var, train_labels, None)
     """vario_dataset = SplitImageDataset(
             imgPath = topDir,
             imgData = dataset_info,

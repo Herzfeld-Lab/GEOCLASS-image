@@ -1,0 +1,18 @@
+{"time":"2024-10-11T13:53:44.958508287-06:00","level":"INFO","msg":"using version","core version":"0.18.3"}
+{"time":"2024-10-11T13:53:44.958558794-06:00","level":"INFO","msg":"created symlink","path":"/home/twickler/ws/GEOCLASS-image/NN_Class/wandb/run-20241011_135344-14788pw3/logs/debug-core.log"}
+{"time":"2024-10-11T13:53:44.972381738-06:00","level":"ERROR","msg":"dialing: google: could not find default credentials. See https://cloud.google.com/docs/authentication/external/set-up-adc for more information"}
+{"time":"2024-10-11T13:53:44.974740448-06:00","level":"INFO","msg":"created new stream","id":"14788pw3"}
+{"time":"2024-10-11T13:53:44.974752668-06:00","level":"INFO","msg":"stream: started","id":"14788pw3"}
+{"time":"2024-10-11T13:53:44.974793403-06:00","level":"INFO","msg":"sender: started","stream_id":{"value":"14788pw3"}}
+{"time":"2024-10-11T13:53:44.974793923-06:00","level":"INFO","msg":"writer: Do: started","stream_id":{"value":"14788pw3"}}
+{"time":"2024-10-11T13:53:44.974820074-06:00","level":"INFO","msg":"handler: started","stream_id":{"value":"14788pw3"}}
+{"time":"2024-10-11T13:53:45.118195999-06:00","level":"INFO","msg":"wandb-core","!BADKEY":null}
+{"time":"2024-10-11T13:53:45.120094864-06:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2024-10-11T13:56:34.37732556-06:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2024-10-11T13:56:34.378392029-06:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2024-10-11T13:56:34.694745589-06:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2024-10-11T13:56:35.811783756-06:00","level":"INFO","msg":"stream: closing","id":"14788pw3"}
+{"time":"2024-10-11T13:56:35.811810125-06:00","level":"INFO","msg":"handler: closed","stream_id":{"value":"14788pw3"}}
+{"time":"2024-10-11T13:56:35.811834116-06:00","level":"INFO","msg":"writer: Close: closed","stream_id":{"value":"14788pw3"}}
+{"time":"2024-10-11T13:56:35.811865273-06:00","level":"INFO","msg":"sender: closed","stream_id":{"value":"14788pw3"}}
+{"time":"2024-10-11T13:56:35.811880461-06:00","level":"INFO","msg":"stream: closed","id":"14788pw3"}

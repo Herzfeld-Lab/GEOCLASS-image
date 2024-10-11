@@ -12,6 +12,7 @@ import sys
 import argparse
 from datetime import datetime
 import random
+import wandb
 from Models import *
 from VarioNet import CombinedModel
 from VarioNet import collect_image_paths_and_labels
@@ -60,6 +61,18 @@ def save_params():
         for key,value in params.items():
             f.write('%s:%s\n' % (key, value))
 
+wandb.init(
+    # set the wandb project where this run will be logged
+    project="my-awesome-project",
+
+    # track hyperparameters and run metadata
+    config={
+    "learning_rate": 0.02,
+    "architecture": "CNN",
+    "dataset": "CIFAR-100",
+    "epochs": 10,
+    }
+)
 
 # Parse command line flags
 parser = argparse.ArgumentParser()
@@ -286,7 +299,7 @@ for epoch in range(num_epochs):
                     #variogram_loss = criterion(variogram_validation, labels)
                     #total_variogram_loss += variogram_loss.item()
         valid_losses.append(loss/batch_idx)
-
+        wandb.log({"acc": train_losses[-1], "loss": valid_losses[-1]})
         print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
 
         checkpoint_str = "epoch_" + str(epoch)
@@ -343,6 +356,7 @@ for epoch in range(fine_epochs):
                     #variogram_loss = criterion(variogram_validation, labels)
                     #total_variogram_loss += variogram_loss.item()
         valid_losses.append(loss/batch_idx)
+        wandb.log({"acc": train_losses[-1], "loss": valid_losses[-1]})
 
         print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
 
@@ -364,3 +378,4 @@ checkpoint = {'state_dict': model.state_dict(),
                 'optimizer' : optimizer.state_dict()}
 torch.save(checkpoint, checkpoint_path)
 save_losses()
+wandb.finish()

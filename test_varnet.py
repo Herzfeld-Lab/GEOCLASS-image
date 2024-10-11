@@ -246,7 +246,7 @@ else:
         conf = sm.max()
 
         if conf > 0:
-            labels.append(torch.argmax(Y_hat))
+            labels.append(int(torch.argmax(Y_hat)))
             confs.append(conf.item())
         else:
             labels.append(num_classes)

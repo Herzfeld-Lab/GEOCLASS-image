@@ -113,7 +113,7 @@ class SplitImageDataset(Dataset):
 
         if self.train:
             label = int(self.dataFrame.iloc[idx,4])
-            return (splitImg_tensor, label)
+            return (splitImg_tensor, int(label))
 
         else:
             return splitImg_tensor
