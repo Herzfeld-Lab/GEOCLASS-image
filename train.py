@@ -68,6 +68,7 @@ batch_size = cfg['batch_size']
 num_epochs = cfg['num_epochs']
 hidden_layers = cfg['hidden_layers']
 imgTrain = cfg['train_with_img']
+fine_epochs = cfg['fine_epochs']
 
 # Set dataset hyperparameters as specified by config file
 topDir = cfg['img_path']
@@ -102,9 +103,27 @@ elif cfg['model'] == 'Resnet18':
     vario_num_lag = cfg['vario_num_lag']
     image_folder = cfg['training_img_path']
     model = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
+    transform = transforms.Compose([
+            transforms.Resize((224, 224)),  # Resize images to match ResNet18 input size
+        ])
     img_transforms_train = None
     img_transforms_valid = None
-
+elif cfg['model'] == 'VarioNet':
+    num_classes = cfg['num_classes']
+    vario_num_lag = cfg['vario_num_lag']
+    image_folder = cfg['training_img_path']
+    alpha = cfg['alpha']
+    beta = cfg['beta']
+    vario_mlp = VarioMLP.VarioMLP(num_classes, vario_num_lag, hidden_layers=hidden_layers)
+    resnet18 = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
+    vario_mlp.load_state_dict(torch.load('vario_mlp.pth'))
+    resnet18.load_state_dict(torch.load('resnet18.pth'))
+    model = CombinedModel(vario_mlp, resnet18, num_classes, a = alpha, b = beta)
+    transform = transforms.Compose([
+            transforms.Resize((224, 224)),  # Resize images to match ResNet18 input size
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485], std=[0.229])  # Use grayscale mean and std
+        ])
 elif cfg['model'] == 'DDAiceNet':
     ddaBool = True
     num_classes = cfg['num_classes']
@@ -120,7 +139,7 @@ else:
 
 print(model)
 if imgTrain:
-    if cfg['model'] == 'Resnet18' or cfg['model'] == 'VarioMLP':
+    if cfg['model'] == 'Resnet18' or cfg['model'] == 'VarioMLP' or cfg['model'] == 'VarioNet':
         image_paths, variogram_data, labels = collect_image_paths_and_labels(image_folder)
         train_size = int(cfg['train_test_split'] * len(image_paths))
         if cfg['train_indeces'] == 'None':
@@ -191,13 +210,9 @@ if imgTrain:
     print('----- Initializing Dataset -----')
 
     if cfg['model'] == 'VarioMLP':
-        print("vario", train_var)
         train_dataset = FromFolderDataset('VarioMLP', train_imgs, train_var, train_labels, None)
         valid_dataset = FromFolderDataset('VarioMLP', test_imgs, test_var, test_labels, None)
-    elif cfg['model'] == 'Resnet18':
-        transform = transforms.Compose([
-            transforms.Resize((224, 224)),  # Resize images to match ResNet18 input size
-        ])
+    elif cfg['model'] == 'Resnet18' or cfg['model'] == 'VarioNet':
         train_dataset = FromFolderDataset(cfg['model'], train_imgs, train_var, train_labels, transform)
         valid_dataset = FromFolderDataset(cfg['model'], test_imgs, test_var, test_labels, transform)
     else:
@@ -295,88 +310,195 @@ if imgTrain:
 
     # X = tensor
     # Y = label
+    if cfg['model'] == 'VarioNet':
+        for epoch in range(num_epochs):
+            sum_loss = 0
+            print("EPOCH: {} ".format(epoch),end='',flush=True)
+            for batch_idx, (images, variograms, labels) in enumerate(train_loader):
+                if args.cuda:
+                    images, variograms, labels = images.to(device), variograms.to(device), labels.to(device)
+                images = torch.unsqueeze(images,1).float()
+                variograms = torch.unsqueeze(variograms,1).float()
+                outputs = model.forward(images, variograms)
+                loss = criterion(outputs, labels)
 
-    for epoch in range(num_epochs):
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                sum_loss = sum_loss + float(criterion(outputs, labels))
+                    # Validation phase
+            train_losses.append(sum_loss/batch_idx)
 
-        print("EPOCH: {} ".format(epoch),end='',flush=True)
+            print('running validation')
 
-        sum_loss = 0
-        for batch_idx,(X,Y) in enumerate(train_loader):
+            loss = 0
+            for batch_idx, (images, variograms, labels) in enumerate(valid_loader):
+                if args.cuda:
+                    images, variograms, labels = images.to(device), variograms.to(device), labels.to(device)
+                images = torch.unsqueeze(images,1).float()
+                variograms = torch.unsqueeze(variograms,1).float()
+                        
+                outputs = model.forward(images, variograms)
+                loss = loss + float(criterion(outputs, labels))
+                        #variogram_validation = model(images, variogram=variograms)
+                        #variogram_loss = criterion(variogram_validation, labels)
+                        #total_variogram_loss += variogram_loss.item()
+            valid_losses.append(loss/batch_idx)
+            print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
+
+            checkpoint_str = "epoch_" + str(epoch)
+
+
+            if valid_losses[-1] == np.array(valid_losses).min():
+                checkpoint_path = os.path.join(output_dir, 'checkpoints', checkpoint_str)
+                checkpoint = {'state_dict': model.state_dict(),
+                            'optimizer' : optimizer.state_dict()}
+                torch.save(checkpoint, checkpoint_path)
+            else:
+                if len(valid_losses) > np.array(valid_losses).argmin() + 100:
+                    break
+        for param in model.parameters():
+                param.requires_grad = True
+
+                    # Fine-tune with a smaller learning rate
+        optimizer_finetune = torch.optim.Adam(model.parameters(), lr= 5e-6)
+
+                    # Fine-tuning loop
+        print("Fine Tuning VarioNet")
             
-            #CST20240315 make program exit and say train data set is too low
-            if int((len(train_dataset) / batch_size)/10) != 0: #So it won't crash 
-                if batch_idx % int((len(train_dataset) / batch_size)/10) == 0:
-                    print('.', end='',flush=True)
+
+        for epoch in range(fine_epochs):
+                sum_loss = 0
+                print("EPOCH: {} ".format(epoch),end='',flush=True)
+                for batch_idx, (images, variograms, labels) in enumerate(train_loader):
+                    if args.cuda:
+                        images, variograms, labels = images.to(device), variograms.to(device), labels.to(device)
+                    images = torch.unsqueeze(images,1).float()
+                    variograms = torch.unsqueeze(variograms,1).float()
+                    outputs = model.forward(images, variograms)
+                    loss = criterion(outputs, labels)
+
+                    optimizer_finetune.zero_grad()
+                    loss.backward()
+                    optimizer_finetune.step()
+                    sum_loss = sum_loss + float(criterion(outputs, labels))
+                
+                train_losses.append(sum_loss/batch_idx)
+
+                    # Validation phase
+                print('running validation')
+                loss = 0
+                for batch_idx, (images, variograms, labels) in enumerate(valid_loader):
+                    if args.cuda:
+                        images, variograms, labels = images.to(device), variograms.to(device), labels.to(device)
+                    images = torch.unsqueeze(images,1).float()
+                    variograms = torch.unsqueeze(variograms,1).float()
+                        
+                    outputs = model.forward(images, variograms)
+                    loss = loss + float(criterion(outputs, labels))
+                            #variogram_validation = model(images, variogram=variograms)
+                            #variogram_loss = criterion(variogram_validation, labels)
+                            #total_variogram_loss += variogram_loss.item()
+                valid_losses.append(loss/batch_idx)
+
+                print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
+
+                print('saving checkpoint')
+                    # Save checkpoint
+                checkpoint_str = "epoch_" + str(int(epoch)+int(num_epochs))
+
+
+                if valid_losses[-1] == np.array(valid_losses).min():
+                    checkpoint_path = os.path.join(output_dir, 'checkpoints', checkpoint_str)
+                    checkpoint = {'state_dict': model.state_dict(),
+                                'optimizer' : optimizer.state_dict()}
+                    torch.save(checkpoint, checkpoint_path)
+                else:
+                    if len(valid_losses) > np.array(valid_losses).argmin() + 100:
+                        break
+            
+    else:
+        for epoch in range(num_epochs):
+
+            print("EPOCH: {} ".format(epoch),end='',flush=True)
+
+            sum_loss = 0
+            for batch_idx,(X,Y) in enumerate(train_loader):
+                
+                #CST20240315 make program exit and say train data set is too low
+                if int((len(train_dataset) / batch_size)/10) != 0: #So it won't crash 
+                    if batch_idx % int((len(train_dataset) / batch_size)/10) == 0:
+                        print('.', end='',flush=True)
+                else:
+                    print("ERROR: The length of the training dataset is too small") #CST 20240318
+                    sys.exit(0)
+
+                # Move batch to GPU
+                if args.cuda:
+                    X,Y = X.to(device),Y.to(device)
+                    #X = X.view((X.shape[0],1,-1)).float()
+                    X = torch.unsqueeze(X,1).float()
+                else:
+                    #X = X.view((X.shape[0],1,-1)).float()
+                    X = torch.unsqueeze(X,1).float()
+
+                # Compute forward pass
+                Y_hat = model.forward(X)
+
+                # Calculate training loss
+                loss = criterion(Y_hat, Y)
+
+                # Perform backprop and zero gradient
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                optimizer.zero_grad()
+
+                sum_loss = sum_loss + float(criterion(Y_hat, Y))
+
+                #print("EPOCH: %d\t BATCH: %d\tTRAIN LOSS = %f"%(epoch,batch_idx,loss.item()))
+                #Make exit if batch_idx is zero
+            if batch_idx != 0:
+                train_losses.append(sum_loss/batch_idx)
             else:
                 print("ERROR: The length of the training dataset is too small") #CST 20240318
                 sys.exit(0)
 
-            # Move batch to GPU
-            if args.cuda:
-                X,Y = X.to(device),Y.to(device)
-                #X = X.view((X.shape[0],1,-1)).float()
-                X = torch.unsqueeze(X,1).float()
+
+            print('running validation')
+
+            #Valid
+            loss = 0
+            for batch_idx,(X,Y) in enumerate(valid_loader):
+                # Move batch to GPU
+                if args.cuda:
+                    X,Y = X.to(device),Y.to(device)
+                    #X = X.view((X.shape[0],1,-1)).float()
+                    X = torch.unsqueeze(X,1).float()
+                else:
+                    #X = X.view((X.shape[0],1,-1)).float()
+                    X = torch.unsqueeze(X,1).float()
+
+                # Compute forward pass
+                Y_hat = model.forward(X)
+
+                # Calculate training loss
+                loss = loss + float(criterion(Y_hat, Y))
+
+            valid_losses.append(loss/batch_idx)
+            print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
+
+            print('saving checkpoint')
+            # Save checkpoint
+            checkpoint_str = "epoch_" + str(epoch)
+            if valid_losses[-1] == np.array(valid_losses).min():
+                checkpoint_path = os.path.join(output_dir, 'checkpoints', checkpoint_str)
+                checkpoint = {'state_dict': model.state_dict(),
+                            'optimizer' : optimizer.state_dict()}
+                torch.save(checkpoint, checkpoint_path)
             else:
-                #X = X.view((X.shape[0],1,-1)).float()
-                X = torch.unsqueeze(X,1).float()
-
-            # Compute forward pass
-            Y_hat = model.forward(X)
-
-            # Calculate training loss
-            loss = criterion(Y_hat, Y)
-
-            # Perform backprop and zero gradient
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
-
-            sum_loss = sum_loss + float(criterion(Y_hat, Y))
-
-            #print("EPOCH: %d\t BATCH: %d\tTRAIN LOSS = %f"%(epoch,batch_idx,loss.item()))
-            #Make exit if batch_idx is zero
-        if batch_idx != 0:
-            train_losses.append(sum_loss/batch_idx)
-        else:
-            print("ERROR: The length of the training dataset is too small") #CST 20240318
-            sys.exit(0)
-
-
-        print('running validation')
-
-        #Valid
-        loss = 0
-        for batch_idx,(X,Y) in enumerate(valid_loader):
-            # Move batch to GPU
-            if args.cuda:
-                X,Y = X.to(device),Y.to(device)
-                #X = X.view((X.shape[0],1,-1)).float()
-                X = torch.unsqueeze(X,1).float()
-            else:
-                #X = X.view((X.shape[0],1,-1)).float()
-                X = torch.unsqueeze(X,1).float()
-
-            # Compute forward pass
-            Y_hat = model.forward(X)
-
-            # Calculate training loss
-            loss = loss + float(criterion(Y_hat, Y))
-
-        valid_losses.append(loss/batch_idx)
-        print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
-
-        print('saving checkpoint')
-        # Save checkpoint
-        checkpoint_str = "epoch_" + str(epoch)
-        if valid_losses[-1] == np.array(valid_losses).min():
-            checkpoint_path = os.path.join(output_dir, 'checkpoints', checkpoint_str)
-            checkpoint = {'state_dict': model.state_dict(),
-                        'optimizer' : optimizer.state_dict()}
-            torch.save(checkpoint, checkpoint_path)
-        else:
-            if len(valid_losses) > np.array(valid_losses).argmin() + 100:
-                break
+                if len(valid_losses) > np.array(valid_losses).argmin() + 100:
+                    break
     checkpoint_path = os.path.join(output_dir, 'checkpoints', checkpoint_str)
     checkpoint = {'state_dict': model.state_dict(),
                 'optimizer' : optimizer.state_dict()}
@@ -523,90 +645,197 @@ else:
     train_losses = []
     valid_losses = []
 
+    
+    if cfg['model'] == 'VarioNet':
+        for epoch in range(num_epochs):
+            sum_loss = 0
+            print("EPOCH: {} ".format(epoch),end='',flush=True)
+            for batch_idx, (images, variograms, labels) in enumerate(train_loader):
+                if args.cuda:
+                    images, variograms, labels = images.to(device), variograms.to(device), labels.to(device)
+                images = torch.unsqueeze(images,1).float()
+                variograms = torch.unsqueeze(variograms,1).float()
+                outputs = model.forward(images, variograms)
+                loss = criterion(outputs, labels)
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                sum_loss = sum_loss + float(criterion(outputs, labels))
+                    # Validation phase
+            train_losses.append(sum_loss/batch_idx)
+
+            print('running validation')
+
+            loss = 0
+            for batch_idx, (images, variograms, labels) in enumerate(valid_loader):
+                if args.cuda:
+                    images, variograms, labels = images.to(device), variograms.to(device), labels.to(device)
+                images = torch.unsqueeze(images,1).float()
+                variograms = torch.unsqueeze(variograms,1).float()
+                        
+                outputs = model.forward(images, variograms)
+                loss = loss + float(criterion(outputs, labels))
+                        #variogram_validation = model(images, variogram=variograms)
+                        #variogram_loss = criterion(variogram_validation, labels)
+                        #total_variogram_loss += variogram_loss.item()
+            valid_losses.append(loss/batch_idx)
+            print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
+
+            checkpoint_str = "epoch_" + str(epoch)
+
+
+            if valid_losses[-1] == np.array(valid_losses).min():
+                checkpoint_path = os.path.join(output_dir, 'checkpoints', checkpoint_str)
+                checkpoint = {'state_dict': model.state_dict(),
+                            'optimizer' : optimizer.state_dict()}
+                torch.save(checkpoint, checkpoint_path)
+            else:
+                if len(valid_losses) > np.array(valid_losses).argmin() + 100:
+                    break
+        for param in model.parameters():
+                param.requires_grad = True
+
+                    # Fine-tune with a smaller learning rate
+        optimizer_finetune = torch.optim.Adam(model.parameters(), lr= 5e-6)
+
+                    # Fine-tuning loop
+        print("Fine Tuning VarioNet")
+            
+
+        for epoch in range(fine_epochs):
+                sum_loss = 0
+                print("EPOCH: {} ".format(epoch),end='',flush=True)
+                for batch_idx, (images, variograms, labels) in enumerate(train_loader):
+                    if args.cuda:
+                        images, variograms, labels = images.to(device), variograms.to(device), labels.to(device)
+                    images = torch.unsqueeze(images,1).float()
+                    variograms = torch.unsqueeze(variograms,1).float()
+                    outputs = model.forward(images, variograms)
+                    loss = criterion(outputs, labels)
+
+                    optimizer_finetune.zero_grad()
+                    loss.backward()
+                    optimizer_finetune.step()
+                    sum_loss = sum_loss + float(criterion(outputs, labels))
+                
+                train_losses.append(sum_loss/batch_idx)
+
+                    # Validation phase
+                print('running validation')
+                loss = 0
+                for batch_idx, (images, variograms, labels) in enumerate(valid_loader):
+                    if args.cuda:
+                        images, variograms, labels = images.to(device), variograms.to(device), labels.to(device)
+                    images = torch.unsqueeze(images,1).float()
+                    variograms = torch.unsqueeze(variograms,1).float()
+                        
+                    outputs = model.forward(images, variograms)
+                    loss = loss + float(criterion(outputs, labels))
+                            #variogram_validation = model(images, variogram=variograms)
+                            #variogram_loss = criterion(variogram_validation, labels)
+                            #total_variogram_loss += variogram_loss.item()
+                valid_losses.append(loss/batch_idx)
+
+                print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
+
+                print('saving checkpoint')
+                    # Save checkpoint
+                checkpoint_str = "epoch_" + str(int(epoch)+int(num_epochs))
+
+
+                if valid_losses[-1] == np.array(valid_losses).min():
+                    checkpoint_path = os.path.join(output_dir, 'checkpoints', checkpoint_str)
+                    checkpoint = {'state_dict': model.state_dict(),
+                                'optimizer' : optimizer.state_dict()}
+                    torch.save(checkpoint, checkpoint_path)
+                else:
+                    if len(valid_losses) > np.array(valid_losses).argmin() + 100:
+                        break
     # X = tensor
     # Y = label
+    else:
+        for epoch in range(num_epochs):
 
-    for epoch in range(num_epochs):
+            print("EPOCH: {} ".format(epoch),end='',flush=True)
 
-        print("EPOCH: {} ".format(epoch),end='',flush=True)
+            sum_loss = 0
+            for batch_idx,(X,Y) in enumerate(train_loader):
+                
+                #CST20240315 else make program exit and say train data set is too low
+                if int((len(train_dataset) / batch_size)/10) != 0: #So it won't crash 
+                    if batch_idx % int((len(train_dataset) / batch_size)/10) == 0:
+                        print('.', end='',flush=True)
+                else:
+                    print("ERROR: The length of the training dataset is too small") #CST 20240318
+                    sys.exit(0)
 
-        sum_loss = 0
-        for batch_idx,(X,Y) in enumerate(train_loader):
-            
-            #CST20240315 else make program exit and say train data set is too low
-            if int((len(train_dataset) / batch_size)/10) != 0: #So it won't crash 
-                if batch_idx % int((len(train_dataset) / batch_size)/10) == 0:
-                    print('.', end='',flush=True)
+                # Move batch to GPU
+                if args.cuda:
+                    X,Y = X.to(device),Y.to(device)
+                    #X = X.view((X.shape[0],1,-1)).float()
+                    X = torch.unsqueeze(X,1).float()
+                else:
+                    #X = X.view((X.shape[0],1,-1)).float()
+                    X = torch.unsqueeze(X,1).float()
+
+                # Compute forward pass
+                Y_hat = model.forward(X)
+
+                # Calculate training loss
+                loss = criterion(Y_hat, Y)
+
+                # Perform backprop and zero gradient
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                optimizer.zero_grad()
+
+                sum_loss = sum_loss + float(criterion(Y_hat, Y))
+
+                #print("EPOCH: %d\t BATCH: %d\tTRAIN LOSS = %f"%(epoch,batch_idx,loss.item()))
+                #Make exit if batch_idx is zero
+            if batch_idx != 0:
+                train_losses.append(sum_loss/batch_idx)
             else:
                 print("ERROR: The length of the training dataset is too small") #CST 20240318
                 sys.exit(0)
 
-            # Move batch to GPU
-            if args.cuda:
-                X,Y = X.to(device),Y.to(device)
-                #X = X.view((X.shape[0],1,-1)).float()
-                X = torch.unsqueeze(X,1).float()
+
+            print('running validation')
+
+            #Valid
+            loss = 0
+            for batch_idx,(X,Y) in enumerate(valid_loader):
+                # Move batch to GPU
+                if args.cuda:
+                    X,Y = X.to(device),Y.to(device)
+                    #X = X.view((X.shape[0],1,-1)).float()
+                    X = torch.unsqueeze(X,1).float()
+                else:
+                    #X = X.view((X.shape[0],1,-1)).float()
+                    X = torch.unsqueeze(X,1).float()
+
+                # Compute forward pass
+                Y_hat = model.forward(X)
+
+                # Calculate training loss
+                loss = loss + float(criterion(Y_hat, Y))
+
+            valid_losses.append(loss/batch_idx)
+            print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
+
+            print('saving checkpoint')
+            # Save checkpoint
+            checkpoint_str = "epoch_" + str(epoch)
+            if valid_losses[-1] == np.array(valid_losses).min():
+                checkpoint_path = os.path.join(output_dir, 'checkpoints', checkpoint_str)
+                checkpoint = {'state_dict': model.state_dict(),
+                            'optimizer' : optimizer.state_dict()}
+                torch.save(checkpoint, checkpoint_path)
             else:
-                #X = X.view((X.shape[0],1,-1)).float()
-                X = torch.unsqueeze(X,1).float()
-
-            # Compute forward pass
-            Y_hat = model.forward(X)
-
-            # Calculate training loss
-            loss = criterion(Y_hat, Y)
-
-            # Perform backprop and zero gradient
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
-
-            sum_loss = sum_loss + float(criterion(Y_hat, Y))
-
-            #print("EPOCH: %d\t BATCH: %d\tTRAIN LOSS = %f"%(epoch,batch_idx,loss.item()))
-            #Make exit if batch_idx is zero
-        if batch_idx != 0:
-            train_losses.append(sum_loss/batch_idx)
-        else:
-            print("ERROR: The length of the training dataset is too small") #CST 20240318
-            sys.exit(0)
-
-
-        print('running validation')
-
-        #Valid
-        loss = 0
-        for batch_idx,(X,Y) in enumerate(valid_loader):
-            # Move batch to GPU
-            if args.cuda:
-                X,Y = X.to(device),Y.to(device)
-                #X = X.view((X.shape[0],1,-1)).float()
-                X = torch.unsqueeze(X,1).float()
-            else:
-                #X = X.view((X.shape[0],1,-1)).float()
-                X = torch.unsqueeze(X,1).float()
-
-            # Compute forward pass
-            Y_hat = model.forward(X)
-
-            # Calculate training loss
-            loss = loss + float(criterion(Y_hat, Y))
-
-        valid_losses.append(loss/batch_idx)
-        print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
-
-        print('saving checkpoint')
-        # Save checkpoint
-        checkpoint_str = "epoch_" + str(epoch)
-        if valid_losses[-1] == np.array(valid_losses).min():
-            checkpoint_path = os.path.join(output_dir, 'checkpoints', checkpoint_str)
-            checkpoint = {'state_dict': model.state_dict(),
-                        'optimizer' : optimizer.state_dict()}
-            torch.save(checkpoint, checkpoint_path)
-        else:
-            if len(valid_losses) > np.array(valid_losses).argmin() + 100:
-                break
+                if len(valid_losses) > np.array(valid_losses).argmin() + 100:
+                    break
     smallLoss = min(valid_dataset)
     checkpoint_path = os.path.join(output_dir, 'checkpoints', checkpoint_str)
     checkpoint = {'state_dict': model.state_dict(),
