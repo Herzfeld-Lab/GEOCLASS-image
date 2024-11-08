@@ -118,18 +118,6 @@ class SplitImageDataset(Dataset):
         else:
             return splitImg_tensor
 #For training by a folder of images
-class FromFolderDataset(Dataset):
-    def __init__(self, model, image_paths, variogram_data, labels, transform=None):
-        self.model = model
-        if self.model == 'VarioNet':
-            self.image_paths = image_paths
-            self.variogram_data = variogram_data
-            self.labels = labels
-            self.transform = transform
-        else:
-            self.image_paths = image_paths
-            self.labels = labels
-            self.transform = transform
             
 
     def __len__(self):

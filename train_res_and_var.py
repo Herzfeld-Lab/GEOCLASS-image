@@ -87,16 +87,20 @@ img_transforms_valid = None
 
 if imgTrain:
     image_paths, variogram_data, labels = collect_image_paths_and_labels(image_folder)
-    # Perform train/test split
-    #label_path = cfg['training_img_npy']
-    #labeled_data = np.load(label_path, allow_pickle=True)
-    #labelInfo = labeled_data[0]
-    #dataset_labeled = labeled_data[1]
-    #dataset = np.load(dataset_path, allow_pickle=True)
-    #dataset_info = dataset[0]
-    #dataset_coords = dataset[1]
+
     train_size = int(cfg['train_test_split'] * len(image_paths))
-    train_indeces = np.random.choice(range(np.array(len(image_paths))), train_size, replace=False)
+    if cfg['train_indeces'] == 'None':
+        train_indeces = np.random.choice(range(np.array(len(image_paths))), train_size, replace=False)
+        z=len(train_indeces)
+        dataset_path = args.config[:-7] + "_%d"%(num_classes)+"_%d"%(z)+"train_indeces"
+        np.save(dataset_path, train_indeces)
+        cfg['train_indeces'] = dataset_path+'.npy'
+        f = open(args.config, 'w')
+        f.write(generate_config_silas(cfg))
+        f.close()
+    else:
+         train_indeces_npy = cfg['train_indeces']
+         train_indeces = np.load(train_indeces_npy)
     test_indeces = np.setdiff1d(range(np.array(len(image_paths))), train_indeces)
     #CST20240322 Creating loops so train and test coords aren't 1D
     train_imgs = []
@@ -122,8 +126,6 @@ if imgTrain:
     print('----- Initializing Dataset -----')
 
 
-    trainImages = load_images(train_imgs)
-    testImages = load_images(test_imgs)
     transform = transforms.Compose([
             transforms.Resize((224, 224)),  # Resize images to match ResNet18 input size
             transforms.ToTensor(),
@@ -134,26 +136,10 @@ if imgTrain:
         RandomRotateVario(),
         ])
         
-    train_dataset = FromFolderDataset(cfg['model'], train_imgs, train_var, train_labels, transform)
-    valid_dataset = FromFolderDataset(cfg['model'], test_imgs, test_var, test_labels, transform)
 
-
+    print(train_var)
     vario_dataset = FromFolderDataset('VarioMLP', train_imgs, train_var, train_labels, None)
     vario_valid_dataset = FromFolderDataset('VarioMLP', train_imgs, train_var, train_labels, None)
-    """vario_dataset = SplitImageDataset(
-            imgPath = topDir,
-            imgData = dataset_info,
-            labels = train_coords,
-            train = True,
-            transform = var_transforms
-            )
-    vario_valid_dataset = SplitImageDataset(
-            imgPath = topDir,
-            imgData = dataset_info,
-            labels = test_coords,
-            train = True,
-            transform = var_transforms
-            )"""
     image_dataset = FromFolderDataset('Resnet18', train_imgs, train_var, train_labels, transform)
     image_valid_dataset = FromFolderDataset('Resnet18', test_imgs, test_var, test_labels, transform)
          #CST20240315
@@ -168,8 +154,18 @@ else:
         dataset_labeled = dataset_coords[dataset_coords[:,4] != -1]
 
     train_size = int(cfg['train_test_split'] * dataset_labeled.shape[0])
-
-    train_indeces = np.random.choice(range(np.array(dataset_labeled.shape[0])), train_size, replace=False)
+    if cfg['train_indeces'] == 'None':
+        train_indeces = np.random.choice(range(np.array(dataset_labeled.shape[0])), train_size, replace=False)
+        z=len(train_indeces)
+        dataset_path = args.config[:-7] + "_%d"%(num_classes)+"_%d"%(z)+"train_indeces"
+        np.save(dataset_path, train_indeces)
+        cfg['train_indeces'] = dataset_path+'.npy'
+        f = open(args.config, 'w')
+        f.write(generate_config_silas(cfg))
+        f.close()
+    else:
+         train_indeces_npy = cfg['train_indeces']
+         train_indeces = np.load(train_indeces_npy)
     test_indeces = np.setdiff1d(range(np.array(dataset_labeled.shape[0])), train_indeces)
     #CST20240322 Creating loops so train and test coords aren't 1D
     train_coords = []
@@ -191,20 +187,7 @@ else:
         DirectionalVario(vario_num_lag),
         RandomRotateVario(),
         ])
-        
-    train_dataset = TestDataset(
-            imgPath = topDir,
-            imgData = dataset_info,
-            labels = train_coords,
-            train = True,
-            )
-    valid_dataset = TestDataset(
-            imgPath = topDir,
-            imgData = dataset_info,
-            labels = train_coords,
-            train = True,
-            )
-
+    
     vario_dataset = SplitImageDataset(
             imgPath = topDir,
             imgData = dataset_info,
@@ -224,16 +207,16 @@ else:
             imgData = dataset_info,
             labels = train_coords,
             train = True,
-            transform = None
+            transform = transform
             )
     image_valid_dataset = SplitImageDataset(
             imgPath = topDir,
             imgData = dataset_info,
             labels = train_coords,
             train = True,
-            transform = None
+            transform = transform
             )
-print('Training set size: \t%d images'%(len(train_dataset)))
+print('Training set size: \t%d images'%(len(image_dataset)))
     # for i in range(num_classes):
     #     print('Class {}: {} - {} train images'.format(i,classEnum[i],len(train_coords[train_coords[:,4] == i])))
     # print('Validation set size: \t%d images'%(len(valid_dataset)))
@@ -241,22 +224,6 @@ print('Training set size: \t%d images'%(len(train_dataset)))
     #     print('Class {}: {} - {} valid images'.format(i,classEnum[i],len(test_coords[test_coords[:,4] == i])))
 print('----- Initializing DataLoader -----')
     
-train_loader = DataLoader(
-        train_dataset,
-        batch_size=batch_size,
-        shuffle=True
-        )
-    
-
-    
-print("train loader", type(train_loader))
-valid_loader = DataLoader(
-        valid_dataset,
-        batch_size=1,
-        shuffle=False
-        )
-
-
 criterion = torch.nn.CrossEntropyLoss()
     
 

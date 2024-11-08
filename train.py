@@ -11,6 +11,7 @@ import argparse
 from utils import *
 from datetime import datetime
 import random
+from VarioNet import *
 from Models import *
 import yaml
 import signal
@@ -18,7 +19,7 @@ from sklearn.utils.class_weight import compute_class_weight
 import warnings
 from sklearn.utils.class_weight import compute_class_weight
 import warnings
-import wandb
+
 
 
 # Handle Ctrl-C event (manual stop training)
@@ -49,18 +50,6 @@ def save_params():
         for key,value in params.items():
             f.write('%s:%s\n' % (key, value))
 
-wandb.init(
-    # set the wandb project where this run will be logged
-    project="my-awesome-project",
-
-    # track hyperparameters and run metadata
-    config={
-    "learning_rate": 0.02,
-    "architecture": "CNN",
-    "dataset": "CIFAR-100",
-    "epochs": 10,
-    }
-)
 
 # Parse command line flags
 parser = argparse.ArgumentParser()
@@ -112,7 +101,6 @@ elif cfg['model'] == 'Resnet18':
     num_classes = cfg['num_classes']
     vario_num_lag = cfg['vario_num_lag']
     image_folder = cfg['training_img_path']
-    image_paths, variogram_data, labels = collect_image_paths_and_labels(image_folder, vario_num_lag)
     model = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
     img_transforms_train = None
     img_transforms_valid = None
@@ -132,9 +120,21 @@ else:
 
 print(model)
 if imgTrain:
-    if cfg['model'] == 'Resnet18':
+    if cfg['model'] == 'Resnet18' or cfg['model'] == 'VarioMLP':
+        image_paths, variogram_data, labels = collect_image_paths_and_labels(image_folder)
         train_size = int(cfg['train_test_split'] * len(image_paths))
-        train_indeces = np.random.choice(range(np.array(len(image_paths))), train_size, replace=False)
+        if cfg['train_indeces'] == 'None':
+            train_indeces = np.random.choice(range(np.array(len(image_paths))), train_size, replace=False)
+            z=len(train_indeces)
+            dataset_path = args.config[:-7] + "_%d"%(num_classes)+"_%d"%(z)+"train_indeces"
+            np.save(dataset_path, train_indeces)
+            cfg['train_indeces'] = dataset_path+'.npy'
+            f = open(args.config, 'w')
+            f.write(generate_config_silas(cfg))
+            f.close()
+        else:
+            train_indeces_npy = cfg['train_indeces']
+            train_indeces = np.load(train_indeces_npy)
         test_indeces = np.setdiff1d(range(np.array(len(image_paths))), train_indeces)
         #CST20240322 Creating loops so train and test coords aren't 1D
         train_imgs = []
@@ -152,6 +152,8 @@ if imgTrain:
             test_imgs.append(image_paths[i])
             test_var.append(variogram_data[i])
             test_labels.append(labels[i])
+
+
     else:
         # Perform train/test split
         label_path = cfg['training_img_npy']
@@ -164,7 +166,18 @@ if imgTrain:
 
         train_size = int(cfg['train_test_split'] * dataset_labeled.shape[0])
 
-        train_indeces = np.random.choice(range(np.array(dataset_labeled.shape[0])), train_size, replace=False)
+        if cfg['train_indeces'] == 'None':
+            train_indeces = np.random.choice(range(np.array(dataset_labeled.shape[0])), train_size, replace=False)
+            z=len(train_indeces)
+            dataset_path = args.config[:-7] + "_%d"%(num_classes)+"_%d"%(z)+"train_indeces"
+            np.save(dataset_path, train_indeces)
+            cfg['train_indeces'] = dataset_path+'.npy'
+            f = open(args.config, 'w')
+            f.write(generate_config_silas(cfg))
+            f.close()
+        else:
+            train_indeces_npy = cfg['train_indeces']
+            train_indeces = np.load(train_indeces_npy)
         test_indeces = np.setdiff1d(range(np.array(dataset_labeled.shape[0])), train_indeces)
         #CST20240322 Creating loops so train and test coords aren't 1D
         train_coords = []
@@ -178,28 +191,12 @@ if imgTrain:
     print('----- Initializing Dataset -----')
 
     if cfg['model'] == 'VarioMLP':
-        train_dataset = SplitImageDataset(
-            imgPath = topDir,
-            imgData = dataset_info,
-            labels = train_coords,
-            train = True,
-            transform = img_transforms_train
-            )
-
-        valid_dataset = SplitImageDataset(
-            imgPath = topDir,
-            imgData = dataset_info,
-            labels = test_coords,
-            train = True,
-            transform = img_transforms_valid
-            )
-        #train_dataset = FromFolderDataset('VarioMLP', train_imgs, train_var, train_labels, None)
-        #valid_dataset = FromFolderDataset('VarioMLP', train_imgs, train_var, train_labels, None)
+        print("vario", train_var)
+        train_dataset = FromFolderDataset('VarioMLP', train_imgs, train_var, train_labels, None)
+        valid_dataset = FromFolderDataset('VarioMLP', test_imgs, test_var, test_labels, None)
     elif cfg['model'] == 'Resnet18':
         transform = transforms.Compose([
             transforms.Resize((224, 224)),  # Resize images to match ResNet18 input size
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485], std=[0.229])  # Use grayscale mean and std
         ])
         train_dataset = FromFolderDataset(cfg['model'], train_imgs, train_var, train_labels, transform)
         valid_dataset = FromFolderDataset(cfg['model'], test_imgs, test_var, test_labels, transform)
@@ -367,7 +364,6 @@ if imgTrain:
             loss = loss + float(criterion(Y_hat, Y))
 
         valid_losses.append(loss/batch_idx)
-        wandb.log({"acc": train_losses[-1], "loss": valid_losses[-1]})
         print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
 
         print('saving checkpoint')
@@ -386,7 +382,6 @@ if imgTrain:
                 'optimizer' : optimizer.state_dict()}
     torch.save(checkpoint, checkpoint_path)
     save_losses()
-    wandb.finish()
 
 else:
     # Perform train/test split
@@ -612,6 +607,7 @@ else:
         else:
             if len(valid_losses) > np.array(valid_losses).argmin() + 100:
                 break
+    smallLoss = min(valid_dataset)
     checkpoint_path = os.path.join(output_dir, 'checkpoints', checkpoint_str)
     checkpoint = {'state_dict': model.state_dict(),
                 'optimizer' : optimizer.state_dict()}

@@ -132,8 +132,8 @@ def getVario(img, lagThresh = 0.8):
 
 
 
-os.chdir("/home/twickler/Desktop/VarioCalculator")
-filename = "17.tif"
+os.chdir("Classification/1")
+filename = "16391.tif"
 img = imageio.imread(filename)
 lagThresh = 0.8
 

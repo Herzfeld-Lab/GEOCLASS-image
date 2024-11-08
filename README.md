@@ -80,6 +80,8 @@ Each individual classification project should have its own sub-directory in `NN_
 2. A `.npy`-formatted 'contour' file containing a list of UTM coordinates which define the boundaries of the area-of-interest for the classification task.
 
 There is an example Config folder with the above files included in `NN_Class/Config/mlp_test_negri`, which contains the configuration for classifying surface types of the Negribreen Glacier from WorldView GeoTIFF images. The easiest way to set up your own project is to copy this folder, and change the necessary parameters. In order to create your own area-of-interest contour file, skip to the [Generating a Contour File](#generating-a-contour-file) section before proceeding with the rest of this tutorial.
+### Setting up the Image Folder
+In order to train a network directly from images, the training image folder needs to be set up correctly. Inside this folder should be be a folder for each class, labeled with the class number, that you want to train the network on. In each class' folder the images need to be labeled in the following manner. The first digits of the image should be the class that it is associated with. The last digit in the image's name is the WV image from the dataset it was taken from.While this is only needed for training VarioMLP, this should be set to zero if there are no WV images associated with the image. If you are not using outside images, this process is automated during the [labeling](#labeling-training-data) proccess.
 ## Config Parameters
 The YAML-formatted `.config` file contains all of the configuration parameters for a classification task. To create your own config file, simply copy the example provided in `NN_Class/Config/mlp_test_negri/mlp_test_negri.config` and change the parameters to fit your task. The config file must have the exact format provided in the example file for the NN_Class software to work. The parameters in the config file are split into 5 categories, which are defined as follows:
 ### Model Parameters
@@ -90,7 +92,7 @@ The model parameters define the hyperparameters of the classification model. Som
 - `hidden_layers`: (VarioMLP-only) The shape of the hidden layers of the VarioMLP network. Detailed description provided [here](#variomlp).
 - `activations`: The activation functions used in the neural network's hidden layers (right now, only [ReLU](https://machinelearningmastery.com/rectified-linear-activation-function-for-deep-learning-neural-networks/) is supported).
 ### Dataset Parameters
-The dataset parameters define the filepaths and hyperparameters pertaining to the 'split image' dataset. When starting a new project, the `img_path`, `class_enum`, `utm_epsg_code`, `split_img_size` and `train_test_split` parameters should be defined. The `npy_path` parameter will be automatically filled in when [creating a dataset](#creating-a-dataset).
+The dataset parameters define the filepaths and hyperparameters pertaining to the 'split image' dataset. When starting a new project, the `img_path`, `class_enum`, `utm_epsg_code`, `split_img_size`, `train_test_split`, `training_img_path` parameters should be defined. The variables `save_all_pred` and `equal_dataset` are booleans for controlling how predictions will be saved. The `npy_path` and `training_img_npy` parameters will be automatically filled in when [creating a dataset](#creating-a-dataset).
 - `img_path`:         The path to the directory containing the GeoTIFF images in your dataset (explained [here](#setting-up-the-data-folder)).
 - `npy_path`:         The filepath to the .npy file containing all the split image data (explained [here](#creating-a-dataset)).
 - `train_path`:       Deprecated - used only to load split images in the old matlab format (file heirarchy with .png).
@@ -99,10 +101,18 @@ The dataset parameters define the filepaths and hyperparameters pertaining to th
 - `utm_epsg_code`:    [EPSG code](https://epsg.io/) of the UTM zone the geotiff image is within.
 - `split_img_size`:   Desired size of split images, in pixels.
 - `train_test_split`: Percentage of images to be kept as training images (0.8 == 80%), the rest are used for testing.
+- `training_img_path`:    The path to directory containing folders of images to use for training.
+- `training_img_npy`:     The path to the .npy file created from the folder of images.
+- `save_all_pred`:      Boolean for saving predictions from all WV images in a dataset.
+- `equal_dataset`:      Boolean for saving a prediction with equal number of images in every class.
 ### Training Parameters
 The training parameters govern how the classification model is trained when using `train.py`. The [Training](#training) section contains a detailed description of these operations.
+- `train_with_img`:     If true, the model will be trained wither from the image .npy or the folder of images depending on the model.
 - `use_cuda`:       If true, utilizes GPU for training and testing. See [Using a GPU](#using-a-gpu)
 - `num_epochs`:     Maximum number of epochs to run the training loop
+- `fine_epochs`:    Maximum number of epochs to run the fine tuning loop of VarioNet
+- `alpha`:    Weight out of one for VarioMLP while training VarioNet
+-`beta`:      Weight out of one for Resnet18 while training VarioNet
 - `learning_rate`:  Initial learning rate for the optimizer
 - `batch_size`:     Number of split images to be passed through network before each iteration of the backpropagation
 - `optimizer`:      Optimization algorithm to be used during training (right now, only [Adam](https://machinelearningmastery.com/adam-optimization-algorithm-for-deep-learning/) is supported)
@@ -128,9 +138,11 @@ python3 createDatasetFromGeotiff.py Config/mlp_negri_legacy/mlp_test_negri.confi
 ```
 The output is shown below:
 ![Output from createdatasetfromgeotiff.py](images/create_dataset_output.png)
-As shown in the terminal output, 41,310 split images were created, and the dataset was output to `Config/mlp_negri_legacy/mlp_test_negri_41310_(201,268).npy`. In general the output file will be named as `{your-config-filename}_{number-of-split-images}_{split-image-size}.npy`. When checking the `.config` file, you will see the `npy_path` parameter has been filled with this filepath.
+As shown in the terminal output, 41,310 split images were created, and the dataset was output to `Config/mlp_negri_legacy/mlp_test_negri_41310_(201,268).npy`. In general the output file will be named as `{your-config-filename}_{number-of-split-images}_{split-image-size}.npy`. When checking the `.config` file, you will see the `npy_path` parameter has been filled with this filepath. Before running this script, ensure that the `training_img_path` parameter has been set in the config file and that it is set up [correctly](#setting-up-the-image-folder)
+
+The `createDatasetFromFolder.py` script is used to create a Dataset from a folder of images. It takes as an argument the filepath to your `.config` file, and produces a `.npy` file in the same directory containing the split image data for the entire dataset.
 ## Labeling Training Data
-The first step in any classification task is to gather labeled training data. The Split Image Explorer GUI tool provides an intuitive interface for labeling split images based on the classes defined by the `num_classes` and `class_enum` parameters in the config file. To run the GUI, simply run `Split_Image_Explorer.py` with the config file as an argument, just as `createDatasetFromGeotiff.py` was run:
+The first step in any classification task is to gather labeled training data. The Split Image Explorer GUI tool provides an intuitive interface for labeling split images based on the classes defined by the `num_classes` and `class_enum` parameters in the config file. These labeled images will be saved under `training_img_path` to analyze the split images without running the GUI. To run the GUI, simply run `Split_Image_Explorer.py` with the config file as an argument, just as `createDatasetFromGeotiff.py` was run:
 ```
 python3 Split_Image_Explorer.py Config/mlp_negri_legacy/mlp_test_negri.config
 ```
@@ -156,15 +168,24 @@ Most of the time, split images that are near each other in the source GeoTIFF im
 ![Batch Labeling Split Images](images/gui_batch_label_1.png)
 To switch to a different source GeoTIFF image, the Source GeoTIFF selector buttons in the top left of the GUI can be used. To add more training images to our example project, the 4th GeoTIFF image was selected and the batch labeling process repeated:
 ![Batch Labeling Split Images](images/gui_batch_label_2.png)
+
 **NOTE:** When the Split Image Explorer tool loads, it will automatically rotate the geotiff image preview to orient north/south, as well as zoom into the intersection of the contour and the source geotiff. If you do not have a UTM-coordinate contour file for your classification task, you can create one using the Split Image Explorer tool. This process is outlined in the [Generating a Contour File](#generating-a-contour-file) section.
 ### Visualizing Labels
 As demonstrated above, the 'Visualize Labels' toggle can be used to view the training labels created by individual or batch labeling. It is important to note that if additional labels are created while the Visualize Labels toggle is on, it will need to be toggled off and on again to view the new labels. Additionally, the class toggles in the lower left of the GUI can be used to view only one (or a subset) of the classes at a time.
 ### Dataset Output
 Upon exiting the GUI, any labels created will be automatically saved to the [Dataset file created above](#creating-a-dataset)
-# Training
+# Training Resnet18 and VarioMLP
 After labelling some training data with the GUI tool, the next step is to train the classification model. This is done by running `train.py` with your config file as the single argument, in the same way as `Split_Image_Explorer.py` and `createDatasetFromGeotiff.py`. For the example case the command was:
 ```
 python3 train.py Config/mlp_negri_legacy/mlp_test_negri.config
+```
+## Training VarioNet
+In order to train VarioNet, one must first train VarioMLP and Resnet18 and save these networks. To do this run `train_res_and_var` the same way as `train.py`. This will train both VarioMLP and Resnet18 on the labeled training data, and save the weights of these networks into the `NN_Class` Folder. Next run `train_only_varnet.py` with the config file as the single argument, like `train_res_and_var`. For to train VarioNet you would run both:
+```
+python3 train_var_and_res.py Config/mlp_negri_legacy/mlp_test_negri.config
+```
+```
+python3 train_only_varnet.py Config/mlp_negri_legacy/mlp_test_negri.config
 ```
 ## Training Output
 After loading the training dataset (which may take quite a while for datasets sourced from multiple large GeoTIFF images) the terminal will display the structure of the classification model, followed by the training set and validation set size defined by the `train_test_split` config parameter. The training script will also create and display the path to a sub-directory in the `Output/` directory containing the output for this training run. Then, the training and validation loss of each epoch will be output to the terminal. In the example case, the terminal output was as follows:

@@ -718,6 +718,7 @@ class_enum:         {}
 utm_epsg_code:      {}
 split_img_size:     {}
 train_test_split:   {}
+train_indeces:      {}
 training_img_path:  {}
 training_img_npy:   {}
 save_all_pred:      {}
@@ -762,6 +763,7 @@ bg_UTM_path:        {}
                    yaml_obj['utm_epsg_code'],
                    yaml_obj['split_img_size'],
                    yaml_obj['train_test_split'],
+                   yaml_obj['train_indeces'],
                    yaml_obj['training_img_path'],
                    yaml_obj['training_img_npy'],
                    yaml_obj['save_all_pred'],

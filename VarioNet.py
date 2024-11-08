@@ -211,7 +211,7 @@ class FromFolderDataset(dataset):
         if self.transform:
             image = self.transform(image)
         if self.model == 'VarioNet':
-            variogram = self.variogram_data[idx]/100 #decreases effect on network
+            variogram = self.variogram_data[idx]/10 #should decreases effect on network
             return IMGnp, variogram, int(label)
         else:
             return IMGnp, int(label)
@@ -239,7 +239,7 @@ class CombinedModel(nn.Module):
         combined_output_size = num_classes
         self.fc1 = nn.Linear(combined_output_size, 256)  # Bottleneck 1
         self.residual_fc1 = nn.Linear(combined_output_size, 256)
-        #self.fc2 = nn.Linear(64, 128) # Bottleneck 2
+        #self.fc2 = nn.Linear(256, num_classes) # Bottleneck 2
         #self.residual_fc2 = nn.Linear(64, 128)
         self.fc3 = nn.Linear(256, num_classes) 
 

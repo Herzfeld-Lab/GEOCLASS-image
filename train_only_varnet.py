@@ -12,7 +12,6 @@ import sys
 import argparse
 from datetime import datetime
 import random
-import wandb
 from Models import *
 from VarioNet import CombinedModel
 from VarioNet import collect_image_paths_and_labels
@@ -61,18 +60,6 @@ def save_params():
         for key,value in params.items():
             f.write('%s:%s\n' % (key, value))
 
-wandb.init(
-    # set the wandb project where this run will be logged
-    project="my-awesome-project",
-
-    # track hyperparameters and run metadata
-    config={
-    "learning_rate": 0.02,
-    "architecture": "CNN",
-    "dataset": "CIFAR-100",
-    "epochs": 10,
-    }
-)
 
 # Parse command line flags
 parser = argparse.ArgumentParser()
@@ -129,7 +116,18 @@ if imgTrain:
     # Perform train/test split
 
     train_size = int(cfg['train_test_split'] * len(image_paths))
-    train_indeces = np.random.choice(range(np.array(len(image_paths))), train_size, replace=False)
+    if cfg['train_indeces'] == 'None':
+        train_indeces = np.random.choice(range(np.array(len(image_paths))), train_size, replace=False)
+        z=len(train_indeces)
+        dataset_path = args.config[:-7] + "_%d"%(num_classes)+"_%d"%(z)+"train_indeces"
+        np.save(dataset_path, train_indeces)
+        cfg['train_indeces'] = dataset_path+'.npy'
+        f = open(args.config, 'w')
+        f.write(generate_config_silas(cfg))
+        f.close()
+    else:
+         train_indeces_npy = cfg['train_indeces']
+         train_indeces = np.load(train_indeces_npy)
     test_indeces = np.setdiff1d(range(np.array(len(image_paths))), train_indeces)
     #CST20240322 Creating loops so train and test coords aren't 1D
     train_imgs = []
@@ -175,7 +173,18 @@ else:
 
     train_size = int(cfg['train_test_split'] * dataset_labeled.shape[0])
 
-    train_indeces = np.random.choice(range(np.array(dataset_labeled.shape[0])), train_size, replace=False)
+    if cfg['train_indeces'] == 'None':
+        train_indeces = np.random.choice(range(np.array(dataset_labeled.shape[0])), train_size, replace=False)
+        z=len(train_indeces)
+        dataset_path = args.config[:-7] + "_%d"%(num_classes)+"_%d"%(z)+"train_indeces"
+        np.save(dataset_path, train_indeces)
+        cfg['train_indeces'] = dataset_path+'.npy'
+        f = open(args.config, 'w')
+        f.write(generate_config_silas(cfg))
+        f.close()
+    else:
+         train_indeces_npy = cfg['train_indeces']
+         train_indeces = np.load(train_indeces_npy)
     test_indeces = np.setdiff1d(range(np.array(dataset_labeled.shape[0])), train_indeces)
     #CST20240322 Creating loops so train and test coords aren't 1D
     train_coords = []
@@ -299,7 +308,6 @@ for epoch in range(num_epochs):
                     #variogram_loss = criterion(variogram_validation, labels)
                     #total_variogram_loss += variogram_loss.item()
         valid_losses.append(loss/batch_idx)
-        wandb.log({"acc": train_losses[-1], "loss": valid_losses[-1]})
         print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
 
         checkpoint_str = "epoch_" + str(epoch)
@@ -356,7 +364,6 @@ for epoch in range(fine_epochs):
                     #variogram_loss = criterion(variogram_validation, labels)
                     #total_variogram_loss += variogram_loss.item()
         valid_losses.append(loss/batch_idx)
-        wandb.log({"acc": train_losses[-1], "loss": valid_losses[-1]})
 
         print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
 
@@ -378,4 +385,3 @@ checkpoint = {'state_dict': model.state_dict(),
                 'optimizer' : optimizer.state_dict()}
 torch.save(checkpoint, checkpoint_path)
 save_losses()
-wandb.finish()

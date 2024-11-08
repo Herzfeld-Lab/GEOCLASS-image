@@ -86,6 +86,11 @@ for label in accuracy_dict:
     accuracy_list.append(accuracy_percentage)
     confidence_list.append(average_confidence)
 
+sorted_indices = np.argsort(labels_list)
+labels_list = np.array(labels_list)[sorted_indices].tolist()
+accuracy_list = np.array(accuracy_list)[sorted_indices].tolist()
+confidence_list = np.array(confidence_list)[sorted_indices].tolist()
+
 
 model_labels_path1 = cfg['train_path1']
 label_path1 = cfg['valid_path']
@@ -155,6 +160,11 @@ for label1 in accuracy_dict1:
     accuracy_list1.append(accuracy_percentage1)
     confidence_list1.append(average_confidence1)
 
+sorted_indices1 = np.argsort(labels_list1)
+labels_list1 = np.array(labels_list1)[sorted_indices1].tolist()
+accuracy_list1 = np.array(accuracy_list1)[sorted_indices1].tolist()
+confidence_list1 = np.array(confidence_list1)[sorted_indices1].tolist()
+
 if len(accuracy_list1) < len(accuracy_list):
     accuracy_list1 += [0] * (len(accuracy_list) - len(accuracy_list1))
 
@@ -162,19 +172,21 @@ if len(confidence_list1) < len(confidence_list):
     confidence_list1 += [0] * (len(confidence_list) - len(confidence_list1))
 
 x_ticks = np.arange(min(labels_list), max(labels_list) + 1)
-
+totaccuracy = 0
+for i in accuracy_list:
+    totaccuracy += i
 # Define bar width
 bar_width = 0.35
 # Create positions for the bars (with a slight shift for the second set of bars)
 r1 = np.arange(len(labels_list))  # Positions for the first set of bars
 r2 = [x + bar_width for x in r1]  # Positions for the second set of bars
-
+print("Total Accuracy", totaccuracy)
 # Plot histogram for accuracy
 plt.figure(figsize=(10, 5))
 
 plt.subplot(1, 2, 1)
-plt.bar(r1, accuracy_list, color='skyblue', width=bar_width, label='53 Lag steps')
-plt.bar(r2, accuracy_list1, color='green', width=bar_width, label='18 Lag steps')
+plt.bar(r1, accuracy_list, color='skyblue', width=bar_width, label='VarioNet')
+plt.bar(r2, accuracy_list1, color='green', width=bar_width, label='Resnet18')
 plt.xlabel('Labels')
 plt.ylabel('Accuracy (%)')
 plt.title('Accuracy per Class')
@@ -183,8 +195,8 @@ plt.legend()
 
 # Plot histogram for average confidence
 plt.subplot(1, 2, 2)
-plt.bar(r1, confidence_list, color='salmon', width=bar_width, label='53 Lag steps')
-plt.bar(r2, confidence_list1, color='purple', width=bar_width, label='18 Lag steps')
+plt.bar(r1, confidence_list, color='salmon', width=bar_width, label='VarioNet')
+plt.bar(r2, confidence_list1, color='purple', width=bar_width, label='Resnet18')
 plt.xlabel('Labels')
 plt.ylabel('Average Confidence')
 plt.title('Average Confidence per Class')
