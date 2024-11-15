@@ -54,6 +54,35 @@ def draw_split_image_confs(img_mat, scale_factor, split_disp_size, labels, selec
                 img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],1] = c[1]
                 img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],2] = c[2]
 
+@njit
+def draw_split_image_labels_calipso(img_mat, scale_factor, split_disp_size, labels, selected_classes, cmap):
+    for i,selected_class in enumerate(selected_classes):
+        if selected_class:
+            clas = labels[labels[:,2] == i]
+            c = cmap[i]
+            x = np.floor(clas[:,0]/scale_factor).reshape(-1,1).astype(np.int32)
+            y = np.floor(clas[:,1]/scale_factor).reshape(-1,1).astype(np.int32)
+            xy = np.concatenate((x,y),axis=1)
+            for splitImg in xy:
+                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],0] = c[0]
+                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],1] = c[1]
+                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],2] = c[2]
+
+@njit
+def draw_split_image_confs_calipso(img_mat, scale_factor, split_disp_size, labels, selected_classes, cmap):
+    for i,selected_class in enumerate(selected_classes):
+        if selected_class:
+            clas = labels[labels[:,2] == i]
+            x = np.floor(clas[:,0]/scale_factor).reshape(-1,1).astype(np.int32)
+            y = np.floor(clas[:,1]/scale_factor).reshape(-1,1).astype(np.int32)
+            conf = np.floor(clas[:,3]*100).reshape(-1,1).astype(np.int32)
+            xy = np.concatenate((x,y,conf),axis=1)
+            for splitImg in xy:
+                c = cmap[splitImg[2]]
+                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],0] = c[0]
+                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],1] = c[1]
+                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],2] = c[2]
+
 
 def to_netCDF(data, filepath):
 
@@ -119,6 +148,16 @@ def scaleImage(img, max):
     img = img/max
     img = img * 255
     img[img[:,:] > 255] = 255
+    return np.ceil(img).astype(np.uint8)
+
+def scalePlot(img, max):
+    # Normalize the image if the max value is not 255
+    img = img / max  # Normalize based on the provided 'max' value
+
+    # Scale the image back to 0-255
+    img = np.clip(img * 255, 0, 255)  # Clip to ensure values are within 0-255
+
+    # Convert to uint8 (integer type)
     return np.ceil(img).astype(np.uint8)
 
 def getImgPaths(topDir):
