@@ -1,0 +1,18 @@
+{"time":"2024-10-17T12:11:02.709021211-06:00","level":"INFO","msg":"using version","core version":"0.18.3"}
+{"time":"2024-10-17T12:11:02.709071522-06:00","level":"INFO","msg":"created symlink","path":"/home/twickler/ws/GEOCLASS-image/NN_Class/wandb/run-20241017_121102-mk1nsxd8/logs/debug-core.log"}
+{"time":"2024-10-17T12:11:02.723248521-06:00","level":"ERROR","msg":"dialing: google: could not find default credentials. See https://cloud.google.com/docs/authentication/external/set-up-adc for more information"}
+{"time":"2024-10-17T12:11:02.725128007-06:00","level":"INFO","msg":"created new stream","id":"mk1nsxd8"}
+{"time":"2024-10-17T12:11:02.725140143-06:00","level":"INFO","msg":"stream: started","id":"mk1nsxd8"}
+{"time":"2024-10-17T12:11:02.725146713-06:00","level":"INFO","msg":"writer: Do: started","stream_id":{"value":"mk1nsxd8"}}
+{"time":"2024-10-17T12:11:02.725157574-06:00","level":"INFO","msg":"handler: started","stream_id":{"value":"mk1nsxd8"}}
+{"time":"2024-10-17T12:11:02.725154732-06:00","level":"INFO","msg":"sender: started","stream_id":{"value":"mk1nsxd8"}}
+{"time":"2024-10-17T12:11:02.933239225-06:00","level":"INFO","msg":"wandb-core","!BADKEY":null}
+{"time":"2024-10-17T12:11:02.933644871-06:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2024-10-17T12:13:56.826204595-06:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2024-10-17T12:13:56.827434465-06:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2024-10-17T12:13:57.151711488-06:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2024-10-17T12:13:58.240965196-06:00","level":"INFO","msg":"stream: closing","id":"mk1nsxd8"}
+{"time":"2024-10-17T12:13:58.240979082-06:00","level":"INFO","msg":"handler: closed","stream_id":{"value":"mk1nsxd8"}}
+{"time":"2024-10-17T12:13:58.240993125-06:00","level":"INFO","msg":"writer: Close: closed","stream_id":{"value":"mk1nsxd8"}}
+{"time":"2024-10-17T12:13:58.241021065-06:00","level":"INFO","msg":"sender: closed","stream_id":{"value":"mk1nsxd8"}}
+{"time":"2024-10-17T12:13:58.241039192-06:00","level":"INFO","msg":"stream: closed","id":"mk1nsxd8"}

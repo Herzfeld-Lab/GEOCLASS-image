@@ -272,6 +272,7 @@ def rotate_and_crop_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM, t
         img_mat_rot = cv2.flip(img_mat_rot,0)
 
         for i in range(len(contourPixel)-1):
+        
             cv2.line(img_mat_rot, tuple(contourPixel[i]), tuple(contourPixel[i+1]), (0,0,255), 2)
 
         img_mat_rot = cv2.flip(img_mat_rot,0)

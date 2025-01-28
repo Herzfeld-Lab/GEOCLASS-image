@@ -1,0 +1,18 @@
+{"time":"2024-10-28T14:38:54.971747675-06:00","level":"INFO","msg":"using version","core version":"0.18.3"}
+{"time":"2024-10-28T14:38:54.971778769-06:00","level":"INFO","msg":"created symlink","path":"/home/twickler/ws/GEOCLASS-image/NN_Class/wandb/run-20241028_143854-3rl02kyp/logs/debug-core.log"}
+{"time":"2024-10-28T14:38:54.986007901-06:00","level":"ERROR","msg":"dialing: google: could not find default credentials. See https://cloud.google.com/docs/authentication/external/set-up-adc for more information"}
+{"time":"2024-10-28T14:38:54.988682361-06:00","level":"INFO","msg":"created new stream","id":"3rl02kyp"}
+{"time":"2024-10-28T14:38:54.988696084-06:00","level":"INFO","msg":"stream: started","id":"3rl02kyp"}
+{"time":"2024-10-28T14:38:54.988710881-06:00","level":"INFO","msg":"handler: started","stream_id":{"value":"3rl02kyp"}}
+{"time":"2024-10-28T14:38:54.988731283-06:00","level":"INFO","msg":"sender: started","stream_id":{"value":"3rl02kyp"}}
+{"time":"2024-10-28T14:38:54.988757948-06:00","level":"INFO","msg":"writer: Do: started","stream_id":{"value":"3rl02kyp"}}
+{"time":"2024-10-28T14:38:55.158585184-06:00","level":"INFO","msg":"wandb-core","!BADKEY":null}
+{"time":"2024-10-28T14:38:55.159503428-06:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2024-10-28T14:41:38.672851956-06:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2024-10-28T14:41:38.674184567-06:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2024-10-28T14:41:38.98092836-06:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2024-10-28T14:41:40.100252272-06:00","level":"INFO","msg":"stream: closing","id":"3rl02kyp"}
+{"time":"2024-10-28T14:41:40.100287207-06:00","level":"INFO","msg":"handler: closed","stream_id":{"value":"3rl02kyp"}}
+{"time":"2024-10-28T14:41:40.100301744-06:00","level":"INFO","msg":"writer: Close: closed","stream_id":{"value":"3rl02kyp"}}
+{"time":"2024-10-28T14:41:40.10034251-06:00","level":"INFO","msg":"sender: closed","stream_id":{"value":"3rl02kyp"}}
+{"time":"2024-10-28T14:41:40.100350991-06:00","level":"INFO","msg":"stream: closed","id":"3rl02kyp"}

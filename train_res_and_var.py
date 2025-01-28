@@ -89,12 +89,12 @@ if imgTrain:
     image_paths, variogram_data, labels = collect_image_paths_and_labels(image_folder)
 
     train_size = int(cfg['train_test_split'] * len(image_paths))
-    if cfg['train_indeces'] == 'None':
+    if cfg['train_indices'] == 'None':
         train_indeces = np.random.choice(range(np.array(len(image_paths))), train_size, replace=False)
         z=len(train_indeces)
         dataset_path = args.config[:-7] + "_%d"%(num_classes)+"_%d"%(z)+"train_indeces"
         np.save(dataset_path, train_indeces)
-        cfg['train_indeces'] = dataset_path+'.npy'
+        cfg['train_indices'] = dataset_path+'.npy'
         f = open(args.config, 'w')
         f.write(generate_config_silas(cfg))
         f.close()
@@ -154,7 +154,7 @@ else:
         dataset_labeled = dataset_coords[dataset_coords[:,4] != -1]
 
     train_size = int(cfg['train_test_split'] * dataset_labeled.shape[0])
-    if cfg['train_indeces'] == 'None':
+    if cfg['train_indices'] == 'None':
         train_indeces = np.random.choice(range(np.array(dataset_labeled.shape[0])), train_size, replace=False)
         z=len(train_indeces)
         dataset_path = args.config[:-7] + "_%d"%(num_classes)+"_%d"%(z)+"train_indeces"
@@ -164,7 +164,7 @@ else:
         f.write(generate_config_silas(cfg))
         f.close()
     else:
-         train_indeces_npy = cfg['train_indeces']
+         train_indeces_npy = cfg['train_indices']
          train_indeces = np.load(train_indeces_npy)
     test_indeces = np.setdiff1d(range(np.array(dataset_labeled.shape[0])), train_indeces)
     #CST20240322 Creating loops so train and test coords aren't 1D
@@ -207,14 +207,14 @@ else:
             imgData = dataset_info,
             labels = train_coords,
             train = True,
-            transform = transform
+            transform = None
             )
     image_valid_dataset = SplitImageDataset(
             imgPath = topDir,
             imgData = dataset_info,
             labels = train_coords,
             train = True,
-            transform = transform
+            transform = None
             )
 print('Training set size: \t%d images'%(len(image_dataset)))
     # for i in range(num_classes):

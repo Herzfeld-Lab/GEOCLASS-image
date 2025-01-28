@@ -1,3 +1,5 @@
+import sys
+sys.path.append('/home/twickler/ws/GEOCLASS-image/NN_Class')
 from utils import *
 from auto_rotate_geotiff import *
 #CST20240312
@@ -340,13 +342,85 @@ class SplitImageTool(QWidget):
         self.class_buttons.addLayout(self.class_buttons_columns)
     
     def initBgImage(self):
-
+        """
         bg_img = Image.open(self.dataset_info['filename'])  # Use the correct path for the PNG image
         self.bg_img_cv = np.array(bg_img)
         self.bg_img_cv = cv2.cvtColor(self.bg_img_cv, cv2.COLOR_RGBA2RGB)
 
         bg_img_cv_size = np.array(self.bg_img_cv.shape[:2])  
         # Original image dimensions
+        self.bg_qimg = QImage(self.bg_img_cv.data, self.bg_img_cv.shape[1], self.bg_img_cv.shape[0], self.bg_img_cv.shape[1]*3, QImage.Format_RGB888)
+        # Convert QImage to QPixmap
+        tiff_image_pixmap = QPixmap(self.bg_qimg)
+        # Scale image to fit within the desired width (scaled to half of self.width)
+        tiff_image_pixmap = tiff_image_pixmap.scaledToWidth(int(self.width / 2) - 10)
+        bg_img_q_size = np.array((tiff_image_pixmap.height(), tiff_image_pixmap.width()))
+
+        scale_factor = bg_img_cv_size / bg_img_q_size
+
+        bg_img_scaled = self.tiff_image_matrix[::int(scale_factor[0]),::int(scale_factor[1])]
+        bg_img_scaled = scaleImage(bg_img_scaled, self.tiff_image_max)
+        split_disp_size = (np.array(self.win_size) / scale_factor).astype('int') - 1
+
+        """
+        scale_factor = int(self.tiff_image_matrix.shape[0] / 750)
+        bg_img_scaled = self.tiff_image_matrix[::scale_factor,::scale_factor]
+        bg_img_scaled = scaleImage(bg_img_scaled, self.tiff_image_max)
+        split_disp_size = (np.array(self.win_size) / scale_factor).astype('int') - 1
+        bg_img_scaled = cv2.cvtColor(bg_img_scaled,cv2.COLOR_RGBA2RGB)
+        # Draw split images on scaled down preview image
+        if self.visualize_labels:
+            draw = self.split_info[self.split_info[:,3] > self.conf_thresh]
+            draw = np.delete(draw, 4, axis=1)
+            cmap = (np.array(self.label_cmap.colors)*255).astype(np.uint8)
+            bg_img_scaled = np.asarray(bg_img_scaled, dtype=np.uint8)  # Ensure it's uint8 (for image data)
+            scale_factor = np.asarray(scale_factor, dtype=np.float32)  # Ensure it's float32
+            split_disp_size = np.asarray(split_disp_size, dtype=np.int32)  # Ensure it's int32
+            draw = np.asarray(draw, dtype=np.float32)  # Ensure it's int32 (assumed type)
+            self.selected_classes = np.asarray(self.selected_classes, dtype=np.float32)  # Ensure it's int32
+            cmap = np.asarray(cmap, dtype=np.uint8)
+            draw_split_image_labels_calipso(bg_img_scaled, self.scale_factor, split_disp_size, draw, self.selected_classes, cmap)
+
+        elif self.visualize_predictions and self.predictions:
+            draw = self.pred_labels[self.pred_labels[:,3] > self.conf_thresh]
+            cmap = (np.array(self.label_cmap.colors)*255).astype(np.uint8)
+            draw = np.delete(draw, 4, axis=1)
+            bg_img_scaled = np.asarray(bg_img_scaled, dtype=np.uint8)  # Ensure it's uint8 (for image data)
+            scale_factor = np.asarray(scale_factor, dtype=np.float32)  # Ensure it's float32
+            split_disp_size = np.asarray(split_disp_size, dtype=np.int32)  # Ensure it's int32
+            draw = np.asarray(draw, dtype=np.float32)  # Ensure it's int32 (assumed type)
+            self.selected_classes = np.asarray(self.selected_classes, dtype=np.float32)  # Ensure it's int32
+            cmap = np.asarray(cmap, dtype=np.uint8)
+            draw_split_image_labels_calipso(bg_img_scaled, self.scale_factor, split_disp_size, draw, self.selected_classes, cmap)
+
+        elif self.visualize_heatmap and self.predictions:
+            draw = self.pred_labels[self.pred_labels[:,3] > self.conf_thresh]
+            cmap = (np.array(self.conf_cmap.colors)*255).astype(np.uint8)
+            draw = np.delete(draw, 4, axis=1)
+            bg_img_scaled = np.asarray(bg_img_scaled, dtype=np.uint8)  # Ensure it's uint8 (for image data)
+            scale_factor = np.asarray(scale_factor, dtype=np.float32)  # Ensure it's float32
+            split_disp_size = np.asarray(split_disp_size, dtype=np.int32)  # Ensure it's int32
+            draw = np.asarray(draw, dtype=np.float32)  # Ensure it's int32 (assumed type)
+            self.selected_classes = np.asarray(self.selected_classes, dtype=np.float32)  # Ensure it's int32
+            cmap = np.asarray(cmap, dtype=np.uint8)
+            draw_split_image_confs_calipso(bg_img_scaled, self.scale_factor, split_disp_size, draw, self.selected_classes, cmap)
+
+    
+        self.bg_img_cv = np.array(bg_img_scaled)
+        self.bg_img_cv = cv2.cvtColor(self.bg_img_cv, cv2.COLOR_RGBA2RGB)
+        self.bg_qimg = QImage(self.bg_img_cv.data,self.bg_img_cv.shape[1],self.bg_img_cv.shape[0],self.bg_img_cv.shape[1]*3,QImage.Format_RGB888)
+        self.tiff_image_pixmap = QPixmap(self.bg_qimg)
+        self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToWidth(int(self.width/2) - 10)
+        #self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
+        #print('bg_img_pixmap:  {}x{}'.format(self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
+        # Get scaling factor between cv and q image
+        bg_img_cv_size = np.array(self.bg_img_cv.shape[:-1])
+        bg_img_q_size = np.array((self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
+#CST 20240312
+        self.scale_factor = bg_img_cv_size / bg_img_q_size
+        self.tiff_image_label.setPixmap(QPixmap(self.tiff_image_pixmap))
+        """
+        # Rotate tiff to align North and plot glacier contour
         self.bg_qimg = QImage(self.bg_img_cv.data, self.bg_img_cv.shape[1], self.bg_img_cv.shape[0], self.bg_img_cv.shape[1]*3, QImage.Format_RGB888)
         # Convert QImage to QPixmap
         self.tiff_image_pixmap = QPixmap(self.bg_qimg)
@@ -359,27 +433,6 @@ class SplitImageTool(QWidget):
         bg_img_scaled = self.tiff_image_matrix[::int(self.scale_factor[0]),::int(self.scale_factor[1])]
         bg_img_scaled = scaleImage(bg_img_scaled, self.tiff_image_max)
         split_disp_size = (np.array(self.win_size) / self.scale_factor).astype('int') - 1
-
-
-
-        # Draw split images on scaled down preview image
-        if self.visualize_labels:
-            draw = self.split_info[self.split_info[:,3] > self.conf_thresh]
-            cmap = (np.array(self.label_cmap.colors)*255).astype(np.uint8)
-            draw_split_image_labels_calipso(bg_img_scaled, self.scale_factor, split_disp_size, draw, self.selected_classes, cmap)
-
-        elif self.visualize_predictions and self.predictions:
-            draw = self.pred_labels[self.pred_labels[:,3] > self.conf_thresh]
-            cmap = (np.array(self.label_cmap.colors)*255).astype(np.uint8)
-            draw_split_image_labels_calipso(bg_img_scaled, self.scale_factor, split_disp_size, draw, self.selected_classes, cmap)
-
-        elif self.visualize_heatmap and self.predictions:
-            draw = self.pred_labels[self.pred_labels[:,3] > self.conf_thresh]
-            cmap = (np.array(self.conf_cmap.colors)*255).astype(np.uint8)
-            draw_split_image_confs_calipso(bg_img_scaled, self.scale_factor, split_disp_size, draw, self.selected_classes, cmap)
-
-        # Rotate tiff to align North and plot glacier contour
-
 # Check if the image was loaded successfully
         if self.bg_img_cv is None:
             print("Error: Image not loaded properly.")
@@ -387,7 +440,7 @@ class SplitImageTool(QWidget):
 
             # Set the image in the label widget
             self.tiff_image_label.setPixmap(QPixmap(self.tiff_image_pixmap))
-
+"""
 
     def updateBgImage(self):
         return
@@ -399,7 +452,7 @@ class SplitImageTool(QWidget):
          # Grab info of split image at index
         x,y,label,conf,_ = self.split_info[index]
         x,y1,label = int(x),int(y),int(label)
-        y = int(self.tiff_image_matrix.shape[0]) - y1 #Dor some reason this needs to be flipped, but for the crosshairs use y1 as that is the actual position
+        y = int(self.tiff_image_matrix.shape[0]) - y1 #For some reason this needs to be flipped, but for the crosshairs use y1 as that is the actual position
         #CST20240313
         # Get split image from image matrix
         img = self.tiff_image_matrix[y:y+self.win_size[1],x:x+self.win_size[0]]
@@ -513,10 +566,11 @@ class SplitImageTool(QWidget):
     def batchSelectLabel(self, class_label):
         height,width,_ = self.bg_img_cv.shape
         imgSize = np.array([width,height])
-        pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array(self.batch_select_polygon))
+        #pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array(self.batch_select_polygon))
         batch_select = Polygon(self.batch_select_polygon)
+        #print(batch_select)
         for i,img in enumerate(self.split_info):
-            if Point(img[2],img[3]).within(batch_select):
+            if Point(img[0],img[1]).within(batch_select):
                 self.split_info[i][2] = class_label
                 self.split_info[i][3] = 1
                 if self.cfg['training_img_path'] != 'None':
@@ -582,6 +636,7 @@ class SplitImageTool(QWidget):
         # Right Click (draw polygon)
         elif button == 2:
             self.batch_select_polygon.append(click_pos_scaled)
+            
 
     def mouseMoveEvent(self, event):
 
@@ -612,7 +667,6 @@ class SplitImageTool(QWidget):
             cv2.line(bg_img, pt3, pt4, (255, 0, 0), thickness=2)
 
             #cv2.line(bg_img, (pix_coords[-1][0], height-pix_coords[-1][1]), (current_pos[0][0], height-current_pos[0][1]), (255,0,0),thickness=2)
-
             height,width,channels = bg_img.shape
             #CST 202040312
             bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
@@ -896,7 +950,7 @@ class SplitImageTool(QWidget):
         self.cfg['class_enum'] = self.class_enum
         self.cfg['num_classes'] = len(self.class_enum)
         f = open(args.config, 'w')
-        f.write(generate_config_silas(self.cfg))
+        f.write(generate_config_calipso(self.cfg))
         f.close()
 
         if self.to_netcdf:

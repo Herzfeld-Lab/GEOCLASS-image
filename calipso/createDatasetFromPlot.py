@@ -1,3 +1,5 @@
+import sys
+sys.path.append('/home/twickler/ws/GEOCLASS-image/NN_Class')
 from utils import *
 from PIL import Image
 from shapely.geometry import Point
@@ -20,14 +22,22 @@ args = parser.parse_args()
 
 # Read config file
 with open(args.config, 'r') as ymlfile:
-    cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
+    cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)   
 warnings.filterwarnings('error')
 
 # Load config parameters
-topDir = cfg['img_path']
 winSize = cfg['split_img_size']
 imgPaths = cfg['img_path']
 classEnum = cfg['class_enum']
+density_path = cfg['density_path']
+density_data = np.load(density_path, allow_pickle=True)
+den = density_data[1]
+density1 = den[0]
+density2 = den[1]
+density3 = den[2]
+density4 = den[3]
+density5 = den[4]
+density6 = den[5]
 
 
 def split_image(image_path, tile_width, tile_height, max, output_folder):
@@ -47,10 +57,15 @@ def split_image(image_path, tile_width, tile_height, max, output_folder):
     # Loop through the image to create tiles
     for row in range(rows):
         for col in range(cols):
+            totDensity = []
             left, upper = col * tile_width, row * tile_height
             right, lower = left + tile_width, upper + tile_height
-
             splitImg_np = img_np[upper:lower, left:right]
+            splitImg_width = splitImg_np.shape[0]
+            splitImg_height = splitImg_np.shape[1]
+            if splitImg_width != tile_width or splitImg_height != tile_height:
+                print("Skipped image of shape", splitImg_np.shape)
+                continue
             splitImg = scaleImage(splitImg_np, max)  # Assuming you have a scaling function
 
             # Ensure the image is RGB
@@ -59,7 +74,15 @@ def split_image(image_path, tile_width, tile_height, max, output_folder):
                 splitImg = np.stack([splitImg] * 3, axis=-1)
 
             coords = [left, upper, -1, 0]
-            dataArray.append(coords + [splitImg])
+            totDensity.append(density1[upper:lower, left:right])
+            totDensity.append(density2[upper:lower, left:right])
+            totDensity.append(density3[upper:lower, left:right])
+            totDensity.append(density4[upper:lower, left:right])
+            totDensity.append(density5[upper:lower, left:right])
+            totDensity.append(density6[upper:lower, left:right])
+
+            
+            dataArray.append(coords + [totDensity] + [splitImg])
 
             # Save the tile as an image
             tile_filename = f"tile_{row}_{col}.png"  # You can choose a different extension or format

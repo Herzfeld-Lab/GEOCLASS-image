@@ -1,0 +1,16 @@
+----- Initializing Neural Network Model -----
+VarioNet
+----- Initializing Dataset -----
+Training set size: 	660 images
+----- Initializing DataLoader -----
+train loader <class 'torch.utils.data.dataloader.DataLoader'>
+----- Initializing Output Directory -----
+Output saved at Output/mlp_test_negri_28-10-2024_14:38
+----- Training -----
+----- Initializing CUDA -----
+Training VarioNet
+EPOCH: 0 running validation
+	TRAIN LOSS = 2.87278	VALID LOSS = 2.26274
+EPOCH: 1 running validation
+	TRAIN LOSS = 1.77022	VALID LOSS = 1.80677
+EPOCH: 2 running validation

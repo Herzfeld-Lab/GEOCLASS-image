@@ -1,0 +1,18 @@
+{"time":"2024-10-28T14:10:33.980353054-06:00","level":"INFO","msg":"using version","core version":"0.18.3"}
+{"time":"2024-10-28T14:10:33.980405921-06:00","level":"INFO","msg":"created symlink","path":"/home/twickler/ws/GEOCLASS-image/NN_Class/wandb/run-20241028_141033-2crysj96/logs/debug-core.log"}
+{"time":"2024-10-28T14:10:33.996448585-06:00","level":"ERROR","msg":"dialing: google: could not find default credentials. See https://cloud.google.com/docs/authentication/external/set-up-adc for more information"}
+{"time":"2024-10-28T14:10:34.003070801-06:00","level":"INFO","msg":"created new stream","id":"2crysj96"}
+{"time":"2024-10-28T14:10:34.003140058-06:00","level":"INFO","msg":"stream: started","id":"2crysj96"}
+{"time":"2024-10-28T14:10:34.003170666-06:00","level":"INFO","msg":"handler: started","stream_id":{"value":"2crysj96"}}
+{"time":"2024-10-28T14:10:34.00317661-06:00","level":"INFO","msg":"sender: started","stream_id":{"value":"2crysj96"}}
+{"time":"2024-10-28T14:10:34.003160249-06:00","level":"INFO","msg":"writer: Do: started","stream_id":{"value":"2crysj96"}}
+{"time":"2024-10-28T14:10:34.159770543-06:00","level":"INFO","msg":"wandb-core","!BADKEY":null}
+{"time":"2024-10-28T14:10:34.160565396-06:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2024-10-28T14:10:43.755632409-06:00","level":"INFO","msg":"stream: closing","id":"2crysj96"}
+{"time":"2024-10-28T14:10:43.755652983-06:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2024-10-28T14:10:43.757176677-06:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2024-10-28T14:10:45.018178349-06:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2024-10-28T14:10:45.120716203-06:00","level":"INFO","msg":"handler: closed","stream_id":{"value":"2crysj96"}}
+{"time":"2024-10-28T14:10:45.120831382-06:00","level":"INFO","msg":"writer: Close: closed","stream_id":{"value":"2crysj96"}}
+{"time":"2024-10-28T14:10:45.120849762-06:00","level":"INFO","msg":"sender: closed","stream_id":{"value":"2crysj96"}}
+{"time":"2024-10-28T14:10:45.120951992-06:00","level":"INFO","msg":"stream: closed","id":"2crysj96"}

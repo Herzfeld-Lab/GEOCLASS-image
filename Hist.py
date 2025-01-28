@@ -35,14 +35,22 @@ labels = []
 accuracy_dict = {}
 confidence_dict = {}
 total_dict = {}
+train_indices_npy = cfg['train_indices']
+train_indices = np.load(train_indices_npy)
+test_indeces = np.setdiff1d(range(np.array(dataset_coords.shape[0])), train_indices)
 
-for i in range(len(dataset_coords)):
+test_coords = []
+test_coords1 = []
+for i in test_indeces:
+    test_coords.append(dataset_coords[i])
+
+for i in range(len(test_coords)):
     for j in range(len(true_dataset_coords)):
-        if dataset_coords[i][6] == true_dataset_coords[j][6]:
-            if dataset_coords[i][0] == true_dataset_coords[j][0] and dataset_coords[i][1] == true_dataset_coords[j][1] and int(true_dataset_coords[j][4]) != -1:
-                
+        if test_coords[i][6] == true_dataset_coords[j][6]:
+            if test_coords[i][0] == true_dataset_coords[j][0] and test_coords[i][1] == true_dataset_coords[j][1] and int(true_dataset_coords[j][4]) != -1:
+                print(i)
                 # Extract the label
-                label = int(dataset_coords[i][4])
+                label = int(test_coords[i][4])
                 true_label = int(true_dataset_coords[j][4])
 
                 # Initialize dictionary entries if the label doesn't exist yet
@@ -62,7 +70,7 @@ for i in range(len(dataset_coords)):
                 total_dict[label] += 1  # Increment total count for the label
                 
                 # Add the confidence value (scaled) for this label
-                confidence_dict[label] += int(dataset_coords[i][5] * 100)
+                confidence_dict[label] += int(test_coords[i][5] * 100)
 
                 # Break after finding the match for this entry to avoid unnecessary iterations
                 break
@@ -109,14 +117,16 @@ labels1 = []
 accuracy_dict1 = {}
 confidence_dict1 = {}
 total_dict1 = {}
+for i in test_indeces:
+    test_coords1.append(dataset_coords1[i])
 
-for i in range(len(dataset_coords1)):
+for i in range(len(test_coords1)):
     for j in range(len(true_dataset_coords1)):
-        if dataset_coords1[i][6] == true_dataset_coords1[j][6]:
-            if dataset_coords1[i][0] == true_dataset_coords1[j][0] and dataset_coords1[i][1] == true_dataset_coords1[j][1] and int(true_dataset_coords1[j][4]) != -1:
-                
+        if test_coords1[i][6] == true_dataset_coords1[j][6]:
+            if test_coords1[i][0] == true_dataset_coords1[j][0] and test_coords1[i][1] == true_dataset_coords1[j][1] and int(true_dataset_coords1[j][4]) != -1:
+                print(i)
                 # Extract the label
-                label1 = int(dataset_coords1[i][4])
+                label1 = int(test_coords1[i][4])
                 true_label1 = int(true_dataset_coords1[j][4])
 
                 # Initialize dictionary entries if the label doesn't exist yet
@@ -136,7 +146,7 @@ for i in range(len(dataset_coords1)):
                 total_dict1[label1] += 1  # Increment total count for the label
                 
                 # Add the confidence value (scaled) for this label
-                confidence_dict1[label1] += int(dataset_coords1[i][5] * 100)
+                confidence_dict1[label1] += int(test_coords1[i][5] * 100)
 
                 # Break after finding the match for this entry to avoid unnecessary iterations
                 break
@@ -186,7 +196,7 @@ plt.figure(figsize=(10, 5))
 
 plt.subplot(1, 2, 1)
 plt.bar(r1, accuracy_list, color='skyblue', width=bar_width, label='VarioNet')
-plt.bar(r2, accuracy_list1, color='green', width=bar_width, label='Resnet18')
+plt.bar(r2, accuracy_list1, color='green', width=bar_width, label='VarioMLP')
 plt.xlabel('Labels')
 plt.ylabel('Accuracy (%)')
 plt.title('Accuracy per Class')
@@ -196,7 +206,7 @@ plt.legend()
 # Plot histogram for average confidence
 plt.subplot(1, 2, 2)
 plt.bar(r1, confidence_list, color='salmon', width=bar_width, label='VarioNet')
-plt.bar(r2, confidence_list1, color='purple', width=bar_width, label='Resnet18')
+plt.bar(r2, confidence_list1, color='purple', width=bar_width, label='VarioMLP')
 plt.xlabel('Labels')
 plt.ylabel('Average Confidence')
 plt.title('Average Confidence per Class')

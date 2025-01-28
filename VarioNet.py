@@ -160,7 +160,8 @@ class TestDataset(dataset):
         splitImg_np = self.dataFrame.iloc[idx, 7]
         if self.transform:
             vario_tensor = self.transform(splitImg_np)
-        
+        else:
+            vario_tensor = get_varios(splitImg_np)
         splitImg_tensor = torch.from_numpy(splitImg_np)
 
         if self.train:

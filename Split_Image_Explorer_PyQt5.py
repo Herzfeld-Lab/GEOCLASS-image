@@ -538,7 +538,7 @@ class SplitImageTool(QWidget):
     #CST20240313 (creating a function to write images into a folder)
     def writeImage(self,filePath, fileName, index):
         p = os.path.join(filePath, fileName)
-        fp = p + '.tif'
+        fp = p + '.png'
         self.image_index = index
          # Grab info of split image at index
         x,y,x_utm,y_utm,label,conf,_ = self.split_info[index]
@@ -547,14 +547,14 @@ class SplitImageTool(QWidget):
         img = self.tiff_image_matrix[x:x+self.win_size[0],y:y+self.win_size[1]]
         img = scaleImage(img, self.tiff_image_max)
         image = QImage(img.data, img.shape[1], img.shape[0], img.shape[1], QImage.Format_Grayscale8)
-        image.save(fp,"tif")
+        image.save(fp,"png")
         
 
  #CST20240403 Checks all directories for the image, and deletes it if it finds the image.
     def deleteImage(self,filePath,fileName):
         numClasses = cfg['num_classes']
         for i in range(numClasses):
-            file_path = (filePath+str(i)+'/'+str(i)+fileName+'.tif')
+            file_path = (filePath+str(i)+'/'+str(i)+fileName+'.png')
             if os.path.isfile(file_path):
                 os.remove(file_path)
                 
@@ -902,10 +902,10 @@ class SplitImageTool(QWidget):
                     classSize = len(self.confident_predictions)
                     if classSize != 0:
                         print("Saving images from class ", i)
+                        print("Class: ", i, "Number of Images: ", classSize)
                         classes += 1
                         if classSize < minSize: 
-                            minSize = classSize
-                            print("Smallest class size: ", i, "Sze: ", classSize)
+                            minSize = classSize                           
                 for i in range(numClasses): 
                     data = self.pred_labels_save[self.pred_labels_save[:,4] == i]
                     self.confident_predictions = data[data[:,5] > self.conf_thresh]

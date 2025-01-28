@@ -142,19 +142,19 @@ if imgTrain:
     if cfg['model'] == 'Resnet18' or cfg['model'] == 'VarioMLP' or cfg['model'] == 'VarioNet':
         image_paths, variogram_data, labels = collect_image_paths_and_labels(image_folder)
         train_size = int(cfg['train_test_split'] * len(image_paths))
-        if cfg['train_indeces'] == 'None':
-            train_indeces = np.random.choice(range(np.array(len(image_paths))), train_size, replace=False)
-            z=len(train_indeces)
-            dataset_path = args.config[:-7] + "_%d"%(num_classes)+"_%d"%(z)+"train_indeces"
-            np.save(dataset_path, train_indeces)
-            cfg['train_indeces'] = dataset_path+'.npy'
+        if cfg['train_indices'] == 'None':
+            train_indices = np.random.choice(range(np.array(len(image_paths))), train_size, replace=False)
+            z=len(train_indices)
+            dataset_path = args.config[:-7] + "_%d"%(num_classes)+"_%d"%(z)+"train_indices"
+            np.save(dataset_path, train_indices)
+            cfg['train_indices'] = dataset_path+'.npy'
             f = open(args.config, 'w')
             f.write(generate_config_silas(cfg))
             f.close()
         else:
-            train_indeces_npy = cfg['train_indeces']
-            train_indeces = np.load(train_indeces_npy)
-        test_indeces = np.setdiff1d(range(np.array(len(image_paths))), train_indeces)
+            train_indices_npy = cfg['train_indices']
+            train_indices = np.load(train_indices_npy)
+        test_indeces = np.setdiff1d(range(np.array(len(image_paths))), train_indices)
         #CST20240322 Creating loops so train and test coords aren't 1D
         train_imgs = []
         test_imgs = []
@@ -163,7 +163,7 @@ if imgTrain:
         train_labels = []
         test_labels = []
 
-        for i in train_indeces:
+        for i in train_indices:
             train_imgs.append(image_paths[i])
             train_var.append(variogram_data[i])
             train_labels.append(labels[i])
@@ -185,24 +185,24 @@ if imgTrain:
 
         train_size = int(cfg['train_test_split'] * dataset_labeled.shape[0])
 
-        if cfg['train_indeces'] == 'None':
-            train_indeces = np.random.choice(range(np.array(dataset_labeled.shape[0])), train_size, replace=False)
-            z=len(train_indeces)
-            dataset_path = args.config[:-7] + "_%d"%(num_classes)+"_%d"%(z)+"train_indeces"
-            np.save(dataset_path, train_indeces)
-            cfg['train_indeces'] = dataset_path+'.npy'
+        if cfg['train_indices'] == 'None':
+            train_indices = np.random.choice(range(np.array(dataset_labeled.shape[0])), train_size, replace=False)
+            z=len(train_indices)
+            dataset_path = args.config[:-7] + "_%d"%(num_classes)+"_%d"%(z)+"train_indices"
+            np.save(dataset_path, train_indices)
+            cfg['train_indices'] = dataset_path+'.npy'
             f = open(args.config, 'w')
             f.write(generate_config_silas(cfg))
             f.close()
         else:
-            train_indeces_npy = cfg['train_indeces']
-            train_indeces = np.load(train_indeces_npy)
-        test_indeces = np.setdiff1d(range(np.array(dataset_labeled.shape[0])), train_indeces)
+            train_indices_npy = cfg['train_indices']
+            train_indices = np.load(train_indices_npy)
+        test_indeces = np.setdiff1d(range(np.array(dataset_labeled.shape[0])), train_indices)
         #CST20240322 Creating loops so train and test coords aren't 1D
         train_coords = []
         test_coords = []
 
-        for i in train_indeces:
+        for i in train_indices:
             train_coords.append(dataset_labeled[i])
         for i in test_indeces:
             test_coords.append(dataset_labeled[[i]])
@@ -424,7 +424,6 @@ if imgTrain:
 
             sum_loss = 0
             for batch_idx,(X,Y) in enumerate(train_loader):
-                
                 #CST20240315 make program exit and say train data set is too low
                 if int((len(train_dataset) / batch_size)/10) != 0: #So it won't crash 
                     if batch_idx % int((len(train_dataset) / batch_size)/10) == 0:
@@ -437,10 +436,12 @@ if imgTrain:
                 if args.cuda:
                     X,Y = X.to(device),Y.to(device)
                     #X = X.view((X.shape[0],1,-1)).float()
-                    X = torch.unsqueeze(X,1).float()
+                    if X.ndim != 4: #For Calipso, make sure still works for glaciers
+                        X = torch.unsqueeze(X,1).float()
                 else:
                     #X = X.view((X.shape[0],1,-1)).float()
-                    X = torch.unsqueeze(X,1).float()
+                    if X.ndim != 4: #For Calipso, make sure still works for glaciers
+                        X = torch.unsqueeze(X,1).float()
 
                 # Compute forward pass
                 Y_hat = model.forward(X)
@@ -474,10 +475,12 @@ if imgTrain:
                 if args.cuda:
                     X,Y = X.to(device),Y.to(device)
                     #X = X.view((X.shape[0],1,-1)).float()
-                    X = torch.unsqueeze(X,1).float()
+                    if X.ndim != 4: #For Calipso, make sure still works for glaciers
+                        X = torch.unsqueeze(X,1).float()
                 else:
                     #X = X.view((X.shape[0],1,-1)).float()
-                    X = torch.unsqueeze(X,1).float()
+                    if X.ndim != 4: #For Calipso, make sure still works for glaciers
+                        X = torch.unsqueeze(X,1).float()
 
                 # Compute forward pass
                 Y_hat = model.forward(X)
@@ -516,13 +519,23 @@ else:
         dataset_labeled = dataset_coords[dataset_coords[:,4] != -1]
 
     train_size = int(cfg['train_test_split'] * dataset_labeled.shape[0])
-
-    train_indeces = np.random.choice(range(np.array(dataset_labeled.shape[0])), train_size, replace=False)
-    test_indeces = np.setdiff1d(range(np.array(dataset_labeled.shape[0])), train_indeces)
+    if cfg['train_indices'] == 'None':
+            train_indices = np.random.choice(range(np.array(dataset_labeled.shape[0])), train_size, replace=False)
+            z=len(train_indices)
+            dataset_path = args.config[:-7] + "_%d"%(num_classes)+"_%d"%(z)+"train_indices"
+            np.save(dataset_path, train_indices)
+            cfg['train_indices'] = dataset_path+'.npy'
+            f = open(args.config, 'w')
+            f.write(generate_config_silas(cfg))
+            f.close()
+    else:
+            train_indices_npy = cfg['train_indices']
+            train_indices = np.load(train_indices_npy)
+    test_indeces = np.setdiff1d(range(np.array(dataset_labeled.shape[0])), train_indices)
     #CST20240322 Creating loops so train and test coords aren't 1D
     train_coords = []
     test_coords = []
-    for i in train_indeces:
+    for i in train_indices:
         train_coords.append(dataset_labeled[i])
     for i in test_indeces:
         test_coords.append(dataset_labeled[[i]])
@@ -550,7 +563,27 @@ else:
             train = True,
             transform = img_transforms_valid
             )
-
+    elif cfg['model'] == 'VarioNet':
+        train_dataset = TestDataset(
+            imgPath = topDir,
+            imgData = dataset_info,
+            labels = train_coords,
+            train = True,
+            transform=transforms.Compose([
+        DirectionalVario(vario_num_lag),
+        RandomRotateVario(),
+    ])
+        )
+        valid_dataset = TestDataset(
+            imgPath = topDir,
+            imgData = dataset_info,
+            labels = test_coords,
+            train = True,
+            transform=transforms.Compose([
+        DirectionalVario(vario_num_lag),
+        DefaultRotateVario(),
+    ])
+            )
     else:
         train_dataset = DDAiceDataset(
             dataPath = topDir,
@@ -836,7 +869,7 @@ else:
             else:
                 if len(valid_losses) > np.array(valid_losses).argmin() + 100:
                     break
-    smallLoss = min(valid_dataset)
+    #smallLoss = min(valid_dataset)
     checkpoint_path = os.path.join(output_dir, 'checkpoints', checkpoint_str)
     checkpoint = {'state_dict': model.state_dict(),
                 'optimizer' : optimizer.state_dict()}

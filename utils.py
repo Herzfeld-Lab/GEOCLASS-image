@@ -1,13 +1,13 @@
 import sys, os, glob, argparse
 import math, random
 
-from numba import jit, njit
+from numba import jit, njit, typed
 
 import numpy as np
 import pandas as pd
 
 import cv2
-
+from numba import jit, float32, int32, types
 
 from PIL import Image, ImageOps
 Image.MAX_IMAGE_PIXELS = None
@@ -50,38 +50,62 @@ def draw_split_image_confs(img_mat, scale_factor, split_disp_size, labels, selec
             xy = np.concatenate((x,y,conf),axis=1)
             for splitImg in xy:
                 c = cmap[splitImg[2]]
-                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],0] = c[0]
-                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],1] = c[1]
-                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],2] = c[2]
+                img_mat[splitImg[1]:splitImg[1]+split_disp_size[1],splitImg[0]:splitImg[0]+split_disp_size[0],0] = c[0]
+                img_mat[splitImg[1]:splitImg[1]+split_disp_size[1],splitImg[0]:splitImg[0]+split_disp_size[0],1] = c[1]
+                img_mat[splitImg[1]:splitImg[1]+split_disp_size[1],splitImg[0]:splitImg[0]+split_disp_size[0],2] = c[2]
 
 @njit
-def draw_split_image_labels_calipso(img_mat, scale_factor, split_disp_size, labels, selected_classes, cmap):
-    for i,selected_class in enumerate(selected_classes):
+def draw_split_image_labels_calipso(img_mat, scale_factor, 
+                                    split_disp_size, labels, 
+                                    selected_classes, cmap):
+    # Ensure that img_mat is a numpy array of type float32
+    # Loop through selected classes
+    
+    for i, selected_class in enumerate(selected_classes):
         if selected_class:
-            clas = labels[labels[:,2] == i]
+            # Select the rows corresponding to the class
+            clas = labels[labels[:, 2] == i]  # Assuming labels[:, 2] holds class information
             c = cmap[i]
-            x = np.floor(clas[:,0]/scale_factor).reshape(-1,1).astype(np.int32)
-            y = np.floor(clas[:,1]/scale_factor).reshape(-1,1).astype(np.int32)
+            x = np.floor(clas[:,0]).reshape(-1,1).astype(np.int32)
+            y = np.floor(clas[:,1]).reshape(-1,1).astype(np.int32)
+            #y = int(img_mat.shape[1]) - y1
             xy = np.concatenate((x,y),axis=1)
             for splitImg in xy:
-                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],0] = c[0]
-                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],1] = c[1]
-                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],2] = c[2]
+                x_start, y_start = splitImg[0], splitImg[1]
+                x_end = min(x_start + split_disp_size[0], img_mat.shape[1])
+                y_end = min(img_mat.shape[0] - y_start, img_mat.shape[0])  # Flip the y-coordinate
+
+                # Ensure coordinates are within bounds
+                if 0 <= x_start < img_mat.shape[1] and 0 <= y_start < img_mat.shape[0]:
+                    img_mat[y_end-split_disp_size[1]:y_end, x_start:x_end, 0] = c[0]
+                    img_mat[y_end-split_disp_size[1]:y_end, x_start:x_end, 1] = c[1]
+                    img_mat[y_end-split_disp_size[1]:y_end, x_start:x_end, 2] = c[2]
 
 @njit
-def draw_split_image_confs_calipso(img_mat, scale_factor, split_disp_size, labels, selected_classes, cmap):
-    for i,selected_class in enumerate(selected_classes):
+def draw_split_image_confs_calipso(img_mat, scale_factor, 
+                                    split_disp_size, labels, 
+                                    selected_classes, cmap):
+    for i, selected_class in enumerate(selected_classes):
         if selected_class:
-            clas = labels[labels[:,2] == i]
-            x = np.floor(clas[:,0]/scale_factor).reshape(-1,1).astype(np.int32)
-            y = np.floor(clas[:,1]/scale_factor).reshape(-1,1).astype(np.int32)
-            conf = np.floor(clas[:,3]*100).reshape(-1,1).astype(np.int32)
+            # Select the rows corresponding to the class
+            clas = labels[labels[:, 2] == i]  # Assuming labels[:, 2] holds class information
+            c = cmap[i]
+            x = np.floor(clas[:,0]).reshape(-1,1).astype(np.int32)
+            y = np.floor(clas[:,1]).reshape(-1,1).astype(np.int32)
+            #y = int(img_mat.shape[1]) - y1
+            conf = np.floor(clas[:,5]*100).reshape(-1,1).astype(np.int32)
             xy = np.concatenate((x,y,conf),axis=1)
             for splitImg in xy:
                 c = cmap[splitImg[2]]
-                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],0] = c[0]
-                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],1] = c[1]
-                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],2] = c[2]
+                x_start, y_start = splitImg[0], splitImg[1]
+                x_end = min(x_start + split_disp_size[0], img_mat.shape[1])
+                y_end = min(img_mat.shape[0] - y_start, img_mat.shape[0])  # Flip the y-coordinate
+
+                # Ensure coordinates are within bounds
+                if 0 <= x_start < img_mat.shape[1] and 0 <= y_start < img_mat.shape[0]:
+                    img_mat[y_end-split_disp_size[1]:y_end, x_start:x_end, 0] = c[0]
+                    img_mat[y_end-split_disp_size[1]:y_end, x_start:x_end, 1] = c[1]
+                    img_mat[y_end-split_disp_size[1]:y_end, x_start:x_end, 2] = c[2]
 
 
 def to_netCDF(data, filepath):
@@ -757,7 +781,7 @@ class_enum:         {}
 utm_epsg_code:      {}
 split_img_size:     {}
 train_test_split:   {}
-train_indeces:      {}
+train_indices:      {}
 training_img_path:  {}
 training_img_npy:   {}
 save_all_pred:      {}
@@ -802,7 +826,102 @@ bg_UTM_path:        {}
                    yaml_obj['utm_epsg_code'],
                    yaml_obj['split_img_size'],
                    yaml_obj['train_test_split'],
-                   yaml_obj['train_indeces'],
+                   yaml_obj['train_indices'],
+                   yaml_obj['training_img_path'],
+                   yaml_obj['training_img_npy'],
+                   yaml_obj['save_all_pred'],
+                   yaml_obj['equal_dataset'],
+                   yaml_obj['train_with_img'],
+                   yaml_obj['use_cuda'],
+                   yaml_obj['num_epochs'],
+                   yaml_obj['fine_epochs'],
+                   yaml_obj['alpha'],
+                   yaml_obj['beta'],
+                   yaml_obj['learning_rate'],
+                   yaml_obj['batch_size'],
+                   yaml_obj['optimizer'],
+                   yaml_obj['directional_vario'],
+                   yaml_obj['random_rotate'],
+                   yaml_obj['random_shift'],
+                   yaml_obj['random_contrast'],
+                   yaml_obj['random_distort'],
+                   yaml_obj['contour_path'],
+                   yaml_obj['custom_color_map'],
+                   yaml_obj['bg_img_path'],
+                   yaml_obj['bg_UTM_path'])
+
+    return config_str
+
+def generate_config_calipso(yaml_obj):
+    config_str = '''
+### MODEL PARAMETERS ###
+
+model:          {}
+num_classes:    {}
+vario_num_lag:  {}
+hidden_layers:  {}
+activation:     {}
+
+### DATASET PARAMETERS ###
+
+img_path:           {}
+npy_path:           {}
+density_path:       {}
+train_path:         {}
+valid_path:         {}
+class_enum:         {}
+utm_epsg_code:      {}
+split_img_size:     {}
+num_channels:       {}
+train_test_split:   {}
+train_indices:      {}
+training_img_path:  {}
+training_img_npy:   {}
+save_all_pred:      {}
+equal_dataset:      {}
+
+### TRAINING PARAMETERS ###
+
+train_with_img: {}
+use_cuda:       {}
+num_epochs:     {}
+fine_epochs:    {}
+alpha:          {}
+beta:           {}
+learning_rate:  {}
+batch_size:     {}
+optimizer:      {}
+
+### DATA AUGMENTATION PARAMETERS ###
+
+directional_vario:  {}
+random_rotate:      {}
+random_shift:       {}
+random_contrast:    {}
+random_distort:     {}
+
+### VISUALIZATION PARAMETERS ###
+
+contour_path:       {}
+custom_color_map:   {}
+bg_img_path:        {}
+bg_UTM_path:        {}
+        '''.format(yaml_obj['model'],
+                   yaml_obj['num_classes'],
+                   yaml_obj['vario_num_lag'],
+                   yaml_obj['hidden_layers'],
+                   yaml_obj['activation'],
+                   yaml_obj['img_path'],
+                   yaml_obj['npy_path'],
+                   yaml_obj['density_path'],
+                   yaml_obj['train_path'],
+                   yaml_obj['valid_path'],
+                   yaml_obj['class_enum'],
+                   yaml_obj['utm_epsg_code'],
+                   yaml_obj['split_img_size'],
+                   yaml_obj['num_channels'],
+                   yaml_obj['train_test_split'],
+                   yaml_obj['train_indices'],
                    yaml_obj['training_img_path'],
                    yaml_obj['training_img_npy'],
                    yaml_obj['save_all_pred'],

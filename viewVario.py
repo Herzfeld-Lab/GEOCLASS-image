@@ -9,7 +9,7 @@ import math
 import cv2
 from numba import jit  # for numerical speed up
 
-def getVario(img, lagThresh = 0.8):
+def getVarioSilas(img, lagThresh = 0.8):
     imSize = img.shape
     imRangeNS = imSize[0]*lagThresh
     imRangeEW = imSize[1]*lagThresh
@@ -97,9 +97,12 @@ def getVario(img, lagThresh = 0.8):
     
     # Plot the variogram for North/South direction
     plt.plot(range(1, numLagNS * lagStepNS, lagStepNS), vario[0], label='North/South')
+    plt.plot(range(1, numLagEW * lagStepEW, lagStepEW), vario[1], label='East/West')
+    plt.plot(range(1, numLagDiag * lagStepDiag, lagStepDiag), vario[2], label='Diagonal (top right to bottom left)')
+    plt.plot(range(1, numLagDiag * lagStepDiag, lagStepDiag), vario[3], label='Diagonal (bottom right to top left)')
     plt.xlabel('Lag Distance')
     plt.ylabel('Semivariance')
-    plt.title('Variogram for North/South Direction')
+    plt.title('Variogram for Crevasse')
     plt.legend()
     plt.show()
 
@@ -132,13 +135,12 @@ def getVario(img, lagThresh = 0.8):
 
 
 
-os.chdir("Classification/1")
-filename = "16391.tif"
+filename = "/home/twickler/paper1figures/crev.png"
 img = imageio.imread(filename)
 lagThresh = 0.8
 
 # If numLag is greater than smallest image dimension * lagThresh, ovverride
-normalVar = getVario(img,lagThresh)
+normalVar = getVarioSilas(img,lagThresh)
 
 
 

@@ -119,7 +119,7 @@ class SplitImageDataset(Dataset):
             return splitImg_tensor
 #For training by a folder of images
             
-
+"""
     def __len__(self):
         return len(self.image_paths)
 
@@ -140,7 +140,164 @@ class SplitImageDataset(Dataset):
             return IMGnp, variogram, int(label)
         else:
             return IMGnp, int(label)
+        """
+class PlotSplitImageDataset(Dataset):
+
+    def __init__(self, imgPath, imgData, labels, labels_binary, labels_multiclass, transform=None, train=False):
+
+        self.train = train
+        imagePath = imgPath
+        imageLabels = labels
+        imageData = imgData
+        self.labels_binary = labels_binary
+        self.labels_multiclass = labels_multiclass
+        self.transform = transform
+        # Extract all split images and store in dataframe (takes longer to initialize but saves loads on memory usage during training)
+        dataArray = []
+        #CST20240315print("image data", imageData)
+        if self.train:
+                img = Image.open(imagePath)
+                imageMatrix = np.array(img)
+                max = get_img_sigma(imageMatrix[::10,::10])
+                winSize = imageData['winsize_pix']
+                for i in range(0,len(imageLabels[:])):
+                        row = imageLabels[i]
+                        x,y = row[0:2].astype('int')
+                        splitImg_np = imageMatrix[y:y+winSize[1],x:x+winSize[0]]
+                        splitImg_np = scaleImage(splitImg_np, max)
+                        rowlist = list(row)
+                        #rowlist.append(splitImg_np)
+                        #rowlist.append(self.labels_multiclass[i])
+                        #rowlist.append(self.labels_binary[i])
+                        if (splitImg_np.shape[0] == 0) or (splitImg_np.shape[1] == 0):
+                            print("Error with an image: ", i, "class: ", rowlist[4], "image source: ", rowlist[6])
+                        else:
+                            dataArray.append(rowlist)
+                        #CST20240315print("data array", dataArray)
+        else: #testing
+                    # If training, and there are no labeled split images from tiff image, skip loading it
+                 
+
+                img = Image.open(imagePath)
+                imageMatrix = np.array(img)
+                
+                max = get_img_sigma(imageMatrix[::10,::10])
+                winSize = imageData['winsize_pix']
+                for i in range(0,len(imageLabels[:])):
+                        row = imageLabels[i]
+                        #print(row)
+                        x,y = row[0:2].astype('int')
+                        splitImg_np = imageMatrix[y:y+winSize[1],x:x+winSize[0]]
+                        splitImg_np = scaleImage(splitImg_np, max)
+                        rowlist = list(row)
+                        #rowlist.append(splitImg_np)
+                        #rowlist.append(self.labels_multiclass[i])
+                        #rowlist.append(self.labels_binary[i])
+                        if (splitImg_np.shape[0] == 0) or (splitImg_np.shape[1] == 0):
+                            print("Error with an image: ", i, "class: ", rowlist[4], "image source: ", rowlist[6])
+                        else:
+                            dataArray.append(rowlist)
+                        
+
+        self.dataFrame = pd.DataFrame(dataArray, columns=['x_pix','y_pix','label','conf','img_mat'])
+
+    def __len__(self):
+        return len(self.dataFrame)
+
+    def __getitem__(self, idx):
+
+        splitImg_np = self.dataFrame.iloc[idx,4]
+
+        if self.transform:
+            splitImg_np = self.transform(splitImg_np)
+
+        splitImg_tensor = torch.from_numpy(splitImg_np)
+
+        if self.train:
+            bin_label = int(self.dataFrame.iloc[idx,6])
+            multi_label = int(self.dataFrame.iloc[idx,5])
+            return (splitImg_tensor, int(bin_label), int(multi_label))
+
+        else:
+            return splitImg_tensor
+
+class CalipsoDataset(Dataset):
+
+    def __init__(self, imgPath, imgData, labels, transform=None, train=False):
+
+        self.train = train
+        imagePath = imgPath
+        imageLabels = labels
+        imageData = imgData
+        self.transform = transform
+        # Extract all split images and store in dataframe (takes longer to initialize but saves loads on memory usage during training)
+        dataArray = []
         
+        #CST20240315print("image data", imageData)
+        if self.train:
+                img = Image.open(imagePath)
+                imageMatrix = np.array(img)
+                max = get_img_sigma(imageMatrix[::10,::10])
+                winSize = imageData['winsize_pix']
+                for i in range(0,len(imageLabels[:])):
+                        row = imageLabels[i]
+                        x,y = row[0:2].astype('int')
+                        splitImg_np = imageMatrix[y:y+winSize[1],x:x+winSize[0]]
+                        splitImg_np = scaleImage(splitImg_np, max)
+                        rowlist = list(row)
+                        #rowlist.append(splitImg_np)
+                        #rowlist.append(self.labels_multiclass[i])
+                        #rowlist.append(self.labels_binary[i])
+                        if (splitImg_np.shape[0] == 0) or (splitImg_np.shape[1] == 0):
+                            print("Error with an image: ", i, "class: ", rowlist[2])
+                        else:
+                            dataArray.append(rowlist)
+                        #CST20240315print("data array", dataArray)
+        else: #testing
+                    # If training, and there are no labeled split images from tiff image, skip loading it
+                 
+
+                img = Image.open(imagePath)
+                imageMatrix = np.array(img)
+                
+                max = get_img_sigma(imageMatrix[::10,::10])
+                winSize = imageData['winsize_pix']
+                for i in range(0,len(imageLabels[:])):
+                        row = imageLabels[i]
+                        #print(row)
+                        x,y = row[0:2].astype('int')
+                        splitImg_np = imageMatrix[y:y+winSize[1],x:x+winSize[0]]
+                        splitImg_np = scaleImage(splitImg_np, max)
+                        rowlist = list(row)
+                        #rowlist.append(splitImg_np)
+                        #rowlist.append(self.labels_multiclass[i])
+                        #rowlist.append(self.labels_binary[i])
+                        if (splitImg_np.shape[0] == 0) or (splitImg_np.shape[1] == 0):
+                            print("Error with an image: ", i, "class: ", rowlist[2])
+                        else:
+                            dataArray.append(rowlist)
+                        
+
+        self.dataFrame = pd.DataFrame(dataArray, columns=['x_pix','y_pix','label','conf', 'density_fields', 'img_mat'])
+
+    def __len__(self):
+        return len(self.dataFrame)
+
+    def __getitem__(self, idx):
+
+        density = self.dataFrame.iloc[idx,4]
+
+        #if self.transform:
+            #splitImg_np = self.transform(splitImg_np)
+
+        density_tensor = torch.from_numpy(density)
+
+        if self.train:
+            label = int(self.dataFrame.iloc[idx,2])
+            return (density, int(label))
+
+        else:
+            return density_tensor
 
 
 class RandomRotateVario(object):
