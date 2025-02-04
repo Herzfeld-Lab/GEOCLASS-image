@@ -1,12 +1,14 @@
 import sys, os, glob, argparse
 import math, random
 
-from numba import jit, njit
+from numba import jit, njit, typed
 
 import numpy as np
 import pandas as pd
 
 import cv2
+from numba import jit, float32, int32, types
+
 from PIL import Image, ImageOps
 Image.MAX_IMAGE_PIXELS = None
 
@@ -15,11 +17,13 @@ import xml.etree.ElementTree as ET
 from netCDF4 import Dataset
 
 from pyproj import Transformer, CRS
-
+import yaml
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
-
+from Dataset import *
 import time, utm
+
+
 
 @njit
 def draw_split_image_labels(img_mat, scale_factor, split_disp_size, labels, selected_classes, cmap):
@@ -46,9 +50,62 @@ def draw_split_image_confs(img_mat, scale_factor, split_disp_size, labels, selec
             xy = np.concatenate((x,y,conf),axis=1)
             for splitImg in xy:
                 c = cmap[splitImg[2]]
-                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],0] = c[0]
-                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],1] = c[1]
-                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],2] = c[2]
+                img_mat[splitImg[1]:splitImg[1]+split_disp_size[1],splitImg[0]:splitImg[0]+split_disp_size[0],0] = c[0]
+                img_mat[splitImg[1]:splitImg[1]+split_disp_size[1],splitImg[0]:splitImg[0]+split_disp_size[0],1] = c[1]
+                img_mat[splitImg[1]:splitImg[1]+split_disp_size[1],splitImg[0]:splitImg[0]+split_disp_size[0],2] = c[2]
+
+@njit
+def draw_split_image_labels_calipso(img_mat, scale_factor, 
+                                    split_disp_size, labels, 
+                                    selected_classes, cmap):
+    # Ensure that img_mat is a numpy array of type float32
+    # Loop through selected classes
+    
+    for i, selected_class in enumerate(selected_classes):
+        if selected_class:
+            # Select the rows corresponding to the class
+            clas = labels[labels[:, 2] == i]  # Assuming labels[:, 2] holds class information
+            c = cmap[i]
+            x = np.floor(clas[:,0]).reshape(-1,1).astype(np.int32)
+            y = np.floor(clas[:,1]).reshape(-1,1).astype(np.int32)
+            #y = int(img_mat.shape[1]) - y1
+            xy = np.concatenate((x,y),axis=1)
+            for splitImg in xy:
+                x_start, y_start = splitImg[0], splitImg[1]
+                x_end = min(x_start + split_disp_size[0], img_mat.shape[1])
+                y_end = min(img_mat.shape[0] - y_start, img_mat.shape[0])  # Flip the y-coordinate
+
+                # Ensure coordinates are within bounds
+                if 0 <= x_start < img_mat.shape[1] and 0 <= y_start < img_mat.shape[0]:
+                    img_mat[y_end-split_disp_size[1]:y_end, x_start:x_end, 0] = c[0]
+                    img_mat[y_end-split_disp_size[1]:y_end, x_start:x_end, 1] = c[1]
+                    img_mat[y_end-split_disp_size[1]:y_end, x_start:x_end, 2] = c[2]
+
+@njit
+def draw_split_image_confs_calipso(img_mat, scale_factor, 
+                                    split_disp_size, labels, 
+                                    selected_classes, cmap):
+    for i, selected_class in enumerate(selected_classes):
+        if selected_class:
+            # Select the rows corresponding to the class
+            clas = labels[labels[:, 2] == i]  # Assuming labels[:, 2] holds class information
+            c = cmap[i]
+            x = np.floor(clas[:,0]).reshape(-1,1).astype(np.int32)
+            y = np.floor(clas[:,1]).reshape(-1,1).astype(np.int32)
+            #y = int(img_mat.shape[1]) - y1
+            conf = np.floor(clas[:,5]*100).reshape(-1,1).astype(np.int32)
+            xy = np.concatenate((x,y,conf),axis=1)
+            for splitImg in xy:
+                c = cmap[splitImg[2]]
+                x_start, y_start = splitImg[0], splitImg[1]
+                x_end = min(x_start + split_disp_size[0], img_mat.shape[1])
+                y_end = min(img_mat.shape[0] - y_start, img_mat.shape[0])  # Flip the y-coordinate
+
+                # Ensure coordinates are within bounds
+                if 0 <= x_start < img_mat.shape[1] and 0 <= y_start < img_mat.shape[0]:
+                    img_mat[y_end-split_disp_size[1]:y_end, x_start:x_end, 0] = c[0]
+                    img_mat[y_end-split_disp_size[1]:y_end, x_start:x_end, 1] = c[1]
+                    img_mat[y_end-split_disp_size[1]:y_end, x_start:x_end, 2] = c[2]
 
 
 def to_netCDF(data, filepath):
@@ -115,6 +172,16 @@ def scaleImage(img, max):
     img = img/max
     img = img * 255
     img[img[:,:] > 255] = 255
+    return np.ceil(img).astype(np.uint8)
+
+def scalePlot(img, max):
+    # Normalize the image if the max value is not 255
+    img = img / max  # Normalize based on the provided 'max' value
+
+    # Scale the image back to 0-255
+    img = np.clip(img * 255, 0, 255)  # Clip to ensure values are within 0-255
+
+    # Convert to uint8 (integer type)
     return np.ceil(img).astype(np.uint8)
 
 def getImgPaths(topDir):
@@ -239,7 +306,49 @@ def plot_geotif_bbox(xmlPath, contourPath, bgImgPath, bgUTMPath):
     #cv2.waitKey(0)
     #cv2.destroyAllWindows()
 
+def get_varios(img, numLag):
+    imSize = img.shape
+    if (imSize[0] == 201 and imSize[1] == 268) or (imSize[0] == 268 and imSize[1] == 201):
+        return silas_directional_vario(img, numLag)
+    else:
+        print("Use an image size of (201,268) for best results")
+        return fast_directional_vario(img, numLag)
+
+def load_images(image_paths):
+    images = []
+    for path in image_paths:
+        img = cv2.imread(path, cv2.IMREAD_UNCHANGED)  # Load image with alpha channel if present
+        if img is None:
+            print(f"Error: Could not read image at {path}")
+        else:
+            images.append(img)
+    return images
+
+def collect_image_paths_and_labels(image_folder, numLag):
+    image_paths = []
+    labels = []
+    variograms = []
+
+    for label_name in os.listdir(image_folder):
+        label_path = os.path.join(image_folder, label_name)
+        if os.path.isdir(label_path):
+            label_index = int(label_name)
+            for img_name in os.listdir(label_path):
+                if img_name.endswith(('png', 'tiff', 'tif')):
+                    img_path = os.path.join(label_path, img_name)
+                    image_paths.append(img_path)
+                    labels.append(label_index)
+                    # Load image and convert to numpy array
+                    image = Image.open(img_path).convert('RGB')
+                    image_np = np.array(image)
+                    variogram = get_varios(image_np, numLag)
+                    variograms.append(variogram)
+    return image_paths, np.array(variograms), labels
+
+
+
 #@njit
+#Not refrenced 
 def directional_vario(img, numLag, lagThresh = 0.8):
     """
     Implements the directional vario function in python. The variogram is computed
@@ -252,7 +361,7 @@ def directional_vario(img, numLag, lagThresh = 0.8):
         lagThresh (float):  Threshold for maximum lag value as a percentage of smallest
                             image dimension
     Returns:
-        nparray:            Array containing the directional variogram for each
+        vario (nparray):            Array containing the directional variogram for each
                             lag value for all 4 directions.
     """
 
@@ -297,6 +406,7 @@ def directional_vario(img, numLag, lagThresh = 0.8):
     return vario
 
 @njit
+#Old Variogram code
 def fast_directional_vario(img, numLag, lagThresh = 0.8):
     """
     Implements the directional vario function in python. The variogram is computed
@@ -314,46 +424,152 @@ def fast_directional_vario(img, numLag, lagThresh = 0.8):
                             lag value for all 4 directions.
     """
 
-    # If numLag is greater than smalles image dimension * lagThresh, ovverride
+    # If numLag is greater than smallest image dimension * lagThresh, ovverride
+    #CST 05162024, getting a weird bug where the image size is zero in one dimension causing most numbers to be zero crashing the program. 
     imSize = img.shape
+    #print(imSize) #CST05292024 For some reason the image size is smaller than it should be in the x direction?
     minDim = imSize[0]*(imSize[0]<imSize[1]) + imSize[1]*(imSize[1]<imSize[0])
     imRange = minDim * lagThresh
     lagStep = int(math.floor(imRange / numLag))
-    #print(imSize, minDim, imRange, lagStep)
+    #print(imSize, numLag, imRange, lagStep)
+    vario = np.zeros((4,numLag)) #Could give error to the NN but causes code to crash otherwise.
+    if numLag >= imSize[0] or numLag >= imSize[1]:
+        print("There was an error processing one of the images")
+    else:
+        
 
-    vario = np.zeros((4,numLag))
+        # For each value of lag, calculate directional variogram in given direction
+        for i,h in enumerate(range(1,numLag*lagStep,lagStep)):
 
+            # North/South direction
+            diff = img[0:-h,:minDim] - img[h:,:minDim]
+            numPairs = diff.shape[0]*diff.shape[1]
+            v_h = (1. / numPairs) * np.sum(diff*diff)
+            vario[0,i] = v_h
+
+
+            # East/West direction
+            diff = img[:,0:minDim-h] - img[:,h:minDim]
+            numPairs = diff.shape[0]*diff.shape[1]
+            v_h = (1. / numPairs) * np.sum(diff*diff)
+            vario[1,i] = v_h
+
+            # Approximate h in diagonal direction by dividing by tangent
+            h_diag = int(round(h / 1.41421356237))
+
+            # Diagonal (top left to bottom right)
+            diff = img[0:minDim-h_diag,0:minDim-h_diag] - img[h_diag:minDim,h_diag:minDim]
+            numPairs = diff.shape[0]*diff.shape[1]
+            v_h = (1. / numPairs) * np.sum(diff*diff)
+            vario[2,i] = v_h
+
+            # Diagonal (bottom left to top right)
+            diff = img[h_diag:minDim,0:minDim-h_diag] - img[0:minDim-h_diag,h_diag:minDim]
+            numPairs = diff.shape[0]*diff.shape[1]
+            v_h = (1. / numPairs) * np.sum(diff*diff)
+            vario[3,i] = v_h
+
+    return vario
+
+def silas_directional_vario(img, numLag = 53, lagThresh = 0.8):
+    """
+    Implements the directional vario function in python. The variogram is computed
+    in 4 different directions: North/South, East/West, and the two diagonals. The
+    results are concatenated together as the rows of a numpy array and returned.
+    This function is identical to directional_vario, sped up using numba jit
+
+    Args:
+        img (nparray):      Image matrix to compute vario function on
+        numLag (int):       The number of different lag values to calculate variogram with
+        lagThresh (float):  Threshold for maximum lag value as a percentage of smallest
+                            image dimension
+    Returns:
+        nparray:            Array containing the directional variogram for each
+                            lag value for all 4 directions.
+    """
+    #Only works for images of size (201,268) or other images of 3-4-5 shape
+
+    imSize = img.shape
+    #print(imSize)
+    imRangeNS = imSize[0]*lagThresh
+    imRangeEW = imSize[1]*lagThresh
+    diagImSize = int(math.floor(np.sqrt((imSize[0]**2)+(imSize[1]**2))))
+    imRangeDiag = diagImSize*lagThresh
+    if imSize[0] < imSize[1]:
+        #Use of 3-4-5 rectangle
+        lagStepNS = 3
+        numLagNS = int(math.floor(imRangeNS / lagStepNS))
+        lagStepEW = 4
+        numLagEW = int(math.floor(imRangeEW / lagStepEW))
+        lagStepDiag = 5
+        numLagDiag = int(math.floor(imRangeDiag / lagStepDiag))
+    elif imSize[0] > imSize[1]:
+        #Use of 3-4-5 rectangle
+        lagStepNS = 4
+        numLagNS = int(math.floor(imRangeNS / lagStepNS))
+        lagStepEW = 3
+        numLagEW = int(math.floor(imRangeEW / lagStepEW))
+        lagStepDiag = 5
+        numLagDiag = int(math.floor(imRangeDiag / lagStepDiag))
+    vario = np.zeros((4, max(numLagNS, numLagEW, numLagDiag)))
+    NSlag = []
+    EWlag = []
     # For each value of lag, calculate directional variogram in given direction
-    for i,h in enumerate(range(1,numLag*lagStep,lagStep)):
-
+    for i,h in enumerate(range(1,numLagNS*lagStepNS,lagStepNS)):
         # North/South direction
-        diff = img[0:-h,:minDim] - img[h:,:minDim]
+        NSlag.append(h)
+        diff = img[h:,:]-img[0:-h,:] 
         numPairs = diff.shape[0]*diff.shape[1]
-        v_h = (1. / numPairs) * np.sum(diff*diff)
-        vario[0,i] = v_h
+        if numPairs != 0:
+            v_h = (1. / numPairs) * np.sum(diff*diff)
+            vario[0,i] = v_h
+        #print("North/South Direction:")
+        #print("Number of lag steps:", numLagNS)
+        #print("Shape of diff:", diff.shape)
+        #print("Number of pairs:", numPairs)
 
 
+    for i,h in enumerate(range(1,numLagEW*lagStepEW,lagStepEW)):
         # East/West direction
-        diff = img[:,0:minDim-h] - img[:,h:minDim]
+        EWlag.append(h)
+        diff = img[:, :-h] - img[:, h:]
         numPairs = diff.shape[0]*diff.shape[1]
-        v_h = (1. / numPairs) * np.sum(diff*diff)
-        vario[1,i] = v_h
+        if numPairs != 0:
+            v_h = (1. / numPairs) * np.sum(diff*diff)
+            vario[1,i] = v_h
+        #print("East/West Direction:")
+        #print("Number of lag steps:", numLagEW)
+        #print("Shape of diff:", diff.shape)
+        #print("Number of pairs:", numPairs)
 
-        # Approximate h in diagonal direction by dividing by tangent
-        h_diag = int(round(h / 1.41421356237))
-
-        # Diagonal (top left to bottom right)
-        diff = img[0:minDim-h_diag,0:minDim-h_diag] - img[h_diag:minDim,h_diag:minDim]
-        numPairs = diff.shape[0]*diff.shape[1]
-        v_h = (1. / numPairs) * np.sum(diff*diff)
-        vario[2,i] = v_h
-
-        # Diagonal (bottom left to top right)
-        diff = img[h_diag:minDim,0:minDim-h_diag] - img[0:minDim-h_diag,h_diag:minDim]
-        numPairs = diff.shape[0]*diff.shape[1]
-        v_h = (1. / numPairs) * np.sum(diff*diff)
-        vario[3,i] = v_h
-
+    # Diagonal direction (top right to bottom left)
+    for i, h in enumerate(range(1, numLagDiag * lagStepDiag, lagStepDiag)):
+        diff = img[NSlag[i]:, EWlag[i]:] - img[:-NSlag[i], :-EWlag[i]]
+        if diff.shape[0]!=0 and diff.shape[1]!=0:
+            numPairs = diff.shape[0] * diff.shape[1]
+        elif diff.shape[0]!=0 and diff.shape[1] == 0:
+            numPairs = diff.shape[0]
+        elif diff.shape[1]!=0 and diff.shape[0] == 0:
+            numPairs = diff.shape[1]
+        if numPairs != 0:
+            v_h = (1. / numPairs) * np.sum(diff * diff)
+            vario[2, i] = v_h
+        
+    
+    # Diagonal direction (bottom right to top left)
+    for i, h in enumerate(range(1, numLagDiag * lagStepDiag, lagStepDiag)):
+        # Calculate differences for diagonal direction (bottom right to top left)
+        diff = img[:-NSlag[i], EWlag[i]:] - img[NSlag[i]:, :-EWlag[i]]
+        if diff.shape[0] > 0 and diff.shape[1] > 0:
+            numPairs = diff.shape[0] * diff.shape[1]
+        if diff.shape[0]==0 or diff.shape[1]==0:
+            if diff.shape[0]!=0 and diff.shape[1] == 0:
+                numPairs = diff.shape[0]
+            elif diff.shape[1]!=0 and diff.shape[0] == 0:
+                numPairs = diff.shape[1]
+        if numPairs != 0:
+            v_h = (1. / numPairs) * np.sum(diff * diff)
+            vario[3, i] = v_h
     return vario
 
 def batch_directional_vario(img_arr, numLag, lagThresh = 0.8):
@@ -530,6 +746,192 @@ bg_UTM_path:        {}
                    yaml_obj['train_test_split'],
                    yaml_obj['use_cuda'],
                    yaml_obj['num_epochs'],
+                   yaml_obj['learning_rate'],
+                   yaml_obj['batch_size'],
+                   yaml_obj['optimizer'],
+                   yaml_obj['directional_vario'],
+                   yaml_obj['random_rotate'],
+                   yaml_obj['random_shift'],
+                   yaml_obj['random_contrast'],
+                   yaml_obj['random_distort'],
+                   yaml_obj['contour_path'],
+                   yaml_obj['custom_color_map'],
+                   yaml_obj['bg_img_path'],
+                   yaml_obj['bg_UTM_path'])
+
+    return config_str
+
+def generate_config_silas(yaml_obj):
+    config_str = '''
+### MODEL PARAMETERS ###
+
+model:          {}
+num_classes:    {}
+vario_num_lag:  {}
+hidden_layers:  {}
+activation:     {}
+
+### DATASET PARAMETERS ###
+
+img_path:           {}
+npy_path:           {}
+train_path:         {}
+valid_path:         {}
+class_enum:         {}
+utm_epsg_code:      {}
+split_img_size:     {}
+train_test_split:   {}
+train_indices:      {}
+training_img_path:  {}
+training_img_npy:   {}
+save_all_pred:      {}
+equal_dataset:      {}
+
+### TRAINING PARAMETERS ###
+
+train_with_img: {}
+use_cuda:       {}
+num_epochs:     {}
+fine_epochs:    {}
+alpha:          {}
+beta:           {}
+learning_rate:  {}
+batch_size:     {}
+optimizer:      {}
+
+### DATA AUGMENTATION PARAMETERS ###
+
+directional_vario:  {}
+random_rotate:      {}
+random_shift:       {}
+random_contrast:    {}
+random_distort:     {}
+
+### VISUALIZATION PARAMETERS ###
+
+contour_path:       {}
+custom_color_map:   {}
+bg_img_path:        {}
+bg_UTM_path:        {}
+        '''.format(yaml_obj['model'],
+                   yaml_obj['num_classes'],
+                   yaml_obj['vario_num_lag'],
+                   yaml_obj['hidden_layers'],
+                   yaml_obj['activation'],
+                   yaml_obj['img_path'],
+                   yaml_obj['npy_path'],
+                   yaml_obj['train_path'],
+                   yaml_obj['valid_path'],
+                   yaml_obj['class_enum'],
+                   yaml_obj['utm_epsg_code'],
+                   yaml_obj['split_img_size'],
+                   yaml_obj['train_test_split'],
+                   yaml_obj['train_indices'],
+                   yaml_obj['training_img_path'],
+                   yaml_obj['training_img_npy'],
+                   yaml_obj['save_all_pred'],
+                   yaml_obj['equal_dataset'],
+                   yaml_obj['train_with_img'],
+                   yaml_obj['use_cuda'],
+                   yaml_obj['num_epochs'],
+                   yaml_obj['fine_epochs'],
+                   yaml_obj['alpha'],
+                   yaml_obj['beta'],
+                   yaml_obj['learning_rate'],
+                   yaml_obj['batch_size'],
+                   yaml_obj['optimizer'],
+                   yaml_obj['directional_vario'],
+                   yaml_obj['random_rotate'],
+                   yaml_obj['random_shift'],
+                   yaml_obj['random_contrast'],
+                   yaml_obj['random_distort'],
+                   yaml_obj['contour_path'],
+                   yaml_obj['custom_color_map'],
+                   yaml_obj['bg_img_path'],
+                   yaml_obj['bg_UTM_path'])
+
+    return config_str
+
+def generate_config_calipso(yaml_obj):
+    config_str = '''
+### MODEL PARAMETERS ###
+
+model:          {}
+num_classes:    {}
+vario_num_lag:  {}
+hidden_layers:  {}
+activation:     {}
+
+### DATASET PARAMETERS ###
+
+img_path:           {}
+npy_path:           {}
+density_path:       {}
+train_path:         {}
+valid_path:         {}
+class_enum:         {}
+utm_epsg_code:      {}
+split_img_size:     {}
+num_channels:       {}
+train_test_split:   {}
+train_indices:      {}
+training_img_path:  {}
+training_img_npy:   {}
+save_all_pred:      {}
+equal_dataset:      {}
+
+### TRAINING PARAMETERS ###
+
+train_with_img: {}
+use_cuda:       {}
+num_epochs:     {}
+fine_epochs:    {}
+alpha:          {}
+beta:           {}
+learning_rate:  {}
+batch_size:     {}
+optimizer:      {}
+
+### DATA AUGMENTATION PARAMETERS ###
+
+directional_vario:  {}
+random_rotate:      {}
+random_shift:       {}
+random_contrast:    {}
+random_distort:     {}
+
+### VISUALIZATION PARAMETERS ###
+
+contour_path:       {}
+custom_color_map:   {}
+bg_img_path:        {}
+bg_UTM_path:        {}
+        '''.format(yaml_obj['model'],
+                   yaml_obj['num_classes'],
+                   yaml_obj['vario_num_lag'],
+                   yaml_obj['hidden_layers'],
+                   yaml_obj['activation'],
+                   yaml_obj['img_path'],
+                   yaml_obj['npy_path'],
+                   yaml_obj['density_path'],
+                   yaml_obj['train_path'],
+                   yaml_obj['valid_path'],
+                   yaml_obj['class_enum'],
+                   yaml_obj['utm_epsg_code'],
+                   yaml_obj['split_img_size'],
+                   yaml_obj['num_channels'],
+                   yaml_obj['train_test_split'],
+                   yaml_obj['train_indices'],
+                   yaml_obj['training_img_path'],
+                   yaml_obj['training_img_npy'],
+                   yaml_obj['save_all_pred'],
+                   yaml_obj['equal_dataset'],
+                   yaml_obj['train_with_img'],
+                   yaml_obj['use_cuda'],
+                   yaml_obj['num_epochs'],
+                   yaml_obj['fine_epochs'],
+                   yaml_obj['alpha'],
+                   yaml_obj['beta'],
                    yaml_obj['learning_rate'],
                    yaml_obj['batch_size'],
                    yaml_obj['optimizer'],

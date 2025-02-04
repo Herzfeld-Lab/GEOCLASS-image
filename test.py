@@ -41,12 +41,13 @@ valid_path = cfg['valid_path']
 
 # Initialize NN model as specified by config file
 print('----- Initializing Neural Network Model -----')
-
+ddaBool = False
 if cfg['model'] == 'VarioMLP':
     num_classes = cfg['num_classes']
     vario_num_lag = cfg['vario_num_lag']
     hidden_layers = cfg['hidden_layers']
-    model = VarioMLP.VarioMLP(num_classes, vario_num_lag, hidden_layers=hidden_layers)
+    imSize = cfg['split_img_size']
+    model = VarioMLP.VarioMLP(num_classes, vario_num_lag, hidden_layers=hidden_layers) 
     img_transforms_valid = transforms.Compose([
         DirectionalVario(model.num_lag),
         DefaultRotateVario(),
@@ -117,7 +118,7 @@ valid_loader = DataLoader(
     shuffle=False
 )
 
-weighted = True
+weighted = False
 if weighted:
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore")

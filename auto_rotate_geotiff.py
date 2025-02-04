@@ -236,7 +236,10 @@ def rotate_and_crop_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM, t
         contour_polygon = Polygon(contourUTM)
         intersection = bbox_polygon.intersection(contour_polygon)
         if intersection.geom_type == 'MultiPolygon':
-            intersection_poly = max(intersection, key=lambda a: a.area)
+             # Access individual polygons within the MultiPolygon
+            polygons = list(intersection.geoms)
+   	    # Find the polygon with the maximum area
+            intersection_poly = max(polygons, key=lambda a: a.area)            
             newpoly = np.array(list(intersection_poly.exterior.coords))
         else:
             intersection_poly = intersection
@@ -269,6 +272,7 @@ def rotate_and_crop_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM, t
         img_mat_rot = cv2.flip(img_mat_rot,0)
 
         for i in range(len(contourPixel)-1):
+        
             cv2.line(img_mat_rot, tuple(contourPixel[i]), tuple(contourPixel[i+1]), (0,0,255), 2)
 
         img_mat_rot = cv2.flip(img_mat_rot,0)
