@@ -2,7 +2,7 @@
 # Visit https://bit.ly/cffinit to generate yours today!
 
 cff-version: 1.2.0
-title: GEOCLASS-image (v1.0)
+title: GEOCLASS-image (v2.0)
 message: >-
   If you use this software, please cite it using the
   metadata from this file.
@@ -29,7 +29,7 @@ identifiers:
     value: 10.5281/zenodo.10232913
     description: DOI of Release v1.0
 repository-code: >-
-  https://github.com/Herzfeld-Lab/GEOCLASS-image/releases/tag/v1.0
+  https://github.com/Herzfeld-Lab/GEOCLASS-image/releases/tag/v2.0
 abstract: >-
   The tool and accompanying scripts which make up this
   repository are suitable for applications in which it is
@@ -54,5 +54,5 @@ keywords:
   - Geostatistics
   - Satellite imagery
 license: MIT
-version: v1.0
-date-released: '2023-11-30'
+version: v2.0
+date-released: '2025-01-04'
