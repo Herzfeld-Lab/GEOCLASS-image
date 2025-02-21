@@ -50,39 +50,35 @@ def draw_split_image_confs(img_mat, scale_factor, split_disp_size, labels, selec
             xy = np.concatenate((x,y,conf),axis=1)
             for splitImg in xy:
                 c = cmap[splitImg[2]]
-                img_mat[splitImg[1]:splitImg[1]+split_disp_size[1],splitImg[0]:splitImg[0]+split_disp_size[0],0] = c[0]
-                img_mat[splitImg[1]:splitImg[1]+split_disp_size[1],splitImg[0]:splitImg[0]+split_disp_size[0],1] = c[1]
-                img_mat[splitImg[1]:splitImg[1]+split_disp_size[1],splitImg[0]:splitImg[0]+split_disp_size[0],2] = c[2]
+                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],0] = c[0] #Check to see if the index order matters
+                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],1] = c[1] #Why is the index order different than labels
+                img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],2] = c[2]
 
 @njit
-def draw_split_image_labels_calipso(img_mat, scale_factor, 
-                                    split_disp_size, labels, 
-                                    selected_classes, cmap):
-    # Ensure that img_mat is a numpy array of type float32
-    # Loop through selected classes
-    
+def draw_split_image_labels_calipso(img_mat, scale_factor_x, scale_factor_y, 
+                                    split_disp_size, labels, selected_classes, cmap):
+    # Ensure that img_mat is a numpy array of type uint8
     for i, selected_class in enumerate(selected_classes):
         if selected_class:
-            # Select the rows corresponding to the class
-            clas = labels[labels[:, 2] == i]  # Assuming labels[:, 2] holds class information
+            clas = labels[labels[:, 2] == i]  # Assuming labels[:, 2] holds class info
             c = cmap[i]
-            x = np.floor(clas[:,0]).reshape(-1,1).astype(np.int32)
-            y = np.floor(clas[:,1]).reshape(-1,1).astype(np.int32)
-            #y = int(img_mat.shape[1]) - y1
-            xy = np.concatenate((x,y),axis=1)
+            x = np.floor(clas[:, 0] / scale_factor_x).reshape(-1, 1).astype(np.int32)
+            y = np.floor(clas[:, 1] / scale_factor_y).reshape(-1, 1).astype(np.int32)
+            xy = np.concatenate((x, y), axis=1)
             for splitImg in xy:
                 x_start, y_start = splitImg[0], splitImg[1]
                 x_end = min(x_start + split_disp_size[0], img_mat.shape[1])
-                y_end = min(img_mat.shape[0] - y_start, img_mat.shape[0])  # Flip the y-coordinate
+                y_end = min(y_start + split_disp_size[1], img_mat.shape[0])  # Flip the y-coordinate
 
-                # Ensure coordinates are within bounds
                 if 0 <= x_start < img_mat.shape[1] and 0 <= y_start < img_mat.shape[0]:
-                    img_mat[y_end-split_disp_size[1]:y_end, x_start:x_end, 0] = c[0]
-                    img_mat[y_end-split_disp_size[1]:y_end, x_start:x_end, 1] = c[1]
-                    img_mat[y_end-split_disp_size[1]:y_end, x_start:x_end, 2] = c[2]
+                    img_mat[y_start:y_end, x_start:x_end, 0] = c[0]
+                    img_mat[y_start:y_end, x_start:x_end, 1] = c[1]
+                    img_mat[y_start:y_end, x_start:x_end, 2] = c[2]
+
+
 
 @njit
-def draw_split_image_confs_calipso(img_mat, scale_factor, 
+def draw_split_image_confs_calipso(img_mat, scale_factor_x, scale_factor_y, 
                                     split_disp_size, labels, 
                                     selected_classes, cmap):
     for i, selected_class in enumerate(selected_classes):
@@ -90,8 +86,8 @@ def draw_split_image_confs_calipso(img_mat, scale_factor,
             # Select the rows corresponding to the class
             clas = labels[labels[:, 2] == i]  # Assuming labels[:, 2] holds class information
             c = cmap[i]
-            x = np.floor(clas[:,0]).reshape(-1,1).astype(np.int32)
-            y = np.floor(clas[:,1]).reshape(-1,1).astype(np.int32)
+            x = np.floor(clas[:,0]/scale_factor_x).reshape(-1,1).astype(np.int32)
+            y = np.floor(clas[:,1]/scale_factor_y).reshape(-1,1).astype(np.int32)
             #y = int(img_mat.shape[1]) - y1
             conf = np.floor(clas[:,5]*100).reshape(-1,1).astype(np.int32)
             xy = np.concatenate((x,y,conf),axis=1)
@@ -867,6 +863,8 @@ activation:     {}
 img_path:           {}
 npy_path:           {}
 density_path:       {}
+tab_path:           {}
+asr_path:           {}
 train_path:         {}
 valid_path:         {}
 class_enum:         {}
@@ -914,6 +912,8 @@ bg_UTM_path:        {}
                    yaml_obj['img_path'],
                    yaml_obj['npy_path'],
                    yaml_obj['density_path'],
+                   yaml_obj['tab_path'],
+                   yaml_obj['asr_path'],
                    yaml_obj['train_path'],
                    yaml_obj['valid_path'],
                    yaml_obj['class_enum'],
