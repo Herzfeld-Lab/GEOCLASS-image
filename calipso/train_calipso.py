@@ -80,9 +80,8 @@ dataset_path = cfg['npy_path']
 train_path = cfg['train_path']
 valid_path = cfg['valid_path']
 density_path = cfg['density_path']
-density_data = np.load(density_path, allow_pickle=True)
-den = density_data[1]
-density_size = len(den[0])
+den = np.loadtxt(density_path, dtype= float)
+#density_size = len(den[0])*len(den)
 
 # Initialize NN model as specified by config file
 print('----- Initializing Neural Network Model -----')
@@ -94,6 +93,7 @@ if cfg['model'] == 'CalipsoMLP':
     channels = cfg['num_channels']
     imSize = cfg['split_img_size']
     image_folder = cfg['training_img_path']
+    density_size = imSize[0]*imSize[1]
     model = CalipsoMLP.CalipsoMLP(num_classes, channels, density_size, hidden_layers=hidden_layers) 
     
     
@@ -131,19 +131,44 @@ for i in test_indeces:
 
 # Initialize Datasets and DataLoaders
 print('----- Initializing Dataset -----')
+winSize = cfg['split_img_size']
+density = []
+tab = []
+asr = []
+density_path = cfg['density_path']
+density_data = np.loadtxt(density_path, dtype= float)
+density = density_data
+tab_paths = cfg['tab_path']
+for tab_path in tab_paths:
+    tab_data = np.loadtxt(tab_path, dtype= float)
+    tab.append(tab_data)
+asr_paths = cfg['asr_path']
+for asr_path in asr_paths:
+    asr_data = np.loadtxt(asr_path, dtype= float)
+    asr.append(asr_data)
 
-train_dataset = PlotSplitImageDataset(
+train_dataset = CalipsoDataset2(
     imgPath = topDir,
     imgData = dataset_info,
     labels = train_coords,
+    den = density,
+    tab = tab,
+    asr =asr,
+    tile_width = winSize[0],
+    tile_height = winSize[1],
     train = True,
     transform = None
     )
 
-valid_dataset = PlotSplitImageDataset(
+valid_dataset = CalipsoDataset2(
     imgPath = topDir,
     imgData = dataset_info,
     labels = test_coords,
+    den = density,
+    tab = tab,
+    asr =asr,
+    tile_width = winSize[0],
+    tile_height = winSize[1],
     train = True,
     transform = None
     )
@@ -200,6 +225,7 @@ if args.load_checkpoint:
 
 # Initialize cuda
 if args.cuda:
+    torch.cuda.empty_cache()
     print('----- Initializing CUDA -----')
     torch.cuda.set_device(0)
     device = torch.device("cuda:0")
@@ -253,12 +279,11 @@ for epoch in range(num_epochs):
                 #X = torch.unsqueeze(X,1).float()
 
             # Compute forward pass
-            X = X.permute(0, 3, 1, 2)
-            #X = X.float() / 255.0  # Normalize to range [0, 1]
-
+            #X = X.permute(0, 3, 1, 2)
+             
             Y_hat = model.forward(X)
             # Calculate training loss
-            loss = criterion(Y_hat, Y)
+            loss = criterion2(Y_hat, Y)
             # Perform backprop and zero gradient
             optimizer.zero_grad()
             loss.backward()
@@ -290,15 +315,10 @@ for epoch in range(num_epochs):
                 #X = X.view((X.shape[0],1,-1)).float()
                 #X = torch.unsqueeze(X,1).float()
 
-            # Compute forward pass
-            X = X.permute(0, 3, 1, 2)
-            X = X.float() / 255.0  # Normalize to range [0, 1]
-            Y_hat = model.forward(X, 0) #first task
-            # Calculate training loss
-            loss = criterion(Y_hat, Y)
+            Y_hat = model.forward(X)
 
-            # Calculate training loss
-            loss = loss + float(loss)
+                # Calculate training loss
+            loss = loss + float(criterion2(Y_hat, Y))
 
         valid_losses.append(loss/batch_idx)
         print("\tTRAIN LOSS = {:.5f}\tVALID LOSS = {:.5f}".format(train_losses[-1],valid_losses[-1]))
@@ -314,7 +334,7 @@ for epoch in range(num_epochs):
         else:
             if len(valid_losses) > np.array(valid_losses).argmin() + 100:
                 break
-smallLoss = min(valid_dataset)
+smallLoss = min(valid_losses)
 checkpoint_path = os.path.join(output_dir, 'checkpoints', checkpoint_str)
 checkpoint = {'state_dict': model.state_dict(),
             'optimizer' : optimizer.state_dict()}

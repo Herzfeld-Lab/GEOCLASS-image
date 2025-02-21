@@ -110,7 +110,8 @@ class SplitImageTool(QWidget):
 
     def initDataset(self):
         self.dataset_info = self.label_data[0]
-        self.split_info = self.split_info_save #[self.split_info_save[:,6] == self.tiff_selector]
+        self.split_info = self.split_info_save[:,:5] 
+        #[self.split_info_save[:,6] == self.tiff_selector]
         self.class_enum = self.dataset_info['class_enumeration']
         self.win_size = self.dataset_info['winsize_pix']
         self.lookup_tree = KDTree(self.split_info[:,0:2])
@@ -342,30 +343,13 @@ class SplitImageTool(QWidget):
         self.class_buttons.addLayout(self.class_buttons_columns)
     
     def initBgImage(self):
-        """
-        bg_img = Image.open(self.dataset_info['filename'])  # Use the correct path for the PNG image
-        self.bg_img_cv = np.array(bg_img)
-        self.bg_img_cv = cv2.cvtColor(self.bg_img_cv, cv2.COLOR_RGBA2RGB)
+ 
+        scale_factor = int(self.tiff_image_matrix.shape[0] / 75)
+        
 
-        bg_img_cv_size = np.array(self.bg_img_cv.shape[:2])  
-        # Original image dimensions
-        self.bg_qimg = QImage(self.bg_img_cv.data, self.bg_img_cv.shape[1], self.bg_img_cv.shape[0], self.bg_img_cv.shape[1]*3, QImage.Format_RGB888)
-        # Convert QImage to QPixmap
-        tiff_image_pixmap = QPixmap(self.bg_qimg)
-        # Scale image to fit within the desired width (scaled to half of self.width)
-        tiff_image_pixmap = tiff_image_pixmap.scaledToWidth(int(self.width / 2) - 10)
-        bg_img_q_size = np.array((tiff_image_pixmap.height(), tiff_image_pixmap.width()))
-
-        scale_factor = bg_img_cv_size / bg_img_q_size
-
-        bg_img_scaled = self.tiff_image_matrix[::int(scale_factor[0]),::int(scale_factor[1])]
-        bg_img_scaled = scaleImage(bg_img_scaled, self.tiff_image_max)
-        split_disp_size = (np.array(self.win_size) / scale_factor).astype('int') - 1
-
-        """
-        scale_factor = int(self.tiff_image_matrix.shape[0] / 750)
         bg_img_scaled = self.tiff_image_matrix[::scale_factor,::scale_factor]
         bg_img_scaled = scaleImage(bg_img_scaled, self.tiff_image_max)
+        
         split_disp_size = (np.array(self.win_size) / scale_factor).astype('int') - 1
         bg_img_scaled = cv2.cvtColor(bg_img_scaled,cv2.COLOR_RGBA2RGB)
         # Draw split images on scaled down preview image
@@ -379,7 +363,8 @@ class SplitImageTool(QWidget):
             draw = np.asarray(draw, dtype=np.float32)  # Ensure it's int32 (assumed type)
             self.selected_classes = np.asarray(self.selected_classes, dtype=np.float32)  # Ensure it's int32
             cmap = np.asarray(cmap, dtype=np.uint8)
-            draw_split_image_labels_calipso(bg_img_scaled, self.scale_factor, split_disp_size, draw, self.selected_classes, cmap)
+
+            draw_split_image_labels_calipso(bg_img_scaled, self.scale_factor[0], self.scale_factor[1], split_disp_size, draw, self.selected_classes, cmap)
 
         elif self.visualize_predictions and self.predictions:
             draw = self.pred_labels[self.pred_labels[:,3] > self.conf_thresh]
@@ -391,7 +376,7 @@ class SplitImageTool(QWidget):
             draw = np.asarray(draw, dtype=np.float32)  # Ensure it's int32 (assumed type)
             self.selected_classes = np.asarray(self.selected_classes, dtype=np.float32)  # Ensure it's int32
             cmap = np.asarray(cmap, dtype=np.uint8)
-            draw_split_image_labels_calipso(bg_img_scaled, self.scale_factor, split_disp_size, draw, self.selected_classes, cmap)
+            draw_split_image_labels_calipso(bg_img_scaled, self.scale_factor[0], self.scale_factor[1], split_disp_size, draw, self.selected_classes, cmap)
 
         elif self.visualize_heatmap and self.predictions:
             draw = self.pred_labels[self.pred_labels[:,3] > self.conf_thresh]
@@ -403,80 +388,63 @@ class SplitImageTool(QWidget):
             draw = np.asarray(draw, dtype=np.float32)  # Ensure it's int32 (assumed type)
             self.selected_classes = np.asarray(self.selected_classes, dtype=np.float32)  # Ensure it's int32
             cmap = np.asarray(cmap, dtype=np.uint8)
-            draw_split_image_confs_calipso(bg_img_scaled, self.scale_factor, split_disp_size, draw, self.selected_classes, cmap)
+            draw_split_image_confs_calipso(bg_img_scaled, self.scale_factor[0], self.scale_factor[1], split_disp_size, draw, self.selected_classes, cmap)
 
     
         self.bg_img_cv = np.array(bg_img_scaled)
         self.bg_img_cv = cv2.cvtColor(self.bg_img_cv, cv2.COLOR_RGBA2RGB)
-        self.bg_qimg = QImage(self.bg_img_cv.data,self.bg_img_cv.shape[1],self.bg_img_cv.shape[0],self.bg_img_cv.shape[1]*3,QImage.Format_RGB888)
+
+        # Convert the updated bg_img_cv to QImage again
+        self.bg_qimg = QImage(self.bg_img_cv.data, self.bg_img_cv.shape[1], self.bg_img_cv.shape[0], 
+                            self.bg_img_cv.shape[1]*3, QImage.Format_RGB888)
+
+        # Update the QPixmap
         self.tiff_image_pixmap = QPixmap(self.bg_qimg)
-        self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToWidth(int(self.width/2) - 10)
-        #self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
-        #print('bg_img_pixmap:  {}x{}'.format(self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
-        # Get scaling factor between cv and q image
+
+        # Scale the image to fit the widget size
+        self.tiff_image_pixmap = self.tiff_image_pixmap.scaled(
+            int(self.width / 2) - 10, int(self.height - 50), Qt.KeepAspectRatio)
         bg_img_cv_size = np.array(self.bg_img_cv.shape[:-1])
         bg_img_q_size = np.array((self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
-#CST 20240312
+            #CST 20240312
         self.scale_factor = bg_img_cv_size / bg_img_q_size
+        # Set the updated QPixmap to the label
         self.tiff_image_label.setPixmap(QPixmap(self.tiff_image_pixmap))
-        """
-        # Rotate tiff to align North and plot glacier contour
-        self.bg_qimg = QImage(self.bg_img_cv.data, self.bg_img_cv.shape[1], self.bg_img_cv.shape[0], self.bg_img_cv.shape[1]*3, QImage.Format_RGB888)
-        # Convert QImage to QPixmap
-        self.tiff_image_pixmap = QPixmap(self.bg_qimg)
-        # Scale image to fit within the desired width (scaled to half of self.width)
-        self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToWidth(int(self.width / 2) - 10)
-        bg_img_q_size = np.array((self.tiff_image_pixmap.height(), self.tiff_image_pixmap.width()))
-
-        self.scale_factor = bg_img_cv_size / bg_img_q_size
-
-        bg_img_scaled = self.tiff_image_matrix[::int(self.scale_factor[0]),::int(self.scale_factor[1])]
-        bg_img_scaled = scaleImage(bg_img_scaled, self.tiff_image_max)
-        split_disp_size = (np.array(self.win_size) / self.scale_factor).astype('int') - 1
-# Check if the image was loaded successfully
-        if self.bg_img_cv is None:
-            print("Error: Image not loaded properly.")
-        else:
-
-            # Set the image in the label widget
-            self.tiff_image_label.setPixmap(QPixmap(self.tiff_image_pixmap))
-"""
 
     def updateBgImage(self):
         return
 
     def getNewImage(self, index):
-        
         self.image_index = index
 
-         # Grab info of split image at index
-        x,y,label,conf,_ = self.split_info[index]
-        x,y1,label = int(x),int(y),int(label)
-        y = int(self.tiff_image_matrix.shape[0]) - y1 #For some reason this needs to be flipped, but for the crosshairs use y1 as that is the actual position
-        #CST20240313
-        # Get split image from image matrix
-        img = self.tiff_image_matrix[y:y+self.win_size[1],x:x+self.win_size[0]]
+        # Retrieve split image details
+        x, y, label, conf, _ = self.split_info[index]
+        x, y = int(x), int(y)
 
+        # Ensure x and y do not exceed bounds
+        if x + self.win_size[0] > self.tiff_image_matrix.shape[1]:
+            print(f"Warning: x={x} is too large!")
+        if y + self.win_size[1] > self.tiff_image_matrix.shape[0]:
+            print(f"Warning: y={y} is too large!")
 
-        img = scalePlot(img, self.tiff_image_max)
-        if img.shape[2] == 4:  # If the image has 4 channels (RGBA)
-            img = img[:, :, :3]  # Discard the alpha channel (RGBA -> RGB)
+        # Extract split image
+        img = self.tiff_image_matrix[y:y + self.win_size[1], x:x + self.win_size[0]]
 
-        img = img.astype(np.uint8)  # Ensure the data is uint8
+        if img.shape[2] == 4:  # Handle RGBA images
+            img = img[:, :, :3]
 
-        # Convert to bytes explicitly
-        img_data = img.tobytes()
+        img = img.astype(np.uint8)  # Ensure correct data type
 
-        # Calculate bytes per line
-        bytes_per_line = img.shape[1] * 3  # 3 channels (RGB)
-
-        # Create the QImage
-        qimg = QImage(img_data, img.shape[1], img.shape[0], bytes_per_line, QImage.Format_RGB888)
-                
-         # Wrap split image in QPixmap       
+        # Convert to QPixmap for display
+        qimg = QImage(img.tobytes(), img.shape[1], img.shape[0], img.shape[1] * 3, QImage.Format_RGB888)
         self.split_image_pixmap = QPixmap.fromImage(qimg).scaledToWidth(270)
         self.split_image_label.setPixmap(self.split_image_pixmap)
-        
+
+        # Update background image with crosshairs
+        self.updateCrosshairs(x, y)
+
+
+
         # Update label text
         class_text = ''
         if self.predictions:
@@ -494,23 +462,28 @@ class SplitImageTool(QWidget):
         self.split_image_class.setText(class_text)
         self.split_image_conf.setText(class_conf)
 
+       
+    def updateCrosshairs(self, x, y):
+        # Copy background image
         bg_img = self.bg_img_cv.copy()
-        height,width,_ = self.bg_img_cv.shape
-        imgSize = np.array([width,height])
+        height, width, _ = bg_img.shape
 
-        pix_coords = np.array([[x,y1]])
+        # Compute scale factors
+        x_scaled = int(x * (self.bg_img_cv.shape[1] / self.tiff_image_matrix.shape[1]))
+        y_scaled = int(y * (self.bg_img_cv.shape[0] / self.tiff_image_matrix.shape[0]))
+
+        # Debug output
+        #print(f"Crosshair at: X={x_scaled}, Y={y_scaled}, Image Size: {width, height}")
 
         # Draw crosshairs
-        cv2.circle(bg_img,(pix_coords[0][0],height-pix_coords[0][1]),4,(255,0,0),thickness=-1)
-        cv2.line(bg_img, (pix_coords[0][0], 0), (pix_coords[0][0], height), (255,0,0),thickness=2)
-        cv2.line(bg_img, (0, height-pix_coords[0][1]), (width, height-pix_coords[0][1]), (255,0,0),thickness=2)
+        cv2.circle(bg_img, (x_scaled, y_scaled), 4, (255, 0, 0), thickness=-1)
+        cv2.line(bg_img, (x_scaled, 0), (x_scaled, height), (255, 0, 0), thickness=2)
+        cv2.line(bg_img, (0, y_scaled), (width, y_scaled), (255, 0, 0), thickness=2)
 
-        height,width,channels = bg_img.shape
-        #CST20240312
-        bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
-        background_image = QPixmap(bg_img)
-        #background_image = background_image.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
-        background_image = background_image.scaledToWidth(int(self.width/2) - 10)
+        # Convert updated image to QPixmap
+        qimg = QImage(bg_img.data, width, height, width * 3, QImage.Format_RGB888)
+        background_image = QPixmap.fromImage(qimg)
+        background_image = background_image.scaledToWidth(int(self.width / 2) - 10)
 
         self.tiff_image_label.setPixmap(background_image)
 
@@ -520,7 +493,7 @@ class SplitImageTool(QWidget):
         fp = p + '.tif'
         self.image_index = index
          # Grab info of split image at index
-        x,y,label,conf,_ = self.split_info[index]
+        x,y,label,conf, _ = self.split_info[index]
         x,y,label = int(x),int(y),int(label)
          # Get split image from image matrix
         img = self.tiff_image_matrix[x:x+self.win_size[0],y:y+self.win_size[1]]
@@ -591,51 +564,69 @@ class SplitImageTool(QWidget):
 
 
     def getMousePos(self, event):
-        # Get dimensions of the QLabel displaying the image (container) and the pixmap (image itself)
+        # Get QLabel and pixmap sizes
         label_width, label_height = self.tiff_image_label.width(), self.tiff_image_label.height()
         pixmap_width, pixmap_height = self.tiff_image_pixmap.width(), self.tiff_image_pixmap.height()
 
-        # Calculate margins (horizontal and vertical) for the image inside the QLabel
+        # Compute margins (horizontal and vertical) for centering
         margin_x = (label_width - pixmap_width) / 2
         margin_y = (label_height - pixmap_height) / 2
 
-        # Get the mouse click position relative to the window
+        # Get mouse click position relative to QLabel
         click_pos = event.pos()
         click_pos_scaled = self.tiff_image_label.mapFromParent(click_pos)
 
-        # Adjust for margins to get the exact click location on the image itself
+        # Adjust for margins to get exact image location
         click_pos_corrected = np.array([
             click_pos_scaled.x() - margin_x,
             click_pos_scaled.y() - margin_y
         ])
 
-        # Apply scaling to translate to the original image dimensions
-        # Flip the y-coordinate by subtracting from the original image height
-        original_x = click_pos_corrected[0] * self.scale_factor[0]
-        original_y = (pixmap_height - click_pos_corrected[1]) * self.scale_factor[1]
+        # Ensure click is within valid image bounds
+        if click_pos_corrected[0] < 0 or click_pos_corrected[0] > pixmap_width:
+            print(f"Warning: Click outside X bounds: {click_pos_corrected[0]}")
+            return None
+        if click_pos_corrected[1] < 0 or click_pos_corrected[1] > pixmap_height:
+            print(f"Warning: Click outside Y bounds: {click_pos_corrected[1]}")
+            return None
+
+        # Compute scale factors based on displayed pixmap
+        scale_x = self.tiff_image_matrix.shape[1] / pixmap_width
+        scale_y = self.tiff_image_matrix.shape[0] / pixmap_height
+
+        # Transform click position to original image space
+        original_x = click_pos_corrected[0] * scale_x
+        original_y = click_pos_corrected[1] * scale_y  # No flipping needed
+
+        # Debug output
+        #print(f"Click Pos (corrected): {click_pos_corrected}, Pixmap Size: {pixmap_width, pixmap_height}")
+        #print(f"Scale Factors: X={scale_x}, Y={scale_y}")
+        #print(f"Computed Image Pos: X={original_x}, Y={original_y}, Expected Image Size: {self.tiff_image_matrix.shape}")
 
         return np.array([original_x, original_y])
 
 
-
     def mousePressEvent(self, event):
         button = event.button()
-
+        
+        # Get the transformed mouse position
         click_pos_scaled = self.getMousePos(event)
+        if click_pos_scaled is None:
+            return  # Ignore clicks outside the valid image area
 
-        # Left Click (move crosshairs)
-        if button == 1:
-            if self.contour_polygon != 'None':
-                if Point(click_pos_scaled[0], click_pos_scaled[1]).within(self.contour_polygon):
-                    d,i = self.lookup_tree.query(click_pos_scaled)
-                    self.getNewImage(i)
+        # Left Click: Move crosshairs
+        if button == Qt.LeftButton:
+            if self.contour_polygon != 'None' and Point(click_pos_scaled[0], click_pos_scaled[1]).within(self.contour_polygon):
+                d, i = self.lookup_tree.query(click_pos_scaled)
+                self.getNewImage(i)
             else:
-                d,i = self.lookup_tree.query(click_pos_scaled)
+                d, i = self.lookup_tree.query(click_pos_scaled)
                 self.getNewImage(i)
 
-        # Right Click (draw polygon)
-        elif button == 2:
+        # Right Click: Draw selection polygon
+        elif button == Qt.RightButton:
             self.batch_select_polygon.append(click_pos_scaled)
+
             
 
     def mouseMoveEvent(self, event):

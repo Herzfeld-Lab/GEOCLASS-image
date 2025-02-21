@@ -15,7 +15,7 @@ import argparse
 from datetime import datetime
 import random
 from Models import VarioMLP
-from Models import Resnet18_calipso
+from Models import CalipsoMLP
 from VarioNet import CombinedModel
 from VarioNet import collect_image_paths_and_labels
 from VarioNet import load_images
@@ -55,43 +55,14 @@ beta = cfg['beta']
 # Initialize NN model as specified by config file
 print('----- Initializing Neural Network Model -----')
 ddaBool = False
-if cfg['model'] == 'VarioMLP':
+if cfg['model'] == 'CalipsoMLP':
     num_classes = cfg['num_classes']
-    vario_num_lag = cfg['vario_num_lag']
     hidden_layers = cfg['hidden_layers']
+    channels = cfg['num_channels']
     imSize = cfg['split_img_size']
-    model = VarioMLP.VarioMLP(num_classes, vario_num_lag, hidden_layers=hidden_layers) 
-    img_transforms_valid = transforms.Compose([
-        DirectionalVario(model.num_lag),
-        DefaultRotateVario(),
-    ])
-elif cfg['model'] == 'Resnet18':
-    num_classes = cfg['num_classes']
-    model = Resnet18_calipso.resnet18(pretrained=False, num_classes=num_classes)
-    img_transforms_valid = None
-
-elif cfg['model'] == 'VarioNet': #Only works for training via images as of now
-    num_classes = cfg['num_classes']
     image_folder = cfg['training_img_path']
-    vario_num_lag = cfg['vario_num_lag']
-    hidden_layers = cfg['hidden_layers']
-    image_paths, variogram_data, labels = collect_image_paths_and_labels(image_folder)
-    # Calculate the size of the variogram data
-    #variogram_size = variogram_data.shape[0] * variogram_data.shape[1] * vario_num_lag  # 212
-    vario_mlp = VarioMLP.VarioMLP(num_classes, vario_num_lag, hidden_layers=hidden_layers)
-    vario_mlp.load_state_dict(torch.load('vario_mlp.pth'))
-    resnet18 = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
-    resnet18.load_state_dict(torch.load('resnet18.pth'))
-    model = CombinedModel(vario_mlp, resnet18, num_classes, alpha, beta)
-    img_transforms_valid = None
-
-elif cfg['model'] == 'DDAiceNet':
-    ddaBool = True
-    num_classes = cfg['num_classes']
-    nres = cfg['nres']
-    hidden_layers = cfg['hidden_layers']
-    model = DDAiceNet.DDAiceNet(num_classes, nres*2, hiddenLayers=hidden_layers)
-    img_transforms_valid = None
+    density_size = imSize[0]*imSize[1]
+    model = CalipsoMLP.CalipsoMLP(num_classes, channels, density_size, hidden_layers=hidden_layers) 
 else:
     print("Error: Model \'%s\' not recognized"%(cfg['model']))
     exit(1)
@@ -118,37 +89,35 @@ dataset = np.load(dataset_path, allow_pickle=True)
 dataset_info = dataset[0]
 dataset_labels = dataset[1]
 
-if cfg['model'] == 'VarioMLP' or cfg['model'] == 'Resnet18':
-    valid_dataset = PlotSplitImageDataset(
-        imgPath = topDir,
-        imgData = dataset_info,
-        labels = dataset_labels,
-        train = False,
-        transform = img_transforms_valid
-        )
+winSize = cfg['split_img_size']
+density = []
+tab = []
+asr = []
+density_path = cfg['density_path']
+density_data = np.loadtxt(density_path, dtype= float)
+density = density_data
+tab_paths = cfg['tab_path']
+for tab_path in tab_paths:
+    tab_data = np.loadtxt(tab_path, dtype= float)
+    tab.append(tab_data)
+asr_paths = cfg['asr_path']
+for asr_path in asr_paths:
+    asr_data = np.loadtxt(asr_path, dtype= float)
+    asr.append(asr_data)
 
-elif cfg['model'] == 'VarioNet':
-    
-    valid_dataset = TestDataset(
-        imgPath = topDir,
-        imgData = dataset_info,
-        labels = dataset_labels,
-        train = False,
-        transform = transforms.Compose([
-        DirectionalVario(vario_num_lag),
-        DefaultRotateVario(),
-    ])
-        )
 
-else:
-    valid_dataset = DDAiceDataset(
-        dataPath = topDir,
-        dataInfo = dataset_info,
-        dataLabeled = dataset_labels,
-        train = False,
-        transform = None
-        )
-
+valid_dataset = CalipsoDataset2(
+    imgPath = topDir,
+    imgData = dataset_info,
+    labels = dataset_labels,
+    den = density,
+    tab = tab,
+    asr =asr,
+    tile_width = winSize[0],
+    tile_height = winSize[1],
+    train = False,
+    transform = None
+    )
 
 print('\nTest set size: \t%d images'%(len(valid_dataset)))
 
@@ -203,61 +172,29 @@ print('----- Training -----')
 
 labels = []
 confs = []
+          
+for batch_idx,X in enumerate(valid_loader):
 
-if cfg['model'] == 'VarioNet':
-
-    for batch_idx, (images, variograms) in enumerate(valid_loader):
+    if batch_idx % 100 == 0:
+        print(f"Processing batch {batch_idx}")
             
-        if batch_idx % 100 == 0:
-                print(f"Processing batch {batch_idx}")
+    # Move batch to GPU
+    if args.cuda:
+        X = X.to(device)
+    #X = torch.unsqueeze(X,1).float()
 
-            # Move data to GPU
-        if args.cuda:
-                images = images.to(device)
-                variograms = variograms.to(device)
+    # Compute forward pass
+    Y_hat = model.forward(X)
 
-            # Unsqueeze if needed (add a channel dimension for grayscale images)
-        images = torch.unsqueeze(images, 1).float()
-        variograms = variograms.float()  # Ensure variograms are floats
+    sm = softmax(Y_hat)
 
-            # Compute forward pass through the combined model
-        Y_hat = model.forward(images, variograms)
-            # Apply softmax to get probabilities
-        sm = softmax(Y_hat)
+    conf = sm.max()
 
-            # Get the max confidence score and corresponding label
-        conf = sm.max()
-
-        if conf > 0:
-                labels.append(int(torch.argmax(Y_hat)))
-                confs.append(conf.item())
-        else:
-                labels.append(num_classes)
-else:              
-    for batch_idx,X in enumerate(valid_loader):
-
-        if batch_idx % 100 == 0:
-            print(f"Processing batch {batch_idx}")
-                
-        # Move batch to GPU
-        if args.cuda:
-            X = X.to(device)
-        X = X.permute(0, 3, 1, 2)
-        X = X.float() / 255.0
-        #X = torch.unsqueeze(X,1).float()
-
-        # Compute forward pass
-        Y_hat = model.forward(X)
-
-        sm = softmax(Y_hat)
-
-        conf = sm.max()
-
-        if conf > 0:
-            labels.append(int(torch.argmax(Y_hat)))
-            confs.append(conf.item())
-        else:
-            labels.append(num_classes)
+    if conf > 0:
+        labels.append(int(torch.argmax(Y_hat)))
+        confs.append(conf.item())
+    else:
+        labels.append(num_classes)
 
 #dataset[0]['filename'] = topDir
 
