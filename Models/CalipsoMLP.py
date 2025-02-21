@@ -13,7 +13,9 @@ class CalipsoMLP(nn.Module):
     def __init__(self, num_classes, channels, density, hidden_layers = [3,3]):
         super(CalipsoMLP, self).__init__()
         #CST05312024
-        self.input_size = channels * density
+        #self.input_size = channels * density
+        self.input_size = (channels+1)*4
+        print(self.input_size)
         self.output_size = num_classes
         self.hidden_size = [int(i * self.input_size) for i in hidden_layers]
         #self.num_lag = vario_num_lag
@@ -29,14 +31,16 @@ class CalipsoMLP(nn.Module):
 
         self.output = nn.Linear(self.hidden_size[-1], self.output_size)
 
-    def forward(self, split_img_vario):
+    def forward(self,X):
         # Run directional variogram on input images and reshape for network input
         #print(splitImgs.shape)
 
         #x = splitImgs.view(splitImgs.shape[0],splitImgs.shape[2],splitImgs.shape[3])
         #x = torch.from_numpy(split_img_vario)
-        x = split_img_vario.view(split_img_vario.shape[0], -1) #CST05312024 this resizes the image causing the NN to crash if using the 3-4-5 Vario function
+        X = X.view(X.shape[0], -1)
+        x = X #CST05312024 this resizes the image causing the NN to crash if using the 3-4-5 Vario function
         # Run forward pass through network on variogram output
+        x = x.to(torch.float32)
         x = self.input(x)
         x = self.lrelu(x)
         for i in range(len(self.hidden)):

@@ -187,6 +187,13 @@ for batch_idx,X in enumerate(valid_loader):
         labels.append(num_classes)
 
 #dataset[0]['filename'] = topDir
+# Ensure all elements in labels and confs are CPU tensors and converted to Python numbers
+labels = [label.detach().cpu().item() if isinstance(label, torch.Tensor) else label for label in labels]
+confs = [conf.detach().cpu().item() if isinstance(conf, torch.Tensor) else conf for conf in confs]
+
+# Convert lists to NumPy arrays
+labels = np.array(labels)
+confs = np.array(confs)
 
 split_info = dataset[1]
 if ddaBool:
