@@ -137,7 +137,7 @@ if imgTrain:
         ])
         
 
-    print(train_var)
+
     vario_dataset = FromFolderDataset('VarioMLP', train_imgs, train_var, train_labels, None)
     vario_valid_dataset = FromFolderDataset('VarioMLP', train_imgs, train_var, train_labels, None)
     image_dataset = FromFolderDataset('Resnet18', train_imgs, train_var, train_labels, transform)

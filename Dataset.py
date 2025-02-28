@@ -16,6 +16,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 import pandas as pd
 import random
+import statistics
 import numpy
 
 #def load_split_images(img_mat, max, winSize):
@@ -339,8 +340,7 @@ class CalipsoDataset2(Dataset): #gets density fields here instead of from datase
         
         # Extract all split images and store in dataframe (takes longer to initialize but saves loads on memory usage during training)
         dataArray = []
-        
-        N = 15
+
         #CST20240315print("image data", imageData)
         if self.train:
                 #img = Image.open(imagePath)
@@ -354,67 +354,47 @@ class CalipsoDataset2(Dataset): #gets density fields here instead of from datase
                         #splitImg_np = scaleImage(splitImg_np, max)
                         rowlist = list(row[0:4])
                         rowlist.append(splitImg_np)
-                        """
-                        totTab1 = padded_tab1[y:y+winSize[1],x:x+winSize[0]]
-                        totTab2 = padded_tab2[y:y+winSize[1],x:x+winSize[0]]
-                        totTab3 = padded_tab3[y:y+winSize[1],x:x+winSize[0]]
-                        totAsr1 = padded_asr1[y:y+winSize[1],x:x+winSize[0]]
-                        totAsr2 = padded_asr2[y:y+winSize[1],x:x+winSize[0]]
-                        totAsr3 = padded_asr3[y:y+winSize[1],x:x+winSize[0]]
-                        avgTab1 = [pd.Series(totTab1[0]).rolling(window=N).mean().dropna().to_numpy(), pd.Series(totTab1[1]).rolling(window=N).mean().dropna().to_numpy()]
-                        avgTab2 = [pd.Series(totTab2[0]).rolling(window=N).mean().dropna().to_numpy(), pd.Series(totTab2[1]).rolling(window=N).mean().dropna().to_numpy()]
-                        avgTab3 = [pd.Series(totTab3[0]).rolling(window=N).mean().dropna().to_numpy(), pd.Series(totTab3[1]).rolling(window=N).mean().dropna().to_numpy()]
-                        avgAsr1 = [pd.Series(totAsr1[0]).rolling(window=N).mean().dropna().to_numpy(), pd.Series(totAsr1[1]).rolling(window=N).mean().dropna().to_numpy()]
-                        avgAsr2 = [pd.Series(totAsr2[0]).rolling(window=N).mean().dropna().to_numpy(), pd.Series(totAsr2[1]).rolling(window=N).mean().dropna().to_numpy()]
-                        avgAsr3 = [pd.Series(totAsr3[0]).rolling(window=N).mean().dropna().to_numpy(), pd.Series(totAsr2[1]).rolling(window=N).mean().dropna().to_numpy()]
-                        rowlist.append(avgTab1)
-                        rowlist.append(avgTab2)
-                        rowlist.append(avgTab3)
-                        rowlist.append(avgAsr1)
-                        rowlist.append(avgAsr2)
-                        rowlist.append(avgAsr3)
-                        """
 
-                    
                         
                         totTab1 = padded_tab1[y:y+winSize[1],x:x+winSize[0]]
                         totTab2 = padded_tab2[y:y+winSize[1],x:x+winSize[0]]
                         totTab3 = padded_tab3[y:y+winSize[1],x:x+winSize[0]]
+                        depolTab = np.divide(totTab1, (totTab2-totTab1), where=(totTab2-totTab1) != 0)
+                        depolTab[(totTab2-totTab1) == 0] = 999 # Set division by zero elements to 999
+                        crTab = np.divide(totTab3, totTab2, where=totTab2 != 0)
+                        crTab[totTab2 == 0] = 999 # Set division by zero elements to 999
                         totAsr1 = padded_asr1[y:y+winSize[1],x:x+winSize[0]]
                         totAsr2 = padded_asr2[y:y+winSize[1],x:x+winSize[0]]
                         totAsr3 = padded_asr3[y:y+winSize[1],x:x+winSize[0]]
-                        avgTab1 = [float(sum(totTab1[0])/len(totTab1[0])),float(sum(totTab1[1])/len(totTab1[1])), np.max(totTab1), np.min(totTab1)]
-                        avgTab2 = [float(sum(totTab2[0])/len(totTab2[0])),float(sum(totTab2[1])/len(totTab2[1])), np.max(totTab1), np.min(totTab1)]
-                        avgTab3 = [float(sum(totTab3[0])/len(totTab3[0])),float(sum(totTab3[1])/len(totTab3[1])), np.max(totTab1), np.min(totTab1)]
-                        avgAsr1 = [float(sum(totAsr1[0])/len(totAsr1[0])),float(sum(totAsr1[1])/len(totAsr1[1])), np.max(totTab1), np.min(totTab1)]
-                        avgAsr2 = [float(sum(totAsr2[0])/len(totAsr2[0])),float(sum(totAsr2[1])/len(totAsr2[1])), np.max(totTab1), np.min(totTab1)]
-                        avgAsr3 = [float(sum(totAsr3[0])/len(totAsr3[0])),float(sum(totAsr3[1])/len(totAsr3[1])), np.max(totTab1), np.min(totTab1)]
-                        height = [y,0,0,0]
-                        """
-                        avgTab1 = [float(sum(totTab1[0])/len(totTab1[0])),float(sum(totTab1[1])/len(totTab1[1])), np.std(totTab1[0]), np.std(totTab1[1]), np.max(totTab1)-np.min(totTab1)]
-                        avgTab2 = [float(sum(totTab2[0])/len(totTab2[0])),float(sum(totTab2[1])/len(totTab2[1])), np.std(totTab2[0]), np.std(totTab2[1]), np.max(totTab1)-np.min(totTab1)]
-                        avgTab3 = [float(sum(totTab3[0])/len(totTab3[0])),float(sum(totTab3[1])/len(totTab3[1])), np.std(totTab3[0]), np.std(totTab3[1]), np.max(totTab1)-np.min(totTab1)]
-                        avgAsr1 = [float(sum(totAsr1[0])/len(totAsr1[0])),float(sum(totAsr1[1])/len(totAsr1[1])), np.std(totAsr1[0]), np.std(totAsr1[1]), np.max(totTab1)-np.min(totTab1)]
-                        avgAsr2 = [float(sum(totAsr2[0])/len(totAsr2[0])),float(sum(totAsr2[1])/len(totAsr2[1])), np.std(totAsr2[0]), np.std(totAsr2[1]), np.max(totTab1)-np.min(totTab1)]
-                        avgAsr3 = [float(sum(totAsr3[0])/len(totAsr3[0])),float(sum(totAsr3[1])/len(totAsr3[1])), np.std(totAsr3[0]), np.std(totAsr3[1]), np.max(totTab1)-np.min(totTab1)]
-                        """
+                        depolAsr = np.divide(totAsr1, (totAsr2-totAsr1), where=(totAsr2-totAsr1) != 0)
+                        depolAsr[(totAsr2-totAsr1) == 0] = 999 # Set division by zero elements to 999
+                        crAsr = np.divide(totAsr3, totAsr2, where=totAsr2 != 0)
+                        crAsr[totAsr2 == 0] = 999 # Set division by zero elements to 999
+                        avgTab1 = [float(np.median(totTab1[0])),float(np.median(totTab1[1])), np.max(totTab1)]
+                        avgTab2 = [float(np.median(totTab2[0])),float(np.median(totTab2[1])), np.max(totTab1)]
+                        avgTab3 = [float(np.median(totTab3[0])),float(np.median(totTab3[1])), np.max(totTab1)]
+                        avgDepolTab = [float(np.median(depolTab[0])),float(np.median(depolTab[1])), np.max(depolTab)]
+                        avgCRTab = [float(np.median(crTab[0])),float(np.median(crTab[1])), np.max(crTab)]
+                        avgAsr1 = [float(np.median(totAsr1[0])),float(np.median(totAsr1[1])), np.max(totTab1)]
+                        avgAsr2 = [float(np.median(totAsr2[0])),float(np.median(totAsr2[1])), np.max(totTab1)]
+                        avgAsr3 = [float(np.median(totAsr3[0])),float(np.median(totAsr3[1])), np.max(totTab1)]
+                        avgDepolAsr = [float(np.median(depolAsr[0])),float(np.median(depolAsr[1])), np.max(depolAsr)]
+                        avgCRAsr = [float(np.median(crAsr[0])),float(np.median(crAsr[1])), np.max(crAsr)]
+                        height = [y,0,0]
                         
                         rowlist.append(avgTab1)
                         rowlist.append(avgTab2)
                         rowlist.append(avgTab3)
+                        rowlist.append(avgDepolTab)
+                        rowlist.append(avgCRTab)
                         rowlist.append(avgAsr1)
                         rowlist.append(avgAsr2)
                         rowlist.append(avgAsr3)
+                        rowlist.append(avgDepolAsr)
+                        rowlist.append(avgCRAsr)
                         rowlist.append(height)
                         
-                        """
-                        rowlist.append(padded_tab1[y:y+winSize[1],x:x+winSize[0]])
-                        rowlist.append(padded_tab2[y:y+winSize[1],x:x+winSize[0]])
-                        rowlist.append(padded_tab3[y:y+winSize[1],x:x+winSize[0]])
-                        rowlist.append(padded_asr1[y:y+winSize[1],x:x+winSize[0]])
-                        rowlist.append(padded_asr2[y:y+winSize[1],x:x+winSize[0]])
-                        rowlist.append(padded_asr3[y:y+winSize[1],x:x+winSize[0]])
-                        """
+
                         #rowlist.append(self.labels_multiclass[i])
                         #rowlist.append(self.labels_binary[i])
                         if (splitImg_np.shape[0] == 0) or (splitImg_np.shape[1] == 0):
@@ -438,66 +418,45 @@ class CalipsoDataset2(Dataset): #gets density fields here instead of from datase
                         rowlist = list(row[0:4])
                         rowlist.append(splitImg_np)
 
-                        """
                         totTab1 = padded_tab1[y:y+winSize[1],x:x+winSize[0]]
                         totTab2 = padded_tab2[y:y+winSize[1],x:x+winSize[0]]
                         totTab3 = padded_tab3[y:y+winSize[1],x:x+winSize[0]]
+                        depolTab = np.divide(totTab1, (totTab2-totTab1), where=(totTab2-totTab1) != 0)
+                        depolTab[(totTab2-totTab1) == 0] = 999 # Set division by zero elements to 999
+                        crTab = np.divide(totTab3, totTab2, where=totTab2 != 0)
+                        crTab[totTab2 == 0] = 999 # Set division by zero elements to 999
                         totAsr1 = padded_asr1[y:y+winSize[1],x:x+winSize[0]]
                         totAsr2 = padded_asr2[y:y+winSize[1],x:x+winSize[0]]
                         totAsr3 = padded_asr3[y:y+winSize[1],x:x+winSize[0]]
-                        
-                        avgTab1 = [pd.Series(totTab1[0]).rolling(window=N).mean().dropna().to_numpy(), pd.Series(totTab1[1]).rolling(window=N).mean().dropna().to_numpy()]
-                        avgTab2 = [pd.Series(totTab2[0]).rolling(window=N).mean().dropna().to_numpy(), pd.Series(totTab2[1]).rolling(window=N).mean().dropna().to_numpy()]
-                        avgTab3 = [pd.Series(totTab3[0]).rolling(window=N).mean().dropna().to_numpy(), pd.Series(totTab3[1]).rolling(window=N).mean().dropna().to_numpy()]
-                        avgAsr1 = [pd.Series(totAsr1[0]).rolling(window=N).mean().dropna().to_numpy(), pd.Series(totAsr1[1]).rolling(window=N).mean().dropna().to_numpy()]
-                        avgAsr2 = [pd.Series(totAsr2[0]).rolling(window=N).mean().dropna().to_numpy(), pd.Series(totAsr2[1]).rolling(window=N).mean().dropna().to_numpy()]
-                        avgAsr3 = [pd.Series(totAsr3[0]).rolling(window=N).mean().dropna().to_numpy(), pd.Series(totAsr2[1]).rolling(window=N).mean().dropna().to_numpy()]
-                        rowlist.append(avgTab1)
-                        rowlist.append(avgTab2)
-                        rowlist.append(avgTab3)
-                        rowlist.append(avgAsr1)
-                        rowlist.append(avgAsr2)
-                        rowlist.append(avgAsr3)
-
-                        """
-                        totTab1 = padded_tab1[y:y+winSize[1],x:x+winSize[0]]
-                        totTab2 = padded_tab2[y:y+winSize[1],x:x+winSize[0]]
-                        totTab3 = padded_tab3[y:y+winSize[1],x:x+winSize[0]]
-                        totAsr1 = padded_asr1[y:y+winSize[1],x:x+winSize[0]]
-                        totAsr2 = padded_asr2[y:y+winSize[1],x:x+winSize[0]]
-                        totAsr3 = padded_asr3[y:y+winSize[1],x:x+winSize[0]]
-                        avgTab1 = [float(sum(totTab1[0])/len(totTab1[0])),float(sum(totTab1[1])/len(totTab1[1])), np.max(totTab1), np.min(totTab1)]
-                        avgTab2 = [float(sum(totTab2[0])/len(totTab2[0])),float(sum(totTab2[1])/len(totTab2[1])), np.max(totTab1), np.min(totTab1)]
-                        avgTab3 = [float(sum(totTab3[0])/len(totTab3[0])),float(sum(totTab3[1])/len(totTab3[1])), np.max(totTab1), np.min(totTab1)]
-                        avgAsr1 = [float(sum(totAsr1[0])/len(totAsr1[0])),float(sum(totAsr1[1])/len(totAsr1[1])), np.max(totTab1), np.min(totTab1)]
-                        avgAsr2 = [float(sum(totAsr2[0])/len(totAsr2[0])),float(sum(totAsr2[1])/len(totAsr2[1])), np.max(totTab1), np.min(totTab1)]
-                        avgAsr3 = [float(sum(totAsr3[0])/len(totAsr3[0])),float(sum(totAsr3[1])/len(totAsr3[1])), np.max(totTab1), np.min(totTab1)]
-                        height = [y,0,0,0]
-                        """
-                        avgTab1 = [float(sum(totTab1[0])/len(totTab1[0])),float(sum(totTab1[1])/len(totTab1[1])), np.std(totTab1[0]), np.std(totTab1[1]), np.max(totTab1)-np.min(totTab1)]
-                        avgTab2 = [float(sum(totTab2[0])/len(totTab2[0])),float(sum(totTab2[1])/len(totTab2[1])), np.std(totTab2[0]), np.std(totTab2[1]), np.max(totTab1)-np.min(totTab1)]
-                        avgTab3 = [float(sum(totTab3[0])/len(totTab3[0])),float(sum(totTab3[1])/len(totTab3[1])), np.std(totTab3[0]), np.std(totTab3[1]), np.max(totTab1)-np.min(totTab1)]
-                        avgAsr1 = [float(sum(totAsr1[0])/len(totAsr1[0])),float(sum(totAsr1[1])/len(totAsr1[1])), np.std(totAsr1[0]), np.std(totAsr1[1]), np.max(totTab1)-np.min(totTab1)]
-                        avgAsr2 = [float(sum(totAsr2[0])/len(totAsr2[0])),float(sum(totAsr2[1])/len(totAsr2[1])), np.std(totAsr2[0]), np.std(totAsr2[1]), np.max(totTab1)-np.min(totTab1)]
-                        avgAsr3 = [float(sum(totAsr3[0])/len(totAsr3[0])),float(sum(totAsr3[1])/len(totAsr3[1])), np.std(totAsr3[0]), np.std(totAsr3[1]), np.max(totTab1)-np.min(totTab1)]
-                        """
+                        depolAsr = np.divide(totAsr1, (totAsr2-totAsr1), where=(totAsr2-totAsr1) != 0)
+                        depolAsr[(totAsr2-totAsr1) == 0] = 999 # Set division by zero elements to 999
+                        crAsr = np.divide(totAsr3, totAsr2, where=totAsr2 != 0)
+                        crAsr[totAsr2 == 0] = 999 # Set division by zero elements to 999
+                        avgTab1 = [float(np.median(totTab1[0])),float(np.median(totTab1[1])), np.max(totTab1)]
+                        avgTab2 = [float(np.median(totTab2[0])),float(np.median(totTab2[1])), np.max(totTab1)]
+                        avgTab3 = [float(np.median(totTab3[0])),float(np.median(totTab3[1])), np.max(totTab1)]
+                        avgDepolTab = [float(np.median(depolTab[0])),float(np.median(depolTab[1])), np.max(depolTab)]
+                        avgCRTab = [float(np.median(crTab[0])),float(np.median(crTab[1])), np.max(crTab)]
+                        avgAsr1 = [float(np.median(totAsr1[0])),float(np.median(totAsr1[1])), np.max(totTab1)]
+                        avgAsr2 = [float(np.median(totAsr2[0])),float(np.median(totAsr2[1])), np.max(totTab1)]
+                        avgAsr3 = [float(np.median(totAsr3[0])),float(np.median(totAsr3[1])), np.max(totTab1)]
+                        avgDepolAsr = [float(np.median(depolAsr[0])),float(np.median(depolAsr[1])), np.max(depolAsr)]
+                        avgCRAsr = [float(np.median(crAsr[0])),float(np.median(crAsr[1])), np.max(crAsr)]
+                        height = [y,0,0]
                         
                         rowlist.append(avgTab1)
                         rowlist.append(avgTab2)
                         rowlist.append(avgTab3)
+                        rowlist.append(avgDepolTab)
+                        rowlist.append(avgCRTab)
                         rowlist.append(avgAsr1)
                         rowlist.append(avgAsr2)
                         rowlist.append(avgAsr3)
+                        rowlist.append(avgDepolAsr)
+                        rowlist.append(avgCRAsr)
                         rowlist.append(height)
 
-                        """
-                        rowlist.append(padded_tab1[y:y+winSize[1],x:x+winSize[0]])
-                        rowlist.append(padded_tab2[y:y+winSize[1],x:x+winSize[0]])
-                        rowlist.append(padded_tab3[y:y+winSize[1],x:x+winSize[0]])
-                        rowlist.append(padded_asr1[y:y+winSize[1],x:x+winSize[0]])
-                        rowlist.append(padded_asr2[y:y+winSize[1],x:x+winSize[0]])
-                        rowlist.append(padded_asr3[y:y+winSize[1],x:x+winSize[0]])
-                        """
+    
                         #rowlist.append(self.labels_multiclass[i])
                         #rowlist.append(self.labels_binary[i])
                         if (splitImg_np.shape[0] == 0) or (splitImg_np.shape[1] == 0):
@@ -506,7 +465,7 @@ class CalipsoDataset2(Dataset): #gets density fields here instead of from datase
                             dataArray.append(rowlist)
                         
 
-        self.dataFrame = pd.DataFrame(dataArray, columns=['x_pix','y_pix','label','conf','img_mat', 'TAB1','TAB2','TAB3','ASR1','ASR2','ASR3', 'y'])
+        self.dataFrame = pd.DataFrame(dataArray, columns=['x_pix','y_pix','label','conf','img_mat', 'TAB1','TAB2','TAB3','depTab','crTab','ASR1','ASR2','ASR3','depAsr','crAsr', 'y'])
 
     def __len__(self):
         return len(self.dataFrame)
@@ -516,11 +475,15 @@ class CalipsoDataset2(Dataset): #gets density fields here instead of from datase
         tab1 = self.dataFrame.iloc[idx,5]
         tab2 = self.dataFrame.iloc[idx,6]
         tab3 = self.dataFrame.iloc[idx,7]
-        asr1 = self.dataFrame.iloc[idx,8]
-        asr2 = self.dataFrame.iloc[idx,9]
-        asr3 = self.dataFrame.iloc[idx,10]
-        y = self.dataFrame.iloc[idx,11]
-        np_array = np.array([tab1,tab2,tab3,asr1,asr2,asr3,y])
+        depTab = self.dataFrame.iloc[idx,8]
+        crTab = self.dataFrame.iloc[idx,9]
+        asr1 = self.dataFrame.iloc[idx,10]
+        asr2 = self.dataFrame.iloc[idx,11]
+        asr3 = self.dataFrame.iloc[idx,12]
+        depAsr = self.dataFrame.iloc[idx,13]
+        crAsr = self.dataFrame.iloc[idx,14]
+        y = self.dataFrame.iloc[idx,15]
+        np_array = np.array([tab1,tab2,tab3,depTab,crTab,asr1,asr2,asr3,depAsr,crAsr,y])
 
         #if self.transform:
             #splitImg_np = self.transform(splitImg_np)

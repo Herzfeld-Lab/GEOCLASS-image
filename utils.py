@@ -55,15 +55,15 @@ def draw_split_image_confs(img_mat, scale_factor, split_disp_size, labels, selec
                 img_mat[splitImg[0]:splitImg[0]+split_disp_size[0],splitImg[1]:splitImg[1]+split_disp_size[1],2] = c[2]
 
 @njit
-def draw_split_image_labels_calipso(img_mat, scale_factor_x, scale_factor_y, 
+def draw_split_image_labels_calipso(img_mat, scale_factor, 
                                     split_disp_size, labels, selected_classes, cmap):
     # Ensure that img_mat is a numpy array of type uint8
     for i, selected_class in enumerate(selected_classes):
         if selected_class:
             clas = labels[labels[:, 2] == i]  # Assuming labels[:, 2] holds class info
             c = cmap[i]
-            x = np.floor(clas[:, 0] / scale_factor_x).reshape(-1, 1).astype(np.int32)
-            y = np.floor(clas[:, 1] / scale_factor_y).reshape(-1, 1).astype(np.int32)
+            x = np.floor(clas[:, 0] / scale_factor).reshape(-1, 1).astype(np.int32)
+            y = np.floor(clas[:, 1] / scale_factor).reshape(-1, 1).astype(np.int32)
             xy = np.concatenate((x, y), axis=1)
             for splitImg in xy:
                 x_start, y_start = splitImg[0], splitImg[1]

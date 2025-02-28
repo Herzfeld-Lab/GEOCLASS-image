@@ -12,6 +12,7 @@ import argparse
 from datetime import datetime
 import random
 from Models import *
+from VarioNet import *
 import yaml
 import warnings
 from sklearn.utils.class_weight import compute_class_weight
@@ -32,6 +33,8 @@ with open(args.config, 'r') as ymlfile:
 learning_rate = float(cfg['learning_rate'])
 batch_size = cfg['batch_size']
 num_epochs = cfg['num_epochs']
+hidden_layers = cfg['hidden_layers']
+imgTrain = cfg['train_with_img']
 
 # Set dataset hyperparameters as specified by config file
 topDir = cfg['img_path']
@@ -56,6 +59,22 @@ elif cfg['model'] == 'Resnet18':
     num_classes = cfg['num_classes']
     model = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
     img_transforms_valid = None
+elif cfg['model'] == 'VarioNet':
+    num_classes = cfg['num_classes']
+    vario_num_lag = cfg['vario_num_lag']
+    image_folder = cfg['training_img_path']
+    alpha = cfg['alpha']
+    beta = cfg['beta']
+    vario_mlp = VarioMLP.VarioMLP(num_classes, vario_num_lag, hidden_layers=hidden_layers)
+    resnet18 = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
+    vario_mlp.load_state_dict(torch.load('vario_mlp.pth'))
+    resnet18.load_state_dict(torch.load('resnet18.pth'))
+    model = CombinedModel(vario_mlp, resnet18, num_classes, a = alpha, b = beta)
+    transform = transforms.Compose([
+            transforms.Resize((224, 224)),  # Resize images to match ResNet18 input size
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485], std=[0.229])  # Use grayscale mean and std
+        ])
 
 elif cfg['model'] == 'DDAiceNet':
     ddaBool = True
@@ -97,6 +116,18 @@ if cfg['model'] == 'VarioMLP' or cfg['model'] == 'Resnet18':
         labels = dataset_labels,
         train = False,
         transform = img_transforms_valid
+        )
+elif cfg['model'] == 'VarioNet':
+    
+    valid_dataset = TestDataset(
+        imgPath = topDir,
+        imgData = dataset_info,
+        labels = dataset_labels,
+        train = False,
+        transform = transforms.Compose([
+        DirectionalVario(vario_num_lag),
+        DefaultRotateVario(),
+    ])
         )
 else:
     valid_dataset = DDAiceDataset(
@@ -162,38 +193,59 @@ print('----- Training -----')
 labels = []
 confs = []
 
-for batch_idx,X in enumerate(valid_loader):
+if cfg['model'] == 'VarioNet':
 
-    if batch_idx % 100 == 0:
-        print(batch_idx)
+    for batch_idx, (images, variograms) in enumerate(valid_loader):
+            
+        if batch_idx % 100 == 0:
+                print(f"Processing batch {batch_idx}")
 
-    # Move batch to GPU
-    if args.cuda:
-        X = X.to(device)
+            # Move data to GPU
+        if args.cuda:
+                images = images.to(device)
+                variograms = variograms.to(device)
 
-    X = torch.unsqueeze(X,1).float()
+            # Unsqueeze if needed (add a channel dimension for grayscale images)
+        images = torch.unsqueeze(images, 1).float()
+        variograms = variograms.float()  # Ensure variograms are floats
 
-    # Compute forward pass
-    Y_hat = model.forward(X)
+            # Compute forward pass through the combined model
+        Y_hat = model.forward(images, variograms)
+            # Apply softmax to get probabilities
+        sm = softmax(Y_hat)
 
-    sm = softmax(Y_hat)
+            # Get the max confidence score and corresponding label
+        conf = sm.max()
 
-    conf = sm.max()
+        if conf > 0:
+                labels.append(int(torch.argmax(Y_hat)))
+                confs.append(conf.item())
+        else:
+                labels.append(num_classes)
+else:              
+    for batch_idx,X in enumerate(valid_loader):
 
-    if conf > 0:
-        labels.append(torch.argmax(Y_hat))
-        confs.append(conf.item())
-    else:
-        labels.append(num_classes)
+        if batch_idx % 100 == 0:
+            print(f"Processing batch {batch_idx}")
+                
+        # Move batch to GPU
+        if args.cuda:
+            X = X.to(device)
 
-#dataset[0]['filename'] = topDir
-# Ensure all elements in labels and confs are CPU tensors and converted to Python numbers
-labels = [label.detach().cpu().item() if isinstance(label, torch.Tensor) else label for label in labels]
-confs = [conf.detach().cpu().item() if isinstance(conf, torch.Tensor) else conf for conf in confs]
+        X = torch.unsqueeze(X,1).float()
 
-# Convert lists to NumPy arrays
-labels = np.array(labels)
-confs = np.array(confs)
+        # Compute forward pass
+        Y_hat = model.forward(X)
+
+        sm = softmax(Y_hat)
+
+        conf = sm.max()
+
+        if conf > 0:
+            labels.append(int(torch.argmax(Y_hat)))
+            confs.append(conf.item())
+        else:
+            labels.append(num_classes)
 
 split_info = dataset[1]
 if ddaBool:
