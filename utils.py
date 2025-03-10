@@ -182,7 +182,8 @@ def scalePlot(img, max):
 
 def getImgPaths(topDir):
     return glob.glob(topDir + '/*.tif')
-
+def getPNGImgPaths(topDir):
+    return glob.glob(topDir + '/*.png')
 def get_dda_paths(topDir):
     files = glob.glob(topDir + '/*.txt')
     files.sort()
@@ -789,6 +790,7 @@ train_with_img: {}
 use_cuda:       {}
 num_epochs:     {}
 fine_epochs:    {}
+adaptive:       {}
 alpha:          {}
 beta:           {}
 learning_rate:  {}
@@ -831,6 +833,7 @@ bg_UTM_path:        {}
                    yaml_obj['use_cuda'],
                    yaml_obj['num_epochs'],
                    yaml_obj['fine_epochs'],
+                   yaml_obj['adaptive'],
                    yaml_obj['alpha'],
                    yaml_obj['beta'],
                    yaml_obj['learning_rate'],
