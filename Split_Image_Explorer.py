@@ -309,6 +309,8 @@ class SplitImageTool(QWidget):
         for tiffNum in range(len(self.dataset_info['filename'])):
             button = QPushButton('{}...'.format(self.dataset_info['filename'][tiffNum].split('/')[-1][:13]), self)
             button.clicked.connect(self.makeTiffSelectorCallbacks(tiffNum))
+            button.clicked.connect(self.getTiffnum(tiffNum))
+            #self.tiff_selector_buttons.addWidget(button)
             
             # Calculate the row and column numbers
             row = tiffNum // 4
@@ -755,7 +757,7 @@ class SplitImageTool(QWidget):
         def getNum():
             global numTiff
             numTiff = tiff
-            #print("GEOTIFF number", numTiff)
+            print("GEOTIFF number", numTiff)
         return getNum
     @pyqtSlot()
     def on_click(self):
