@@ -35,6 +35,7 @@ label_data = np.load(dataset_path, allow_pickle=True)
 split_info_save = label_data[1]
 
 index = ''
+path = ''
 z=0
 
 #Trying to print out images
@@ -59,7 +60,6 @@ for n in range(0,num_class):
                 index += str(img[y])
             tiffNum = img[-5]
             #print(index)
-            #print('tiff num', tiffNum)
             split_info = split_info_save[split_info_save[:,6] == int(tiffNum)]
             x,y,x_utm,y_utm,label,conf,_ = split_info[int(index)]
             x,y,x_utm,y_utm,label = int(x),int(y),int(x_utm),int(y_utm),int(label)
@@ -96,6 +96,7 @@ for n in range(0,num_class):
             pix_coords_list.append([float(x),float(y),float(x_utm),float(y_utm),float(label),float(conf),float(tiffNum)])
             z+=1
             index = ''
+            path = ''
 
 topDir = cfg['img_path']
 winSize = cfg['split_img_size']

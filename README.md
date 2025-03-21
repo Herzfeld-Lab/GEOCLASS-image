@@ -45,8 +45,10 @@ The following is a guide for installing and running the NN_Class software, along
 The NN_Class software is meant to run on UNIX-based operating systems, primarily MacOS and Ubuntu. It has been tested on the following systems:
 - MacOS 10.14 "Mojave"
 - MacOS 10.15 "Catalina"
+- MacOS 13.7 "Ventura"
 - Ubuntu 18.04 "Bionic Beaver"
 - Ubuntu 20.04 "Focal Fossa"
+
 
 It may be possible to run this software on Windows using the [Windows Linux Subsystem](https://docs.microsoft.com/en-us/windows/wsl/install-win10), but this will likely require some debugging on the user's part.
 
@@ -101,6 +103,7 @@ The dataset parameters define the filepaths and hyperparameters pertaining to th
 - `utm_epsg_code`:    [EPSG code](https://epsg.io/) of the UTM zone the geotiff image is within.
 - `split_img_size`:   Desired size of split images, in pixels.
 - `train_test_split`: Percentage of images to be kept as training images (0.8 == 80%), the rest are used for testing.
+- `triain_indices`  :     Whenever a new file is used for training, set this to None. When the training program is run this will be updated with a .npy file for tracking what indices were used for training and what was used for testing so one can ensure that all models are trained with the same validation dataset. 
 - `training_img_path`:    The path to directory containing folders of images to use for training.
 - `training_img_npy`:     The path to the .npy file created from the folder of images.
 - `save_all_pred`:      Boolean for saving predictions from all WV images in a dataset.
@@ -151,14 +154,14 @@ After a short loading process, you will be presented with a GUI window like this
 The GUI provides many useful tools for labeling and viewing split images, and understanding classification results. To start, try clicking around the geotiff image preview on the right half of the GUI, within the contour shown in blue. This allows for selecting any split image from the source geotiff based on the location of the crosshairs. Here is a breakdown of each of the components present in the GUI (each of these will be explored in detail in their respective sections):
 ![Annotated GUI window](images/gui_example_notated.png)
 1. Source GeoTIFF selector buttons. These buttons can be used to switch between source geotiff images for visualization/labeling split images.
-2. Split Image preview. This window shows the split image at the current location of the crosshairs in the geotiff preview window.
-3. This text will display the label of the current split image, or the classification and confidence if the model has been trained.
+2. This text will display the label of the current split image, or the classification and confidence if the model has been trained.
+3. Split Image preview. This window shows the split image at the current location of the crosshairs in the geotiff preview window.
 4. Confidence Slider. This slider can be used to set a confidence threshold for visualizing classifications.
 5. Visualization toggles. These toggles can be used to switch between visualizing training labels, classification labels, or classification confidence values in the geotiff preview window.
-6. Output buttons. These buttons can be used to save images of the classification or confidence values.
+6. Output buttons. These buttons can be used to save the predications as a .npy file and save images of the classification or confidence values.
 7. New Class field. If a new class is needed, type its name in this field and press enter. The config class buttons, toggles and config file will be updated automatically.
-8. Class toggles. Use these to toggle which classes are shown in the geotiff preview window when using the Visualize Labels and Visualize Predictions toggles.
-9. Class buttons. These buttons can be used to label the current split image, or batch label all split images within the currently defined polygon.
+8. Class buttons. These buttons can be used to label the current split image, or batch label all split images within the currently defined polygon. The check boxes to the left of each class allows you to toggle on or off this class when viewing the labeled or predicted classes.
+9. Variograms. These area of the GUI shows the calculated variograms for the currently selected image
 10. Geotiff preview window. This shows a scaled-down preview of the currently selected source geotiff image, with the user-defined UTM contour drawn in blue. The crosshairs show the location of the currently selected split image.
 ### Individual Labeling
 To explore the split images in the Dataset, move the crosshairs by either clicking a location within the blue contour, or using the 'a' and 'd' keys to move to split images adjacent to the currently selected split image. To label the currently selected split image, either click on one of the colored class buttons in the bottom left of the GUI, or press its corresponding number key on your keyboard. To view your labels, toggle the 'Visualize labels' toggle in the left of the GUI. For example, after pressing d-0-d-0-d-0-d-0-d-0-d-0... on the keyboard, then toggling the Visualize Labels toggle, the result looks like this:
@@ -202,9 +205,9 @@ python3 train.py Config/mlp_negri_legacy/mlp_test_negri.config --load_checkpoint
 
 There are also numerous hyperparameters related to training in the config file. For a description of the available training hyperparameters please refer to the [Training Parameters](#training-parameters) section.
 # Testing
-After looking at the losses from the training run and selecting a desired model checkpoint, the `test.py` script can be used to label all split images in the dataset using the trained classification model. `train.py` takes two arguments: the config file as the first argument (same as all the other scripts), and the `--load_checkpoint` argument to specify a model checkpoint. For the example run, using the epoch 11 model checkpoint, the command was:
+After looking at the losses from the training run and selecting a desired model checkpoint, the `test.py` script can be used to label all split images in the dataset using the trained classification model. `test.py` takes two arguments: the config file as the first argument (same as all the other scripts), and the `--load_checkpoint` argument to specify a model checkpoint. For the example run, using the epoch 11 model checkpoint, the command was:
 ```
-python3 train.py Config/mlp_negri_legacy/mlp_test_negri.config --load_checkpoint Output/mlp_negri_legacy_09-03-2021_18:34/checkpoints/epoch_11
+python3 test.py Config/mlp_negri_legacy/mlp_test_negri.config --load_checkpoint Output/mlp_negri_legacy_09-03-2021_18:34/checkpoints/epoch_11
 ```
 The labeling process will take quite a while for cases in which the dataset consists of multiple large source GeoTIFF images. Labeling all 41,310 split images in the example case took about 10 minutes.
 ## Testing Output
