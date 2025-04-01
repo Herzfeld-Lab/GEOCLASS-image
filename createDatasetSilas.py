@@ -5,7 +5,7 @@ import argparse
 import yaml
 import utm
 from utils import *
-from Split_Image_Explorer_PyQt5 import *
+from Split_Image_Explorer import *
 
 # Parse command line flags
 parser = argparse.ArgumentParser()

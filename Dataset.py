@@ -533,6 +533,7 @@ class DirectionalVario(object):
         imSize = img.shape
         if (imSize[0] == 201 and imSize[1] == 268) or (imSize[0] == 268 and imSize[1] == 201):
             return silas_directional_vario(img, self.numLag)
+
         else:
             print("Use an image size of (201,268) for best results")
             return fast_directional_vario(img, self.numLag)

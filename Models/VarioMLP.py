@@ -47,4 +47,14 @@ class VarioMLP(nn.Module):
         #x = self.lrelu(x)
 
         return x
+    
+    def get_intermediate_features(self, split_img_vario):
+        x = split_img_vario.view(split_img_vario.shape[0], -1) #CST05312024 this resizes the image causing the NN to crash if using the 3-4-5 Vario function
+        # Run forward pass through network on variogram output
+        x = self.input(x)
+        x = self.lrelu(x)
+        for i in range(len(self.hidden)):
+            x = self.hidden[i](x)
+            x = self.lrelu(x)
+        return x # Extract intermediate feature
 

@@ -17,6 +17,8 @@ import torch.nn.functional as F
 from Models import *
 from Models import VarioMLP
 from Models import Resnet18
+from scipy.optimize import linprog
+import sklearn
 
 
 parser = argparse.ArgumentParser()
@@ -304,6 +306,8 @@ class BottleneckBlock(nn.Module):
         out = self.fc2(out)
         return F.relu(out)
 """
+
+
 class CombinedModel(nn.Module):
 
     
@@ -359,7 +363,7 @@ class CombinedModel(nn.Module):
             a = 1-b
             self.beta = nn.Parameter(b.clone().detach().requires_grad_(True))
             self.alpha = nn.Parameter(a.clone().detach().requires_grad_(True))
-        x = self.alpha * vario_out + self.beta * resnet_out
+        x = self.alpha * softmax(vario_out) + self.beta * softmax(resnet_out)
         #x = torch.cat((vario_out,resnet_out), dim=1)
         #x = self.fc1(x)
         x = self.blocks(x)
