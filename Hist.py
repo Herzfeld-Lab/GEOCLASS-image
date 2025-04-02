@@ -100,7 +100,7 @@ accuracy_list = np.array(accuracy_list)[sorted_indices].tolist()
 confidence_list = np.array(confidence_list)[sorted_indices].tolist()
 
 
-model_labels_path1 = 'Output/mlp_12_negri_21-03-2025_15:15/labels/labeled_epoch_41.npy'
+model_labels_path1 = 'Output/12_class_runs/Resnet18/mlp_12_negri_01-04-2025_10:20/labels/labeled_epoch_45.npy'
 label_path1 = cfg['valid_path']
 
 true_dataset1 = np.load(label_path1, allow_pickle=True)
@@ -213,8 +213,8 @@ r1 = np.arange(len(all_labels))
 r2 = r1 + bar_width  # Shift second set slightly
 
 # Plot bars
-plt.bar(r1, accuracy_list, color='salmon', width=bar_width, label='18 Lag Steps')
-plt.bar(r2, accuracy_list1, color='purple', width=bar_width, label='67 Lag Steps')
+plt.bar(r1, accuracy_list, color='salmon', width=bar_width, label='VarioMLP')
+plt.bar(r2, accuracy_list1, color='purple', width=bar_width, label='ResNet18')
 
 # Set x-ticks correctly
 plt.xticks(r1 + bar_width / 2, all_labels)  # Center tick labels

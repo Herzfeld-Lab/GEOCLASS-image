@@ -194,6 +194,7 @@ print('----- Training -----')
 labels = []
 confs = []
 
+
 if cfg['model'] == 'VarioNet':
 
     for batch_idx, (images, variograms) in enumerate(valid_loader):
@@ -261,6 +262,9 @@ print(dataset[1].shape)
 dataset[1] = split_info
 #data.append(confs)
 np.save(output_dir+"/labels/labeled_"+checkpoint_str, dataset)
+
+if adapt and cfg['model'] == 'VarioNet':
+     model.plot_beta(output_dir=output_dir, conf = confs)
 
 if args.netCDF:
     to_netCDF(dataset)
