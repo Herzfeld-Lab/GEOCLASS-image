@@ -1,17 +1,39 @@
-affine
-pillow
-opencv-python-headless
-rasterio
-torch
-torchvision
-shapely
-sklearn
-utm
-pyproj
-matplotlib
-pandas
-pyyaml
-scikit-image
-netCDF4
-numba
-geopandas
+
+    #numba: 
+    pip3 install numba
+    #pandas: 
+    pip3 install pandas
+    #cv2: 
+    pip3 install opencv-python
+    #PIL: 
+    pip3 install pillow
+    #netCDF4: 
+    pip3 install netCDF4
+    #pyproj: 
+    pip3 install pyproj
+    #yaml: 
+    pip3 install pyyaml
+    #shapely: 
+    pip3 isntall shapely
+    #utm: 
+    pip3 install utm
+    #rasterio: 
+    pip3 install rasterio
+    #PyQt5: 
+    pip3 install PyQt5
+    #PyQt6: 
+    pip3 install PyQt6
+    #torch: 
+    pip3 install torch
+    #skimage: 
+    pip3 install scikit-image
+    #torchvision: 
+    pip3 install torchvision
+    #geopandas: 
+    pip3 install geopandas
+    #matplotlib: 
+    pip3 install matplotlib
+    #Affine: 
+    pip3 install affine
+    #Scikit Learn: 
+    pip3 install scikit-learn
