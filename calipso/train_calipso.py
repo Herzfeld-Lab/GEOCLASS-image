@@ -137,15 +137,15 @@ tab = []
 asr = []
 density_path = cfg['density_path']
 density_data = np.loadtxt(density_path, dtype= float)
-density = density_data
+density = density_data[::-1, :]
 tab_paths = cfg['tab_path']
 for tab_path in tab_paths:
     tab_data = np.loadtxt(tab_path, dtype= float)
-    tab.append(tab_data)
+    tab.append(tab_data[::-1, :])
 asr_paths = cfg['asr_path']
 for asr_path in asr_paths:
     asr_data = np.loadtxt(asr_path, dtype= float)
-    asr.append(asr_data)
+    asr.append(asr_data[::-1, :])
 
 train_dataset = CalipsoDataset2(
     imgPath = topDir,

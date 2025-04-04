@@ -280,27 +280,61 @@ pix_coords_list = split_image(density, tab, asr, winSize[0], winSize[1], output_
 pix_coords_np = np.array(pix_coords_list, dtype='object')
 
 max = 0
-for dens in density:
+density1 = tab[0]
+density2 = tab[1]
+density3 = tab[2]
+for dens in density1:
     for each_den in dens:
         if each_den > max:
             max = each_den
         if each_den < 0:
             each_den = 0
-  
         
-        img = density
+        img1 = density1[::-1, :]
+for dens in density2:
+    for each_den in dens:
+        if each_den > max:
+            max = each_den
+        if each_den < 0:
+            each_den = 0
+        
+        img2 = density2[::-1, :]
+for dens in density3:
+    for each_den in dens:
+        if each_den > max:
+            max = each_den
+        if each_den < 0:
+            each_den = 0
+        
+        img3 = density3[::-1, :]
 
 
-img_np = np.array(img)
-fullImg = (scaleImage(img_np, max))/255.0  # Assuming you have a scaling function
-fullImg = np.stack([fullImg*0.5,fullImg*0.75,fullImg], axis=-1)
-fullImg = (fullImg*255.0).astype(np.uint8)
-img_filename = f"calipso_{density.shape[0]}_{density.shape[1]}.png"  # You can choose a different extension or format
-imgPaths = img_filename
-full_img = Image.fromarray(fullImg)
-full_img.save(imgPaths)
+img1_np = np.array(img1)
+img2_np = np.array(img2)
+img3_np = np.array(img3)
+fullImg1 = (scaleImage(img1_np, max))/255.0  # Assuming you have a scaling function
+fullImg2 = (scaleImage(img2_np, max))/255.0 
+fullImg3 = (scaleImage(img3_np, max))/255.0 
+fullImg1 = np.stack([fullImg1*0.5,fullImg1*0.75,fullImg1], axis=-1)
+fullImg1 = (fullImg1*255.0).astype(np.uint8)
+fullImg2 = np.stack([fullImg2*0.5,fullImg2*0.75,fullImg2], axis=-1)
+fullImg2 = (fullImg2*255.0).astype(np.uint8)
+fullImg3 = np.stack([fullImg3*0.5,fullImg3*0.75,fullImg3], axis=-1)
+fullImg3 = (fullImg3*255.0).astype(np.uint8)
+img_filename1 = f"calipso_1_{density.shape[0]}_{density.shape[1]}.png"  # You can choose a different extension or format
+imgPaths1 = img_filename1
+img_filename2 = f"calipso_2_{density.shape[0]}_{density.shape[1]}.png"  # You can choose a different extension or format
+imgPaths2 = img_filename2
+img_filename3 = f"calipso_3_{density.shape[0]}_{density.shape[1]}.png"  # You can choose a different extension or format
+imgPaths3 = img_filename3
+full_img1 = Image.fromarray(fullImg1)
+full_img1.save(imgPaths1)
+full_img2 = Image.fromarray(fullImg2)
+full_img2.save(imgPaths2)
+full_img3 = Image.fromarray(fullImg3)
+full_img3.save(imgPaths3)
 
-info = {'filename': imgPaths,
+info = {'filename': [imgPaths1, imgPaths2, imgPaths3],
         'winsize_pix': winSize,
         'class_enumeration': classEnum}
 

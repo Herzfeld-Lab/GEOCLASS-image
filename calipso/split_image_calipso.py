@@ -364,7 +364,7 @@ class SplitImageTool(QWidget):
             self.selected_classes = np.asarray(self.selected_classes, dtype=np.float32)  # Ensure it's int32
             cmap = np.asarray(cmap, dtype=np.uint8)
 
-            draw_split_image_labels_calipso(bg_img_scaled, self.scale_factor[0], self.scale_factor[1], split_disp_size, draw, self.selected_classes, cmap)
+            draw_split_image_labels_calipso(bg_img_scaled, scale_factor, split_disp_size, draw, self.selected_classes, cmap)
 
         elif self.visualize_predictions and self.predictions:
             draw = self.pred_labels[self.pred_labels[:,3] > self.conf_thresh]
@@ -376,7 +376,7 @@ class SplitImageTool(QWidget):
             draw = np.asarray(draw, dtype=np.float32)  # Ensure it's int32 (assumed type)
             self.selected_classes = np.asarray(self.selected_classes, dtype=np.float32)  # Ensure it's int32
             cmap = np.asarray(cmap, dtype=np.uint8)
-            draw_split_image_labels_calipso(bg_img_scaled, self.scale_factor[0], self.scale_factor[1], split_disp_size, draw, self.selected_classes, cmap)
+            draw_split_image_labels_calipso(bg_img_scaled, scale_factor, split_disp_size, draw, self.selected_classes, cmap)
 
         elif self.visualize_heatmap and self.predictions:
             draw = self.pred_labels[self.pred_labels[:,3] > self.conf_thresh]

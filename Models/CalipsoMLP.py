@@ -14,7 +14,7 @@ class CalipsoMLP(nn.Module):
         super(CalipsoMLP, self).__init__()
         #CST05312024
         #self.input_size = channels * density
-        self.input_size = (channels+1)*4
+        self.input_size = (channels+5)*3
         print(self.input_size)
         self.output_size = num_classes
         self.hidden_size = [int(i * self.input_size) for i in hidden_layers]
