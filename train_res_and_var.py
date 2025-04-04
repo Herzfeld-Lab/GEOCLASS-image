@@ -99,7 +99,7 @@ if imgTrain:
         f.write(generate_config_silas(cfg))
         f.close()
     else:
-         train_indeces_npy = cfg['train_indeces']
+         train_indeces_npy = cfg['train_indices']
          train_indeces = np.load(train_indeces_npy)
     test_indeces = np.setdiff1d(range(np.array(len(image_paths))), train_indeces)
     #CST20240322 Creating loops so train and test coords aren't 1D
@@ -137,7 +137,7 @@ if imgTrain:
         ])
         
 
-    print(train_var)
+
     vario_dataset = FromFolderDataset('VarioMLP', train_imgs, train_var, train_labels, None)
     vario_valid_dataset = FromFolderDataset('VarioMLP', train_imgs, train_var, train_labels, None)
     image_dataset = FromFolderDataset('Resnet18', train_imgs, train_var, train_labels, transform)

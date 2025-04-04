@@ -48,7 +48,7 @@ for i in range(len(test_coords)):
     for j in range(len(true_dataset_coords)):
         if test_coords[i][6] == true_dataset_coords[j][6]:
             if test_coords[i][0] == true_dataset_coords[j][0] and test_coords[i][1] == true_dataset_coords[j][1] and int(true_dataset_coords[j][4]) != -1:
-                print(i)
+                #print(i)
                 # Extract the label
                 label = int(test_coords[i][4])
                 true_label = int(true_dataset_coords[j][4])
@@ -100,7 +100,7 @@ accuracy_list = np.array(accuracy_list)[sorted_indices].tolist()
 confidence_list = np.array(confidence_list)[sorted_indices].tolist()
 
 
-model_labels_path1 = cfg['train_path1']
+model_labels_path1 = 'Output/12_class_runs/Resnet18/mlp_12_negri_01-04-2025_10:20/labels/labeled_epoch_45.npy'
 label_path1 = cfg['valid_path']
 
 true_dataset1 = np.load(label_path1, allow_pickle=True)
@@ -124,7 +124,7 @@ for i in range(len(test_coords1)):
     for j in range(len(true_dataset_coords1)):
         if test_coords1[i][6] == true_dataset_coords1[j][6]:
             if test_coords1[i][0] == true_dataset_coords1[j][0] and test_coords1[i][1] == true_dataset_coords1[j][1] and int(true_dataset_coords1[j][4]) != -1:
-                print(i)
+                #print(i)
                 # Extract the label
                 label1 = int(test_coords1[i][4])
                 true_label1 = int(true_dataset_coords1[j][4])
@@ -183,38 +183,43 @@ if len(confidence_list1) < len(confidence_list):
 
 x_ticks = np.arange(min(labels_list), max(labels_list) + 1)
 totaccuracy = 0
+totaccuracy1 = 0
 for i in accuracy_list:
     totaccuracy += i
-# Define bar width
+for i in accuracy_list1:
+    totaccuracy1 += i
+
+
+print("Test Accuracy", totaccuracy/len(accuracy_list))
+print("Origininal Accuracy", totaccuracy1/len(accuracy_list1))
+
 bar_width = 0.35
-# Create positions for the bars (with a slight shift for the second set of bars)
-r1 = np.arange(len(labels_list))  # Positions for the first set of bars
-r2 = [x + bar_width for x in r1]  # Positions for the second set of bars
-print("Total Accuracy", totaccuracy)
-# Plot histogram for accuracy
-plt.figure(figsize=(10, 5))
 
-plt.subplot(1, 2, 1)
-plt.bar(r1, accuracy_list, color='skyblue', width=bar_width, label='VarioNet')
-plt.bar(r2, accuracy_list1, color='green', width=bar_width, label='VarioMLP')
-plt.xlabel('Labels')
-plt.ylabel('Accuracy (%)')
-plt.title('Accuracy per Class')
-plt.xticks([r + bar_width / 2 for r in r1], labels_list)  # Adjust x-ticks to be in the middle of the two bars
+# Ensure label sets are the same length
+all_labels = sorted(set(labels_list) | set(labels_list1))
+
+# Fill in missing values with 0
+accuracy_dict = {label: 0 for label in all_labels}
+accuracy_dict1 = {label: 0 for label in all_labels}
+
+accuracy_dict.update(dict(zip(labels_list, accuracy_list)))
+accuracy_dict1.update(dict(zip(labels_list1, accuracy_list1)))
+
+accuracy_list = [accuracy_dict[label] for label in all_labels]
+accuracy_list1 = [accuracy_dict1[label] for label in all_labels]
+
+# X positions for bars
+r1 = np.arange(len(all_labels))
+r2 = r1 + bar_width  # Shift second set slightly
+
+# Plot bars
+plt.bar(r1, accuracy_list, color='salmon', width=bar_width, label='VarioMLP')
+plt.bar(r2, accuracy_list1, color='purple', width=bar_width, label='ResNet18')
+
+# Set x-ticks correctly
+plt.xticks(r1 + bar_width / 2, all_labels)  # Center tick labels
+
+plt.xlabel("Labels")
+plt.ylabel("Accuracy (%)")
 plt.legend()
-
-# Plot histogram for average confidence
-plt.subplot(1, 2, 2)
-plt.bar(r1, confidence_list, color='salmon', width=bar_width, label='VarioNet')
-plt.bar(r2, confidence_list1, color='purple', width=bar_width, label='VarioMLP')
-plt.xlabel('Labels')
-plt.ylabel('Average Confidence')
-plt.title('Average Confidence per Class')
-plt.xticks([r + bar_width / 2 for r in r1], labels_list)  # Adjust x-ticks to be in the middle of the two bars
-plt.legend()
-
-plt.tight_layout()
 plt.show()
-
-
-

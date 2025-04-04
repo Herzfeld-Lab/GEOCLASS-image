@@ -1,4 +1,5 @@
 import os
+import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -14,9 +15,13 @@ import numpy
 import yaml
 import argparse
 import torch.nn.functional as F
+from datetime import datetime
 from Models import *
 from Models import VarioMLP
 from Models import Resnet18
+from scipy.optimize import linprog
+import sklearn
+from sklearn.neighbors import KernelDensity
 
 
 parser = argparse.ArgumentParser()
@@ -159,9 +164,9 @@ class TestDataset(dataset):
     def __getitem__(self, idx):
         splitImg_np = self.dataFrame.iloc[idx, 7]
         if self.transform:
-            vario_tensor = self.transform(splitImg_np)
+            vario_tensor = self.transform(splitImg_np)/10
         else:
-            vario_tensor = get_varios(splitImg_np)
+            vario_tensor = get_varios(splitImg_np)/10
         splitImg_tensor = torch.from_numpy(splitImg_np)
 
         if self.train:
@@ -212,7 +217,7 @@ class FromFolderDataset(dataset):
         if self.transform:
             image = self.transform(image)
         if self.model == 'VarioNet':
-            variogram = self.variogram_data[idx]/10 #should decreases effect on network
+            variogram = self.variogram_data[idx]/10#should decreases effect on network
             return IMGnp, variogram, int(label)
         else:
             return IMGnp, int(label)
@@ -224,6 +229,209 @@ transform = transforms.Compose([
     transforms.Normalize(mean=[0.485], std=[0.229])  # Use grayscale mean and std
 ])
 
+#VarioNet 
+
+class MLPBlock(nn.Module):
+    def __init__(self, in_features, out_features, downsample=False):
+        super(MLPBlock, self).__init__()
+        
+        self.fc1 = nn.Linear(in_features, out_features)  # Expanding the feature size
+        self.relu = nn.ReLU(inplace=True)
+        self.fc2 = nn.Linear(out_features, out_features)  # Keep output size same as out_features
+        
+        self.downsample = None
+        if downsample:
+            self.downsample = nn.Linear(in_features, out_features)  # Adjust dimensions
+
+    def forward(self, x):
+        identity = x  # Store original input
+        
+        out = self.fc1(x)
+        out = self.relu(out)
+        out = self.fc2(out)
+
+        if self.downsample is not None:
+            identity = self.downsample(identity)  # Adjust identity mapping if needed
+
+        out += identity  # Residual connection
+        out = self.relu(out)
+        
+        return out
+"""
+class ResidualBlock(nn.Module):
+    def __init__(self, input_dim):
+        super(ResidualBlock, self).__init__()
+        self.fc1 = nn.Linear(input_dim, input_dim)
+        self.fc2 = nn.Linear(input_dim, input_dim)
+
+    def forward(self, x):
+        residual = x  # Store original input
+        out = F.relu(self.fc1(x))
+        out = self.fc2(out)
+        out += residual  # Add input to output
+        return F.relu(out)
+
+class MLPBlock(nn.Module):
+    def __init__(self, in_features, hidden_features, downsample=False):
+        super(MLPBlock, self).__init__()
+        
+        self.fc1 = nn.Linear(in_features, hidden_features)
+        self.relu = nn.ReLU(inplace=True)
+        self.fc2 = nn.Linear(hidden_features, in_features)  # Ensure residual connection works
+        
+        self.downsample = None
+        if downsample:
+            self.downsample = nn.Linear(in_features, hidden_features)  # Adjust dimensions if needed
+
+    def forward(self, x):
+        identity = x  # Store the original input
+        
+        out = self.fc1(x)
+        out = self.relu(out)
+        out = self.fc2(out)
+
+        if self.downsample is not None:
+            identity = self.downsample(identity)  # Apply downsampling if required
+
+        out += identity  # Residual connection
+        out = self.relu(out)  # Final activation
+        
+        return out
+
+class BottleneckBlock(nn.Module):
+    def __init__(self, input_dim, bottleneck_dim):
+        super(BottleneckBlock, self).__init__()
+        self.fc1 = nn.Linear(input_dim, bottleneck_dim)  # Reduce dim
+        self.fc2 = nn.Linear(bottleneck_dim, input_dim)  # Expand back
+
+    def forward(self, x):
+        out = F.relu(self.fc1(x))
+        out = self.fc2(out)
+        return F.relu(out)
+"""
+
+
+class CombinedModel(nn.Module):
+
+    
+    def __init__(self, variomlp, resnet, num_classes,  num_blocks = 1,  a=0.5, b=0.5, adaptive = False):
+        super(CombinedModel, self).__init__()
+        self.b_values = [] 
+        self.vario_mlp = variomlp
+        self.resnet18 = resnet
+        self.adaptive = adaptive
+        # Freeze the weights of VarioMLP and ResNet18
+        
+        for param in self.vario_mlp.parameters():
+            param.requires_grad = False
+        for param in self.resnet18.parameters():
+            param.requires_grad = False
+        
+        
+        #dummy_vario = torch.randn(1, self.vario_mlp.input_size)  # Adjust shape based on vario input
+        #dummy_image = torch.randn(64, 1, 7, 7)  # Adjust shape based on ResNet input (default: 3x224x224)
+
+        #vario__dim = self.vario_mlp.get_intermediate_features(dummy_vario).numel()
+
+        self.alpha = nn.Parameter(torch.tensor(a))
+        self.beta = nn.Parameter(torch.tensor(b))
+
+        layers = []
+        in_dim = num_classes
+        
+        for i in range(num_blocks):
+            out_dim = 64 * (i+1) # Double the hidden size
+            layers.append(MLPBlock(in_dim, out_dim, downsample=True))
+            in_dim = out_dim  # Update input dimension for the next block
+            #if i == 1:
+                #layers.append(BottleneckBlock(in_dim, (in_dim//2)))
+        #self.fc_var = nn.Linear(vario__dim, 512)
+        #self.fc_res = nn.Linear(512, 512)
+        #self.fc1 = nn.Linear(512, 20)
+        self.blocks = nn.Sequential(*layers)
+        self.fc_out = nn.Linear(in_dim, num_classes)  # Final output layer
+        #self.fc_res = nn.Linear(num_classes, num_classes)
+
+    def forward(self, image_data, variogram_data):
+        #vario_features = self.vario_mlp.get_intermediate_features(variogram_data)
+        #resnet_features = self.resnet18.get_intermediate_features(image_data)
+
+        #vario_out = F.relu(self.fc_var(vario_features))
+        #resnet_out = F.relu(self.fc_res(resnet_features))
+        softmax = torch.nn.Softmax(dim=1)
+        vario_out = self.vario_mlp(variogram_data)
+        resnet_out = self.resnet18(image_data)
+        if self.adaptive:
+            
+            sm_res = softmax(resnet_out)
+            sm_var = softmax(vario_out)
+            #b = (sm_res.max()+(1-sm_var.max()))/2
+            b = sm_res.max()
+            self.b_values.append(b.item())
+            a = 1-b
+            self.beta = nn.Parameter(b.clone().detach().requires_grad_(True))
+            self.alpha = nn.Parameter(a.clone().detach().requires_grad_(True))
+    
+        x = self.alpha * softmax(vario_out) + self.beta * softmax(resnet_out)
+        #x = torch.cat((vario_out,resnet_out), dim=1)
+        #x = self.fc1(x)
+        x = self.blocks(x)
+        x = self.fc_out(x)
+
+        return x
+
+
+
+    def plot_beta(self, output_dir, conf):
+        """
+        if isinstance(self.b_values, list):  
+            b_values = np.array([x.detach().cpu().item() if isinstance(x, torch.Tensor) else x for x in self.b_values])
+        elif isinstance(self.b_values, torch.Tensor):  
+            b_values = self.b_values.detach().cpu().numpy()  # Move tensor to CPU
+        else:
+            raise TypeError(f"Unsupported type for b_values: {type(self.b_values)}")
+        if isinstance(conf, list):  
+            conf = np.array([x.detach().cpu().item() if isinstance(x, torch.Tensor) else x for x in conf])
+        elif isinstance(conf, torch.Tensor):  
+            conf = conf.detach().cpu().numpy()  # Move tensor to CPU
+        else:
+            raise TypeError(f"Unsupported type for b_values: {type(conf)}")
+        """
+
+
+        if not os.path.exists(output_dir+'/plots'): os.mkdir(output_dir+'/plots')
+        now = datetime.now()
+        date_str = now.strftime("%d-%m-%Y_%H:%M")
+        #unique_values, counts = np.unique(self.b_values, return_counts=True)
+        data = np.vstack([self.b_values, conf]).T
+
+        # Fit the KDE model
+        kde = KernelDensity(bandwidth=0.1)
+        kde.fit(data)
+
+        # Evaluate the density model on the data points
+        density = np.exp(kde.score_samples(data))
+
+        normalized_density = (density - np.min(density)) / (np.max(density) - np.min(density))
+
+        # Plot the scatter plot with density-based coloring
+        plt.figure(figsize=(8, 6))
+        plt.scatter(self.b_values, conf, c=normalized_density, s=50, cmap='viridis', edgecolors='k', alpha=0.7)
+        plt.colorbar(label='Density')
+        # Labels and title
+        plt.xlabel("Beta")
+        plt.ylabel("Confidence")
+        plt.xlim([0,1])
+        plt.ylim([0,1])
+        plt.title("Effect of Beta on the Confidence of VarioNet")
+        plt.savefig(output_dir+'/plots/'+date_str+'_beta_conf')
+
+        # Show plot
+
+
+
+"""
+#Old code
 class CombinedModel(nn.Module):
     def __init__(self, vario_mlp, resnet18, num_classes, a=0.5, b=0.5):
         super(CombinedModel, self).__init__()
@@ -265,3 +473,7 @@ class CombinedModel(nn.Module):
         final_out = self.fc3(combined_out)
         
         return final_out
+"""
+
+
+    

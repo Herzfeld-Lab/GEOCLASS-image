@@ -69,6 +69,7 @@ num_epochs = cfg['num_epochs']
 hidden_layers = cfg['hidden_layers']
 imgTrain = cfg['train_with_img']
 fine_epochs = cfg['fine_epochs']
+adapt = cfg['adaptive']
 
 # Set dataset hyperparameters as specified by config file
 topDir = cfg['img_path']
@@ -118,7 +119,7 @@ elif cfg['model'] == 'VarioNet':
     resnet18 = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
     vario_mlp.load_state_dict(torch.load('vario_mlp.pth'))
     resnet18.load_state_dict(torch.load('resnet18.pth'))
-    model = CombinedModel(vario_mlp, resnet18, num_classes, a = alpha, b = beta)
+    model = CombinedModel(vario_mlp, resnet18, num_classes, a = alpha, b = beta, adaptive=adapt)
     transform = transforms.Compose([
             transforms.Resize((224, 224)),  # Resize images to match ResNet18 input size
             transforms.ToTensor(),
