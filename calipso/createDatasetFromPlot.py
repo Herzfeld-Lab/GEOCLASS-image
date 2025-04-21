@@ -224,7 +224,7 @@ def split_image(den, tab, asr, tile_width, tile_height, output_folder, lat, lon)
             if splitImg_width != tile_width or splitImg_height != tile_height:
                 print("Skipped image of shape", splitImg_np.shape)
                 continue
-            splitImg = (scaleImage(splitImg_np, max))/255.0  # Assuming you have a scaling function
+            splitImg = (scaleImage(splitImg_np, max))  # Assuming you have a scaling function
             splitImg = np.stack([splitImg*0.5, splitImg*0.75, splitImg], axis=-1)
             splitImg = (splitImg*255.0).astype(np.uint8)
             # Ensure the image is RGB
@@ -278,7 +278,7 @@ output_folder = "split_images"
 pix_coords_list = split_image(density, tab, asr, winSize[0], winSize[1], output_folder, lat=None, lon=None)
 
 pix_coords_np = np.array(pix_coords_list, dtype='object')
-
+#tab
 max = 0
 density1 = tab[0]
 density2 = tab[1]
@@ -312,9 +312,9 @@ for dens in density3:
 img1_np = np.array(img1)
 img2_np = np.array(img2)
 img3_np = np.array(img3)
-fullImg1 = (scaleImage(img1_np, max))/255.0  # Assuming you have a scaling function
-fullImg2 = (scaleImage(img2_np, max))/255.0 
-fullImg3 = (scaleImage(img3_np, max))/255.0 
+fullImg1 = (scaleImage(img1_np, max))  # Assuming you have a scaling function
+fullImg2 = (scaleImage(img2_np, max))
+fullImg3 = (scaleImage(img3_np, max))
 fullImg1 = np.stack([fullImg1*0.5,fullImg1*0.75,fullImg1], axis=-1)
 fullImg1 = (fullImg1*255.0).astype(np.uint8)
 fullImg2 = np.stack([fullImg2*0.5,fullImg2*0.75,fullImg2], axis=-1)
@@ -334,7 +334,63 @@ full_img2.save(imgPaths2)
 full_img3 = Image.fromarray(fullImg3)
 full_img3.save(imgPaths3)
 
-info = {'filename': [imgPaths1, imgPaths2, imgPaths3],
+
+#asr
+density4 = asr[0]
+density5 = asr[1]
+density6 = asr[2]
+for dens in density4:
+    for each_den in dens:
+        if each_den > max:
+            max = each_den
+        if each_den < 0:
+            each_den = 0
+        
+        img4 = density4[::-1, :]
+for dens in density5:
+    for each_den in dens:
+        if each_den > max:
+            max = each_den
+        if each_den < 0:
+            each_den = 0
+        
+        img5 = density5[::-1, :]
+for dens in density6:
+    for each_den in dens:
+        if each_den > max:
+            max = each_den
+        if each_den < 0:
+            each_den = 0
+        
+        img6 = density6[::-1, :]
+
+
+img4_np = np.array(img4)
+img5_np = np.array(img5)
+img6_np = np.array(img6)
+fullImg4 = (scaleImage(img4_np, max)) # Assuming you have a scaling function
+fullImg5 = (scaleImage(img5_np, max))
+fullImg6 = (scaleImage(img6_np, max))
+fullImg4 = np.stack([fullImg4*0.5,fullImg4*0.75,fullImg4], axis=-1)
+fullImg4 = (fullImg4*255.0).astype(np.uint8)
+fullImg5 = np.stack([fullImg5*0.5,fullImg5*0.75,fullImg5], axis=-1)
+fullImg5 = (fullImg5*255.0).astype(np.uint8)
+fullImg6 = np.stack([fullImg6*0.5,fullImg6*0.75,fullImg6], axis=-1)
+fullImg6 = (fullImg6*255.0).astype(np.uint8)
+img_filename4 = f"calipso_4_{density.shape[0]}_{density.shape[1]}.png"  # You can choose a different extension or format
+imgPaths4 = img_filename4
+img_filename5 = f"calipso_5_{density.shape[0]}_{density.shape[1]}.png"  # You can choose a different extension or format
+imgPaths5 = img_filename5
+img_filename6 = f"calipso_6_{density.shape[0]}_{density.shape[1]}.png"  # You can choose a different extension or format
+imgPaths6 = img_filename6
+full_img4 = Image.fromarray(fullImg4)
+full_img4.save(imgPaths4)
+full_img5 = Image.fromarray(fullImg5)
+full_img5.save(imgPaths5)
+full_img6 = Image.fromarray(fullImg6)
+full_img6.save(imgPaths6)
+
+info = {'filename': [imgPaths1, imgPaths2, imgPaths3, imgPaths4, imgPaths5,imgPaths6],
         'winsize_pix': winSize,
         'class_enumeration': classEnum}
 

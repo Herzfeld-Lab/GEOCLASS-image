@@ -1,0 +1,1208 @@
+import sys
+sys.path.append('/home/twickler/ws/GEOCLASS-image/NN_Class')
+from utils import *
+from auto_rotate_geotiff import *
+#CST20240312
+from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QHBoxLayout, QVBoxLayout, QCheckBox, QSlider, QLineEdit, QPushButton, QButtonGroup, QMainWindow, QGridLayout, QSpacerItem, QSizePolicy
+#CST 20240308
+from PyQt5.QtGui import QPixmap, QImage, QFont, QGuiApplication, QFont, qRgb
+
+from PyQt5.QtCore import Qt
+
+from PIL.ImageQt import ImageQt
+import os
+import shutil
+
+
+from Models import *
+from Dataset import *
+
+import rasterio as rio
+
+from scipy.spatial import KDTree
+
+from matplotlib.pyplot import get_cmap
+from matplotlib.colors import ListedColormap
+
+import yaml
+
+class SquareLabel(QLabel):
+    def resizeEvent(self, event):
+        size = min(event.size().width(), event.size().height())
+        self.setFixedSize(size, size)
+        super().resizeEvent(event)
+
+class SplitImageTool(QWidget):
+    global numTiff
+    numTiff = 0
+    def __init__(self, cfg_path, checkpoint=None, netcdf=False):
+        super().__init__()
+
+        # Initialize GUI Window properties
+        print('-------- Initializing App --------')
+        
+        # geometry
+        screen_resolution = app.desktop().availableGeometry()
+        self.title = 'Split Image Labeling tool'
+        self.width, self.height = int(screen_resolution.width()), int(screen_resolution.height())
+        self.setMinimumSize(self.width - 100, self.height - 100) # the default min size runs of the screen!
+        self.setGeometry(0, 0, self.width - 100, self.height - 100)
+        self.setWindowTitle(self.title)
+        self.to_netcdf = netcdf
+
+
+        # Load Tiff Image and split image data
+        print('-------- Loading App Config --------')
+        self.cfg_path = cfg_path
+        with open(self.cfg_path, 'r') as ymlfile:
+            self.cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
+
+
+        # Initialize dataset properties
+        print('-------- Initializing Dataset --------')
+        self.tiff_selector = 0
+        self.checkpoint = checkpoint
+        self.label_path = self.cfg['npy_path']
+        self.label_data = np.load(self.label_path, allow_pickle=True)
+        self.split_info_save = self.label_data[1]
+        print(self.split_info_save.shape)
+
+
+        self.initDataset()
+
+
+        print('-------- Initializing GUI --------')
+        # Visualization toggles
+        self.visualize_labels = False
+        self.visualize_predictions = False
+        self.visualize_heatmap = False
+
+        # Initialize Image and Dimensions container variables
+        bg_img_scaled = None
+        self.bg_img_cv = None
+        self.bg_qimage = None
+        self.bg_img_utm = None
+        self.image_index = None
+        self.clicked = None
+        self.conf_thresh = 0
+        self.selected_classes = np.ones(len(self.class_enum))
+        self.batch_select_polygon = []
+
+        # Initialize colormaps (convert from hex if custom color map defined)
+        if self.cfg['custom_color_map'] != 'None':
+            colors = []
+            for hex in self.cfg['custom_color_map']:
+                colors.append(tuple(int(hex.lstrip('#')[i:i+2], 16)/256 for i in (0,2,4)))
+            cmap = ListedColormap(colors)
+            self.label_cmap = cmap
+        else:
+            self.label_cmap = get_cmap('tab20')
+        self.conf_cmap = get_cmap('Spectral')
+        colors = []
+        for i in range(100):
+            colors.append(tuple(self.conf_cmap(1 - i/100)[:-1]))
+        self.conf_cmap = ListedColormap(colors)
+
+
+        self.setMouseTracking(True)
+        self.initUI()
+        self.initBgImage()
+        self.getNewImage(0)
+        self.setLayout(self.master_layout)
+        self.show()
+
+        
+
+    def initDataset(self):
+        self.dataset_info = self.label_data[0]
+        self.split_info = self.split_info_save[:,:5] 
+        #[self.split_info_save[:,6] == self.tiff_selector]
+        self.class_enum = self.dataset_info['class_enumeration']
+        self.win_size = self.dataset_info['winsize_pix']
+        self.lookup_tree = KDTree(self.split_info[:,0:2])
+
+        # Load classification results if specified
+        if self.checkpoint != None:
+            self.pred_label_path = self.checkpoint
+            #CST 20240313
+            print("label path", self.pred_label_path)
+            pred_data = np.load(self.pred_label_path, allow_pickle=True)
+            self.pred_labels_save = pred_data[1]
+            self.predictions = True
+        else:
+            self.predictions = False
+
+        if self.checkpoint != None:
+            self.pred_labels = self.pred_labels_save#[self.pred_labels_save[:,6] == self.tiff_selector]
+
+        
+
+        # Load Contour file if specified
+        """if self.cfg['contour_path'] != 'None':
+            self.has_contour = True
+            self.contour_np = np.load(self.cfg['contour_path'])
+        else:
+            self.has_contour = False
+            self.contour_np = get_geotiff_bounds(self.plot, self.utm_epsg_code)
+        self.contour_polygon = Polygon(self.contour_np)"""
+        if self.tiff_selector == 0:
+            self.plot = Image.open(self.dataset_info['filename'][0]) #for multiple images have [self.tiff_selector] inside ()
+            self.contour_polygon = "None"
+            self.has_contour = False
+            self.tiff_image_matrix = np.array(self.plot)
+            self.tiff_image_max = get_img_sigma(self.tiff_image_matrix[::10,::10])
+
+            self.plot2 = Image.open(self.dataset_info['filename'][1])
+            self.tiff_image_matrix2 = np.array(self.plot2)
+            self.tiff_image_max2 = get_img_sigma(self.tiff_image_matrix2[::10,::10])
+
+            self.plot3 = Image.open(self.dataset_info['filename'][2])
+            self.tiff_image_matrix3 = np.array(self.plot3)
+            self.tiff_image_max3 = get_img_sigma(self.tiff_image_matrix3[::10,::10])
+        elif self.tiff_selector == 1:
+            self.plot = Image.open(self.dataset_info['filename'][3]) #for multiple images have [self.tiff_selector] inside ()
+            self.contour_polygon = "None"
+            self.has_contour = False
+            self.tiff_image_matrix = np.array(self.plot)
+            self.tiff_image_max = get_img_sigma(self.tiff_image_matrix[::10,::10])
+
+            self.plot2 = Image.open(self.dataset_info['filename'][4])
+            self.tiff_image_matrix2 = np.array(self.plot2)
+            self.tiff_image_max2 = get_img_sigma(self.tiff_image_matrix2[::10,::10])
+
+            self.plot3 = Image.open(self.dataset_info['filename'][5])
+            self.tiff_image_matrix3 = np.array(self.plot3)
+            self.tiff_image_max3 = get_img_sigma(self.tiff_image_matrix3[::10,::10])
+
+    def clearLayout(self, layout):
+        if layout is not None:
+            while layout.count():
+                child = layout.takeAt(0)
+                if child.widget() is not None:
+                    child.widget().deleteLater()
+                elif child.layout() is not None:
+                    self.clearLayout(child.layout())
+
+    def initUI(self):
+
+        self.master_layout = QHBoxLayout()
+        self.left_layout = QVBoxLayout()
+        self.visualization_widgets = QVBoxLayout()
+        self.conf_slider_container = QHBoxLayout()
+        self.visualization_interactive = QHBoxLayout()
+        self.visualization_toggles = QVBoxLayout()
+        self.visualization_save_buttons = QVBoxLayout()
+        self.split_text = QHBoxLayout()
+        self.class_buttons = QVBoxLayout()
+
+        # --- Initialize UI elements ---
+        # Current split Image container
+        self.split_image_pixmap = QPixmap()
+        self.split_image_label = SquareLabel(self)
+        self.split_image_label.setMargin(0)
+        self.split_image_label.setAlignment(Qt.AlignCenter)
+
+        self.split_image_label2 = SquareLabel(self)
+        self.split_image_label2.setMargin(0)
+        self.split_image_label2.setAlignment(Qt.AlignCenter)
+        self.split_image_label3 = SquareLabel(self)
+        self.split_image_label3.setMargin(0)
+        self.split_image_label3.setAlignment(Qt.AlignCenter)
+
+        self.split_preview_row = QHBoxLayout()
+        self.split_preview_row.setSpacing(2)     # reduce space between previews
+        self.split_preview_row.setContentsMargins(0, 0, 0, 0)  # remove outer margin
+        for labels in [self.split_image_label, self.split_image_label2, self.split_image_label3]:
+            labels.setMinimumSize(120, 120)
+            labels.setMaximumSize(9999, 9999)  # or a sane upper bound
+            labels.setAlignment(Qt.AlignCenter)
+            labels.setStyleSheet("border: 1px solid black;")
+            labels.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+
+        self.split_preview_row.addWidget(self.split_image_label2)
+        self.split_preview_row.addWidget(self.split_image_label)
+        self.split_preview_row.addWidget(self.split_image_label3)
+
+        # Background Image container
+        self.tiff_image_pixmap = QPixmap()
+        self.tiff_image_pixmap2 = QPixmap()
+        self.tiff_image_pixmap3 = QPixmap()
+
+        self.tiff_image_label = QLabel(self)
+        self.tiff_image_label.setMargin(0)
+        self.tiff_image_label.setMouseTracking(True)
+
+        self.tiff_image_label2 = QLabel(self)
+        self.tiff_image_label2.setMargin(0)
+        self.tiff_image_label2.setMouseTracking(True)
+
+        self.tiff_image_label3 = QLabel(self)
+        self.tiff_image_label3.setMargin(0)
+        self.tiff_image_label3.setMouseTracking(True)
+
+        #self.tiff_image_label.mousePressEvent = self.getImageClickHandler(0)
+        #self.tiff_image_label2.mousePressEvent = self.getImageClickHandler(1)
+        #self.tiff_image_label3.mousePressEvent = self.getImageClickHandler(2)
+
+
+        # Current class label container
+        self.split_image_class = QLabel(self)
+        self.split_image_class.setMargin(0)
+        self.split_image_class.setAlignment(Qt.AlignCenter)
+        #CST20240308
+        font = QFont("Helvetica", 15)
+        self.split_image_class.setFont(QFont("Helvetica", 15, QFont.Bold))
+
+        # Current class confidence container
+        self.split_image_conf = QLabel(self)
+        self.split_image_conf.setMargin(0)
+        self.split_image_conf.setAlignment(Qt.AlignCenter)
+        #CST20240308
+        self.split_image_conf.setFont(QFont("Helvetica", 15, QFont.Bold))
+
+        # Buttons
+        self.button_containers = []
+
+        self.predictions_button = QCheckBox('Visualize Predictions', self)
+        self.predictions_button.stateChanged.connect(self.predictionsCallback)
+
+        self.heatmap_button = QCheckBox('Visualize Confidence Heatmap', self)
+        self.heatmap_button.stateChanged.connect(self.heatmapCallback)
+
+        self.labels_button = QCheckBox('Visualize Labels', self)
+        self.labels_button.stateChanged.connect(self.labelsCallback)
+
+        self.visualization_buttons = QButtonGroup(self)
+        self.visualization_buttons.addButton(self.predictions_button,1)
+        self.visualization_buttons.addButton(self.heatmap_button,2)
+        self.visualization_buttons.addButton(self.labels_button,3)
+        self.visualization_buttons.setExclusive(False)
+        self.visualization_buttons.buttonClicked.connect(self.visualizationCallback)
+
+        self.new_class_field = QLineEdit()
+        self.new_class_field.textChanged.connect(self.textChangedCallback)
+        self.new_class_field.returnPressed.connect(self.newClass)
+        self.new_class_label = ''
+
+        self.new_class_button = QPushButton('New Class')
+        self.new_class_button.clicked.connect(self.newClassCallback)
+
+        self.save_predictions_button = QPushButton('Save Predictions Image')
+        self.save_predictions_button.clicked.connect(self.savePredictionsCallback)
+
+        self.save_heatmap_button = QPushButton('Save Heatmap Image')
+        self.save_heatmap_button.clicked.connect(self.saveHeatmapCallback)
+
+        if self.has_contour == False:
+            self.save_contour_button = QPushButton('Save Contour File')
+            self.save_contour_button.clicked.connect(self.saveContourCallback)
+
+        # Slider
+        self.conf_thresh_value = QLabel(self)
+        self.conf_thresh_value.setMargin(0)
+        self.conf_thresh_value.setAlignment(Qt.AlignCenter)
+        self.conf_thresh_value.setFont(QFont("Helvetica", 13, QFont.Bold))
+
+        self.conf_thresh_slider = QSlider(Qt.Horizontal)
+        self.conf_thresh_slider.setFocusPolicy(Qt.StrongFocus)
+        self.conf_thresh_slider.setTickPosition(QSlider.TicksBothSides)
+        self.conf_thresh_slider.setTickInterval(10)
+        self.conf_thresh_slider.setSingleStep(1)
+        self.conf_thresh_slider.setMinimum(0)
+        self.conf_thresh_slider.setMaximum(99)
+        self.conf_thresh_slider.setValue(0)
+        low = np.floor(np.array(self.conf_cmap.colors[0])*255)
+        mid = np.floor(np.array(self.conf_cmap.colors[50])*255)
+        high = np.floor(np.array(self.conf_cmap.colors[99])*255)
+        self.conf_thresh_slider.setStyleSheet('background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 rgba({},{},{},200), stop:0.5 rgba({},{},{},200), stop:1 rgba({},{},{},200)); \
+                                               border-radius: 4px'.format(low[0],low[1],low[2],mid[0],mid[1],mid[2],high[0],high[1],high[2]))
+        self.conf_thresh_slider.valueChanged.connect(self.slider_callback)
+
+        self.initClassButtons()
+
+        self.split_text.addSpacing(200)
+        self.split_text.addWidget(self.split_image_class)
+        self.split_text.addWidget(self.split_image_conf)
+        self.split_text.addSpacing(200)
+
+        image_container = QWidget()
+        image_container.setLayout(self.split_preview_row)
+
+        #self.visualization_widgets.addWidget(self.split_image_label)
+        self.visualization_widgets.addWidget(image_container)
+        self.visualization_widgets.addLayout(self.split_text)
+
+        self.conf_slider_container.addWidget(self.conf_thresh_slider)
+        self.conf_slider_container.addWidget(self.conf_thresh_value)
+        self.visualization_widgets.addLayout(self.conf_slider_container)
+
+        self.visualization_toggles.addWidget(self.predictions_button)
+        self.visualization_toggles.addWidget(self.heatmap_button)
+        self.visualization_toggles.addWidget(self.labels_button)
+
+        self.visualization_save_buttons.addWidget(self.save_predictions_button)
+        self.visualization_save_buttons.addWidget(self.save_heatmap_button)
+        if self.has_contour == False:
+            self.visualization_save_buttons.addWidget(self.save_contour_button)
+
+        self.visualization_interactive.addLayout(self.visualization_toggles)
+        self.visualization_interactive.addLayout(self.visualization_save_buttons)
+
+        self.visualization_widgets.addLayout(self.visualization_interactive)
+
+        self.new_class_layout = QHBoxLayout()
+        self.new_class_layout.addSpacing(200)
+        self.new_class_layout.addWidget(self.new_class_field)
+        self.new_class_layout.addSpacing(200)
+        self.visualization_widgets.addLayout(self.new_class_layout)
+
+        self.tiff_selector_buttons = QHBoxLayout()
+
+
+        tab_button = QPushButton('TAB', self)
+        tab_button.clicked.connect(self.makeTiffSelectorCallbacks(0))
+        self.tiff_selector_buttons.addWidget(tab_button)
+
+        asr_button = QPushButton('ASR', self)
+        asr_button.clicked.connect(self.makeTiffSelectorCallbacks(1))
+        self.tiff_selector_buttons.addWidget(asr_button)
+
+        self.left_layout.addLayout(self.tiff_selector_buttons)
+        self.left_layout.addLayout(self.visualization_widgets)
+        self.left_layout.addLayout(self.class_buttons)
+
+        #self.master_layout.addLayout(self.left_layout)
+
+        image_layout = QVBoxLayout()
+
+
+        # Set size policy so labels expand vertically
+        self.tiff_image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.tiff_image_label2.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.tiff_image_label3.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        # Add image labels
+        image_layout.addWidget(self.tiff_image_label2)
+        image_layout.addWidget(self.tiff_image_label)
+        image_layout.addWidget(self.tiff_image_label3)
+
+        # Container for right-side images
+        image_container = QWidget()
+        image_container.setLayout(image_layout)
+        image_container.setMinimumWidth(int(self.width / 2))  # reserve space
+
+        # Final master layout (left: controls, right: images)
+        self.master_layout.addLayout(self.left_layout)
+        self.master_layout.addWidget(image_container)
+
+
+        #self.master_layout.addWidget(self.tiff_image_label)
+
+
+
+    def addClassButton(self, i, className, container):
+        buttonContainer = QHBoxLayout()
+
+        labelButton = QPushButton('{}: {}'.format(i, className), self)
+
+        r,g,b,a = np.array(self.label_cmap(i))*255
+        labelButton.setStyleSheet("background-color:rgb({},{},{});".format(r,g,b));
+        #labelButton.setAlignment(Qt.AlignLeft)
+        labelButton.clicked.connect(self.makeClassLabelCallbacks(i))
+
+        labelToggle = QCheckBox(self)
+        labelToggle.toggle()
+        labelToggle.stateChanged.connect(self.makeClassToggleCallbacks(i))
+
+        buttonContainer.addSpacing(20)
+        buttonContainer.addWidget(labelToggle)
+        buttonContainer.addWidget(labelButton)
+        buttonContainer.addSpacing(20)
+        container.addLayout(buttonContainer)
+        
+
+    def initClassButtons(self):
+
+        numColumns = math.ceil(len(self.class_enum) / 12)
+
+        self.class_buttons_columns_list = []
+        for i in range(numColumns):
+            self.class_buttons_columns_list.append(QVBoxLayout())
+
+        for i, className in enumerate(self.class_enum):
+            col = math.floor(i / 12)
+            row = i % 12
+            self.addClassButton(i, className, self.class_buttons_columns_list[col])
+
+        self.class_buttons_columns = QHBoxLayout()
+        for column in self.class_buttons_columns_list:
+            self.class_buttons_columns.addLayout(column)
+
+        self.class_buttons.addLayout(self.class_buttons_columns)
+    
+    def initBgImage(self):
+ 
+        scale_factor = int(self.tiff_image_matrix.shape[0] / 75)
+        
+
+        bg_img_scaled = self.tiff_image_matrix[::scale_factor,::scale_factor]
+        bg_img_scaled = scaleImage(bg_img_scaled, self.tiff_image_max)
+        
+        split_disp_size = (np.array(self.win_size) / scale_factor).astype('int') - 1
+        bg_img_scaled = cv2.cvtColor(bg_img_scaled,cv2.COLOR_RGBA2RGB)
+        # Draw split images on scaled down preview image
+        if self.visualize_labels:
+            draw = self.split_info[self.split_info[:,3] > self.conf_thresh]
+            draw = np.delete(draw, 4, axis=1)
+            cmap = (np.array(self.label_cmap.colors)*255).astype(np.uint8)
+            bg_img_scaled = np.asarray(bg_img_scaled, dtype=np.uint8)  # Ensure it's uint8 (for image data)
+            scale_factor = np.asarray(scale_factor, dtype=np.float32)  # Ensure it's float32
+            split_disp_size_scaled = (np.array(self.win_size) / scale_factor).astype(int)
+            split_disp_size = np.asarray(split_disp_size, dtype=np.int32)  # Ensure it's int32
+            draw = np.asarray(draw, dtype=np.float32)  # Ensure it's int32 (assumed type)
+            self.selected_classes = np.asarray(self.selected_classes, dtype=np.float32)  # Ensure it's int32
+            cmap = np.asarray(cmap, dtype=np.uint8)
+
+            draw_split_image_labels_calipso(bg_img_scaled, scale_factor, split_disp_size_scaled, draw, self.selected_classes, cmap)
+
+        elif self.visualize_predictions and self.predictions:
+            draw = self.pred_labels[self.pred_labels[:,3] > self.conf_thresh]
+            cmap = (np.array(self.label_cmap.colors)*255).astype(np.uint8)
+            draw = np.delete(draw, 4, axis=1)
+            bg_img_scaled = np.asarray(bg_img_scaled, dtype=np.uint8)  # Ensure it's uint8 (for image data)
+            scale_factor = np.asarray(scale_factor, dtype=np.float32)  # Ensure it's float32
+            split_disp_size = np.asarray(split_disp_size, dtype=np.int32)  # Ensure it's int32
+            split_disp_size_scaled = (np.array(self.win_size) / scale_factor).astype(int)
+            draw = np.asarray(draw, dtype=np.float32)  # Ensure it's int32 (assumed type)
+            self.selected_classes = np.asarray(self.selected_classes, dtype=np.float32)  # Ensure it's int32
+            cmap = np.asarray(cmap, dtype=np.uint8)
+            draw_split_image_labels_calipso(bg_img_scaled, scale_factor, split_disp_size_scaled, draw, self.selected_classes, cmap)
+
+        elif self.visualize_heatmap and self.predictions:
+            draw = self.pred_labels[self.pred_labels[:,3] > self.conf_thresh]
+            cmap = (np.array(self.conf_cmap.colors)*255).astype(np.uint8)
+            draw = np.delete(draw, 4, axis=1)
+            bg_img_scaled = np.asarray(bg_img_scaled, dtype=np.uint8)  # Ensure it's uint8 (for image data)
+            scale_factor = np.asarray(scale_factor, dtype=np.float32)  # Ensure it's float32
+            split_disp_size_scaled = (np.array(self.win_size) / scale_factor).astype(int)
+            split_disp_size = np.asarray(split_disp_size, dtype=np.int32)  # Ensure it's int32
+            draw = np.asarray(draw, dtype=np.float32)  # Ensure it's int32 (assumed type)
+            self.selected_classes = np.asarray(self.selected_classes, dtype=np.float32)  # Ensure it's int32
+            cmap = np.asarray(cmap, dtype=np.uint8)
+            draw_split_image_confs_calipso(bg_img_scaled, scale_factor, split_disp_size_scaled, draw, self.selected_classes, cmap)
+
+    
+        self.bg_img_cv = np.array(bg_img_scaled)
+        self.bg_img_cv = cv2.cvtColor(self.bg_img_cv, cv2.COLOR_RGBA2RGB)
+
+        # Convert the updated bg_img_cv to QImage again
+        self.bg_qimg = QImage(self.bg_img_cv.data, self.bg_img_cv.shape[1], self.bg_img_cv.shape[0], 
+                            self.bg_img_cv.shape[1]*3, QImage.Format_RGB888)
+
+        # Update the QPixmap
+        self.tiff_image_pixmap = QPixmap(self.bg_qimg)
+
+        # Scale the image to fit the widget size
+        self.tiff_image_pixmap = self.tiff_image_pixmap.scaled(
+            int(self.width / 2) - 10, int(self.height - 50), Qt.KeepAspectRatio)
+        bg_img_cv_size = np.array(self.bg_img_cv.shape[:-1])
+        bg_img_q_size = np.array((self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
+            #CST 20240312
+        self.scale_factor = bg_img_cv_size / bg_img_q_size
+        # Set the updated QPixmap to the label
+        self.tiff_image_label.setPixmap(QPixmap(self.tiff_image_pixmap))
+
+
+        #image 2
+        scale_factor = int(self.tiff_image_matrix.shape[0] / 75)
+        bg_img_scaled2 = self.tiff_image_matrix2[::scale_factor,::scale_factor]
+        bg_img_scaled2 = scaleImage(bg_img_scaled2, self.tiff_image_max2)
+        
+        bg_img_scaled2 = cv2.cvtColor(bg_img_scaled2,cv2.COLOR_RGBA2RGB)
+        self.bg_img_cv2 = np.array(bg_img_scaled2)
+        self.bg_img_cv2 = cv2.cvtColor(self.bg_img_cv2, cv2.COLOR_RGBA2RGB)
+
+        # Convert the updated bg_img_cv to QImage again
+        self.bg_qimg2 = QImage(self.bg_img_cv2.data, self.bg_img_cv2.shape[1], self.bg_img_cv2.shape[0], 
+                            self.bg_img_cv2.shape[1]*3, QImage.Format_RGB888)
+
+        # Update the QPixmap
+        self.tiff_image_pixmap2 = QPixmap(self.bg_qimg2)
+
+        # Scale the image to fit the widget size
+        self.tiff_image_pixmap2 = self.tiff_image_pixmap2.scaled(
+            int(self.width / 2) - 10, int(self.height - 50), Qt.KeepAspectRatio)
+        bg_img_cv_size2 = np.array(self.bg_img_cv2.shape[:-1])
+        bg_img_q_size2 = np.array((self.tiff_image_pixmap2.size().height(), self.tiff_image_pixmap2.size().width()))
+            #CST 20240312
+        self.scale_factor2 = bg_img_cv_size2 / bg_img_q_size2
+        # Set the updated QPixmap to the label
+        self.tiff_image_label2.setPixmap(QPixmap(self.tiff_image_pixmap2))
+
+
+        #image 3
+        bg_img_scaled3 = self.tiff_image_matrix3[::scale_factor,::scale_factor]
+        bg_img_scaled3 = scaleImage(bg_img_scaled3, self.tiff_image_max3)
+        
+        bg_img_scaled3 = cv2.cvtColor(bg_img_scaled3,cv2.COLOR_RGBA2RGB)
+        self.bg_img_cv3 = np.array(bg_img_scaled3)
+        self.bg_img_cv3 = cv2.cvtColor(self.bg_img_cv3, cv2.COLOR_RGBA2RGB)
+
+        # Convert the updated bg_img_cv to QImage again
+        self.bg_qimg3 = QImage(self.bg_img_cv3.data, self.bg_img_cv3.shape[1], self.bg_img_cv3.shape[0], 
+                            self.bg_img_cv3.shape[1]*3, QImage.Format_RGB888)
+
+        # Update the QPixmap
+        self.tiff_image_pixmap3 = QPixmap(self.bg_qimg3)
+
+        # Scale the image to fit the widget size
+        self.tiff_image_pixmap3 = self.tiff_image_pixmap3.scaled(
+            int(self.width / 2) - 10, int(self.height - 50), Qt.KeepAspectRatio)
+        bg_img_cv_size3 = np.array(self.bg_img_cv3.shape[:-1])
+        bg_img_q_size3 = np.array((self.tiff_image_pixmap3.size().height(), self.tiff_image_pixmap3.size().width()))
+            #CST 20240312
+        self.scale_factor3 = bg_img_cv_size3 / bg_img_q_size3
+        # Set the updated QPixmap to the label
+        self.tiff_image_label3.setPixmap(QPixmap(self.tiff_image_pixmap3))
+
+    def updateBgImage(self):
+        return
+
+    def getNewImage(self, index):
+        self.image_index = index
+
+        # Retrieve split image details
+        x, y, label, conf, _ = self.split_info[index]
+        x, y = int(x), int(y)
+
+        # Ensure x and y do not exceed bounds
+        if x + self.win_size[0] > self.tiff_image_matrix.shape[1]:
+            print(f"Warning: x={x} is too large!")
+        if y + self.win_size[1] > self.tiff_image_matrix.shape[0]:
+            print(f"Warning: y={y} is too large!")
+
+        for matrix, labels in [
+            (self.tiff_image_matrix, self.split_image_label),
+            (self.tiff_image_matrix2, self.split_image_label2),
+            (self.tiff_image_matrix3, self.split_image_label3)
+        ]:
+            img = matrix[y:y + self.win_size[1], x:x + self.win_size[0]]
+            if img.shape[2] == 4:
+                img = img[:, :, :3]
+            img = img.astype(np.uint8)
+            qimg = QImage(img.tobytes(), img.shape[1], img.shape[0], img.shape[1] * 3, QImage.Format_RGB888)
+            pixmap = QPixmap.fromImage(qimg).scaled(120, 120, Qt.KeepAspectRatio)
+            labels.setPixmap(pixmap)
+            labels.setScaledContents(True)
+            self.updateCrosshairs(x, y)
+        """
+        # Extract split image
+        img = self.tiff_image_matrix[y:y + self.win_size[1], x:x + self.win_size[0]]
+
+        if img.shape[2] == 4:  # Handle RGBA images
+            img = img[:, :, :3]
+
+        img = img.astype(np.uint8)  # Ensure correct data type
+
+        # Convert to QPixmap for display
+        qimg = QImage(img.tobytes(), img.shape[1], img.shape[0], img.shape[1] * 3, QImage.Format_RGB888)
+        self.split_image_pixmap = QPixmap.fromImage(qimg).scaledToWidth(270)
+        self.split_image_label.setPixmap(self.split_image_pixmap)
+
+        # Update background image with crosshairs
+        self.updateCrosshairs(x, y)
+        """
+
+
+        # Update label text
+        class_text = ''
+        if self.predictions:
+            label = int(self.pred_labels[index,2])
+            conf = self.pred_labels[index,3]
+            class_text = "Class %d: %s"%(label, self.class_enum[label])
+            class_conf = "Conf: {:.2%}".format(conf)
+        elif label == -1:
+            class_text = "No class assigned yet"
+            class_conf = ''
+        else:
+            class_text = "Class %d: %s"%(label, self.class_enum[label])
+            class_conf = "Conf: {:.2%}".format(conf)
+
+        self.split_image_class.setText(class_text)
+        self.split_image_conf.setText(class_conf)
+
+       
+    def updateCrosshairs(self, x, y):
+        # Copy background image
+        bg_img = self.bg_img_cv.copy()
+        height, width, _ = bg_img.shape
+
+        # Compute scale factors
+        x_scaled = int(x * (self.bg_img_cv.shape[1] / self.tiff_image_matrix.shape[1]))
+        y_scaled = int(y * (self.bg_img_cv.shape[0] / self.tiff_image_matrix.shape[0]))
+
+        # Debug output
+        #print(f"Crosshair at: X={x_scaled}, Y={y_scaled}, Image Size: {width, height}")
+
+        # Draw crosshairs
+        cv2.circle(bg_img, (x_scaled, y_scaled), 4, (255, 0, 0), thickness=-1)
+        cv2.line(bg_img, (x_scaled, 0), (x_scaled, height), (255, 0, 0), thickness=2)
+        cv2.line(bg_img, (0, y_scaled), (width, y_scaled), (255, 0, 0), thickness=2)
+
+        # Convert updated image to QPixmap
+        qimg = QImage(bg_img.data, width, height, width * 3, QImage.Format_RGB888)
+        background_image = QPixmap.fromImage(qimg)
+        background_image = background_image.scaledToWidth(int(self.width / 2) - 10)
+
+        self.tiff_image_label.setPixmap(background_image)
+        
+        #image2
+        bg_img2 = self.bg_img_cv2.copy()
+        # Draw crosshairs
+        cv2.circle(bg_img2, (x_scaled, y_scaled), 4, (255, 0, 0), thickness=-1)
+        cv2.line(bg_img2, (x_scaled, 0), (x_scaled, height), (255, 0, 0), thickness=2)
+        cv2.line(bg_img2, (0, y_scaled), (width, y_scaled), (255, 0, 0), thickness=2)
+
+        # Convert updated image to QPixmap
+        qimg2 = QImage(bg_img2.data, width, height, width * 3, QImage.Format_RGB888)
+        background_image2 = QPixmap.fromImage(qimg2)
+        background_image2 = background_image2.scaledToWidth(int(self.width / 2) - 10)
+
+        self.tiff_image_label2.setPixmap(background_image2)
+
+        #image3
+        bg_img3 = self.bg_img_cv3.copy()
+        # Draw crosshairs
+        cv2.circle(bg_img3, (x_scaled, y_scaled), 4, (255, 0, 0), thickness=-1)
+        cv2.line(bg_img3, (x_scaled, 0), (x_scaled, height), (255, 0, 0), thickness=2)
+        cv2.line(bg_img3, (0, y_scaled), (width, y_scaled), (255, 0, 0), thickness=2)
+
+        # Convert updated image to QPixmap
+        qimg3 = QImage(bg_img3.data, width, height, width * 3, QImage.Format_RGB888)
+        background_image3 = QPixmap.fromImage(qimg3)
+        background_image3 = background_image3.scaledToWidth(int(self.width / 2) - 10)
+
+        self.tiff_image_label3.setPixmap(background_image3)
+        
+    #CST20240313 (creating a function to write images into a folder)
+    def writeImage(self,filePath, fileName, index):
+        p = os.path.join(filePath, fileName)
+        fp = p + '.tif'
+        self.image_index = index
+         # Grab info of split image at index
+        x,y,label,conf, _ = self.split_info[index]
+        x,y,label = int(x),int(y),int(label)
+         # Get split image from image matrix
+        img = self.tiff_image_matrix[x:x+self.win_size[0],y:y+self.win_size[1]]
+        img = scaleImage(img, self.tiff_image_max)
+        image = QImage(img.data, img.shape[1], img.shape[0], img.shape[1]*3, QImage.Format_RGB888)
+        image.save(fp,"png")
+        
+
+ #CST20240403 Checks all directories for the image, and deletes it if it finds the image.
+    def deleteImage(self,filePath,fileName):
+        numClasses = cfg['num_classes']
+        for i in range(numClasses):
+            file_path = (filePath+str(i)+'/'+str(i)+fileName+'.png')
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+                
+    
+    def label(self, mask, class_label):
+        self.split_info[mask,2] = class_label
+        self.split_info[mask,3] = 1
+        self.getNewImage(self.image_index)
+        self.update()
+
+    def labelCurrent(self, class_label):
+        self.split_info[self.image_index][2] = class_label
+        self.split_info[self.image_index][3] = 1
+                #Load training img path
+        if self.cfg['training_img_path'] != 'None':
+            labeled_img_path = cfg['training_img_path']
+            if not os.path.exists(labeled_img_path+"/"): os.mkdir(labeled_img_path+"/")
+            if not os.path.exists(labeled_img_path+"/"+str(class_label)): os.mkdir(labeled_img_path+"/"+str(class_label))
+            self.deleteImage(labeled_img_path+"/", str(self.image_index)+str(numTiff))
+            self.writeImage(labeled_img_path+"/"+str(class_label), str(class_label)+str(self.image_index)+str(numTiff), self.image_index)
+            self.getNewImage(self.image_index)
+        else:
+            if not os.path.exists("Classifications/"): os.mkdir("Classifications/")
+            if not os.path.exists("Classifications/"+str(class_label)): os.mkdir("Classifications/"+str(class_label))
+            self.deleteImage("Classifications/", str(self.image_index)+str(numTiff))
+            self.writeImage("Classifications/"+str(class_label), str(class_label)+str(self.image_index)+str(numTiff), self.image_index)
+            cfg['training_img_path'] = 'Classifications'
+        self.update()
+
+    def batchSelectLabel(self, class_label):
+        height,width,_ = self.bg_img_cv.shape
+        imgSize = np.array([width,height])
+        #pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array(self.batch_select_polygon))
+        batch_select = Polygon(self.batch_select_polygon)
+        #print(batch_select)
+        for i,img in enumerate(self.split_info):
+            if Point(img[0],img[1]).within(batch_select):
+                self.split_info[i][2] = class_label
+                self.split_info[i][3] = 1
+                if self.cfg['training_img_path'] != 'None':
+                    labeled_img_path = self.cfg['training_img_path']
+                    if not os.path.exists(labeled_img_path+"/"): os.mkdir(labeled_img_path+"/")
+                    if not os.path.exists(labeled_img_path+"/"+str(class_label)): os.mkdir(labeled_img_path+"/"+str(class_label))
+                    self.deleteImage(labeled_img_path+"/", str(i)+str(numTiff))
+                    self.writeImage(labeled_img_path+"/"+str(class_label), str(class_label)+str(i)+str(numTiff), i)
+                else:
+                    if not os.path.exists("Classifications/"): os.mkdir("Classifications/")
+                    if not os.path.exists("Classifications/"+str(class_label)): os.mkdir("Classifications/"+str(class_label))
+                    self.deleteImage("Classifications/", str(i)+str(numTiff))
+                    self.writeImage("Classifications/"+str(class_label), str(class_label)+str(i)+str(numTiff), i)
+                    cfg['training_img_path'] = 'Classifications'
+        self.batch_select_polygon = []
+        self.getNewImage(self.image_index)
+        self.update()
+    """
+    def getImageClickHandler(self, image_index):
+        def handler(event):
+            pos = event.pos()
+            label = [self.tiff_image_label, self.tiff_image_label2, self.tiff_image_label3][image_index]
+            pixmap = [self.tiff_image_pixmap, self.tiff_image_pixmap2, self.tiff_image_pixmap3][image_index]
+            original_img = [self.tiff_image_matrix, self.tiff_image_matrix2, self.tiff_image_matrix3][image_index]
+
+            pixmap_width = pixmap.width()
+            pixmap_height = pixmap.height()
+            label_width = label.width()
+            label_height = label.height()
+
+            # Margins for centering
+            margin_x = (label_width - pixmap_width) / 2
+            margin_y = (label_height - pixmap_height) / 2
+
+            # Adjust position
+            click_x = pos.x() - margin_x
+            click_y = pos.y() - margin_y
+
+            # Check bounds
+            if click_x < 0 or click_x >= pixmap_width or click_y < 0 or click_y >= pixmap_height:
+                print(f"Click outside bounds: ({click_x}, {click_y})")
+                return
+
+            # Scale back to original image
+            scale_x = original_img.shape[1] / pixmap_width
+            scale_y = original_img.shape[0] / pixmap_height
+
+            orig_x = click_x * scale_x
+            orig_y = click_y * scale_y
+
+            print(f"Image {image_index} clicked at original position: ({orig_x:.2f}, {orig_y:.2f})")
+
+            # Use this position to find closest split, etc...
+            d, i = self.lookup_tree.query([orig_x, orig_y])
+            self.getNewImage(i)
+
+        return handler
+    """
+
+    def getMousePos(self, event):
+        # Get QLabel and pixmap sizes
+        label_width, label_height = self.tiff_image_label.width(), self.tiff_image_label.height()
+        pixmap_width, pixmap_height = self.tiff_image_pixmap.width(), self.tiff_image_pixmap.height()
+
+        # Compute margins (horizontal and vertical) for centering
+        margin_x = (label_width - pixmap_width) / 2
+        margin_y = (label_height - pixmap_height) / 2
+
+        # Get mouse click position relative to QLabel
+        click_pos = event.pos()
+        #click_pos_scaled = self.tiff_image_label.mapFromParent(click_pos)
+        click_pos_scaled = self.tiff_image_label.mapFrom(self, click_pos)
+
+        # Adjust for margins to get exact image location
+        click_pos_corrected = np.array([
+            click_pos_scaled.x() - margin_x,
+            click_pos_scaled.y() - margin_y
+        ])
+
+        # Ensure click is within valid image bounds
+        if click_pos_corrected[0] < 0 or click_pos_corrected[0] > pixmap_width:
+            print(f"Warning: Click outside X bounds: {click_pos_corrected[0]}")
+            return None
+        if click_pos_corrected[1] < 0 or click_pos_corrected[1] > pixmap_height:
+            print(f"Warning: Click outside Y bounds: {click_pos_corrected[1]}")
+            return None
+
+        # Compute scale factors based on displayed pixmap
+        scale_x = self.tiff_image_matrix.shape[1] / pixmap_width
+        scale_y = self.tiff_image_matrix.shape[0] / pixmap_height
+
+        # Transform click position to original image space
+        original_x = click_pos_corrected[0] * scale_x
+        original_y = click_pos_corrected[1] * scale_y  # No flipping needed
+
+        # Debug output
+        #print(f"Click Pos (corrected): {click_pos_corrected}, Pixmap Size: {pixmap_width, pixmap_height}")
+        #print(f"Scale Factors: X={scale_x}, Y={scale_y}")
+        #print(f"Computed Image Pos: X={original_x}, Y={original_y}, Expected Image Size: {self.tiff_image_matrix.shape}")
+
+        return np.array([original_x, original_y])
+
+
+    def mousePressEvent(self, event):
+        button = event.button()
+        
+        # Get the transformed mouse position
+        click_pos_scaled = self.getMousePos(event)
+        if click_pos_scaled is None:
+            return  # Ignore clicks outside the valid image area
+
+        # Left Click: Move crosshairs
+        if button == Qt.LeftButton:
+            if self.contour_polygon != 'None' and Point(click_pos_scaled[0], click_pos_scaled[1]).within(self.contour_polygon):
+                d, i = self.lookup_tree.query(click_pos_scaled)
+                self.getNewImage(i)
+            else:
+                d, i = self.lookup_tree.query(click_pos_scaled)
+                self.getNewImage(i)
+
+        # Right Click: Draw selection polygon
+        elif button == Qt.RightButton:
+            self.batch_select_polygon.append(click_pos_scaled)
+
+            
+
+    def mouseMoveEvent(self, event):
+
+        if self.batch_select_polygon != []:
+
+            click_pos = self.getMousePos(event)
+
+            bg_img = self.bg_img_cv.copy()
+            height,width,_ = self.bg_img_cv.shape
+            imgSize = np.array([width,height])
+            pix_coords = np.array(self.batch_select_polygon)
+            current_pos = np.array([[click_pos[0], click_pos[1]]])
+
+            for i in range(len(pix_coords)-1):
+                center = (int(pix_coords[i][0]), int(height - pix_coords[i][1]))
+                # Draw the circle at the specified coordinates
+                cv2.circle(bg_img, center, 4, (0, 0, 255), thickness=-1)
+                pt1 = (int(pix_coords[i][0]), int(height - pix_coords[i][1]))
+                pt2 = (int(pix_coords[i+1][0]), int(height - pix_coords[i+1][1]))
+                # Draw the line
+                cv2.line(bg_img, pt1, pt2, (0, 0, 255), thickness=2)
+                #cv2.line(bg_img, (pix_coords[i][0], height-pix_coords[i][1]), (pix_coords[i+1][0], height-pix_coords[i+1][1]), (0,0,255),thickness=2)
+
+            pt3 = (int(pix_coords[-1][0]), int(height - pix_coords[-1][1]))
+            pt4 = (int(current_pos[0][0]), int(height - current_pos[0][1]))
+
+            # Draw the line
+            cv2.line(bg_img, pt3, pt4, (255, 0, 0), thickness=2)
+
+            #cv2.line(bg_img, (pix_coords[-1][0], height-pix_coords[-1][1]), (current_pos[0][0], height-current_pos[0][1]), (255,0,0),thickness=2)
+            height,width,channels = bg_img.shape
+            #CST 202040312
+            bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
+            background_image = QPixmap(bg_img)
+            #background_image = background_image.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
+            background_image = background_image.scaledToWidth(int(self.width/2) - 10)
+            #bg_img_scaled = background_image
+            self.tiff_image_label.setPixmap(background_image)
+
+    def keyPressEvent(self, event):
+        index = self.image_index
+
+        if event.key() <= 57 and event.key() >= 48:
+            key_map = {48: 0,
+                       49: 1,
+                       50: 2,
+                       51: 3,
+                       52: 4,
+                       53: 5,
+                       54: 6,
+                       55: 7,
+                       56: 8,
+                       57: 9}
+            if key_map[event.key()] < len(self.class_enum):
+                if self.batch_select_polygon != []:
+                    self.batchSelectLabel(key_map[event.key()])
+                else:
+                    self.labelCurrent(key_map[event.key()])
+
+        elif event.key() == 65: #Left arrow key
+            if self.visualize_predictions or self.visualize_heatmap:
+                index -= 1
+                while self.pred_labels[index,3] < self.conf_thresh or not self.selected_classes[int(self.pred_labels[index,2])]:
+                    index -= 1
+            else:
+                index -= 1
+        elif event.key() == 68: #Right arrow key
+            if self.visualize_predictions or self.visualize_heatmap:
+                index += 1
+                if index >= len(self.pred_labels):
+                    index = 0
+                while self.pred_labels[index,3] < self.conf_thresh or not self.selected_classes[int(self.pred_labels[index,2])]:
+                    index += 1
+                    if index >= len(self.pred_labels):
+                        index = 0
+            else:
+                index += 1
+            if index >= len(self.pred_labels):
+                index = 0
+        elif event.key() == Qt.Key_Escape:  #Escape key (deselect batch polygon)
+            self.batch_select_polygon = []
+        elif event.key() == 76: #l key - add current split image to training dataset
+            modifiers = QApplication.keyboardModifiers()
+            if modifiers == Qt.ShiftModifier:
+                #images_to_label = self.pred_labels[self.pred_labels[:,5] > self.conf_thresh]
+                for i in range(len(self.selected_classes)):
+                    if self.selected_classes[i]:
+                        mask = (self.pred_labels[:,3] > self.conf_thresh) & (self.pred_labels[:,2] == i)
+                        self.label(mask, i)
+
+            else:
+                _class = self.pred_labels[self.image_index][2]
+                self.labelCurrent(_class)
+
+        self.getNewImage(index)
+        self.update()
+
+    def makeClassLabelCallbacks(self, classLabel):
+        def class_label_callback():
+            self.labelCurrent(classLabel)
+        return class_label_callback
+
+    def makeClassToggleCallbacks(self, classLabel):
+        def class_toggle_callback():
+            self.selected_classes[classLabel] = not self.selected_classes[classLabel]
+        return class_toggle_callback
+
+    def makeTiffSelectorCallbacks(self, tiff_num):
+        def tiff_selector_callback():
+            self.split_info_save = self.split_info #include [self.split_info_save[:,6] == self.tiff_selector] if using multiple plots
+            self.tiff_selector = tiff_num
+            self.initDataset()
+            self.initBgImage()
+            self.getNewImage(0)
+        return tiff_selector_callback
+    def getTiffnum(self, tiff):
+        def getNum():
+            global numTiff
+            numTiff = tiff
+            #print("GEOTIFF number", numTiff)
+        return getNum
+    @pyqtSlot()
+    def on_click(self):
+        self.update()
+
+    @pyqtSlot()
+    def new_class(self):
+        self.update()
+
+    def visualizationCallback(self, id):
+        self.initBgImage()
+
+    def resetVisualization(self):
+        self.visualize_labels = False
+        self.visualize_predictions = False
+        self.visualize_heatmap = False
+
+    def predictionsCallback(self, state):
+        if state == Qt.Checked:
+            self.heatmap_button.setChecked(False)
+            self.labels_button.setChecked(False)
+            self.visualize_predictions = True
+            self.visualize_heatmap = False
+            self.visualize_labels = False
+        else:
+            self.resetVisualization()
+
+    def heatmapCallback(self, state):
+        if state == Qt.Checked:
+            self.predictions_button.setChecked(False)
+            self.labels_button.setChecked(False)
+            self.visualize_predictions = False
+            self.visualize_heatmap = True
+            self.visualize_labels = False
+        else:
+            self.resetVisualization()
+
+    def labelsCallback(self, state):
+        if state == Qt.Checked:
+            self.heatmap_button.setChecked(False)
+            self.predictions_button.setChecked(False)
+            self.visualize_predictions = False
+            self.visualize_heatmap = False
+            self.visualize_labels = True
+        else:
+            self.resetVisualization()
+
+
+    def slider_callback(self):
+        value = self.conf_thresh_slider.value()
+        self.conf_thresh_value.setText('{}%'.format(value))
+        self.conf_thresh = value/100.0
+
+    def textChangedCallback(self, text):
+        self.new_class_label = text
+
+    def savePredictionsCallback(self):
+        if self.predictions:
+            self.predictionsCallback(Qt.Checked)
+            self.initBgImage()
+            out_path = self.pred_label_path[:-4] + '_prediction.png'
+            cv2.imwrite(out_path, cv2.cvtColor(self.bg_img_cv, cv2.COLOR_BGR2RGB))
+        #CST20240308
+        else:
+            out_path = self.pred_label_path[:-4] + '_prediction.png'
+            ("Prediction image saved to", out_path)
+
+
+    def saveHeatmapCallback(self):
+        if self.predictions:
+            self.heatmapCallback(Qt.Checked)
+            self.initBgImage()
+            out_path = self.pred_label_path[:-4] + '_confidence_heatmap.png'
+            cv2.imwrite(out_path, cv2.cvtColor(self.bg_img_cv, cv2.COLOR_BGR2RGB))
+            #CST20240308
+        else:
+            out_path = self.pred_label_path[:-4] + '_confidence_heatmap.png'
+            print("Heat map saved to", out_path)
+
+    #function that saves the confident predictions
+    def savePredictionsCallbackNPY(self):
+        savepred = cfg['save_all_pred']
+        saveMin = cfg['equal_dataset']
+    
+        #check if there are predictions loaded so that app doesn't crash
+        if self.checkpoint == None:
+            print('No predictions loaded')
+            return
+        #create the directory if it does not exist
+        dirName = 'ConfidentPredictions'
+        if not os.path.exists(dirName):
+            os.mkdir(dirName)
+        #create the filename
+        filename = f'ConfidentPredictions/confidence_predictions_{self.conf_thresh}.npy'
+
+        #get the dataset
+        dataset_path = cfg['npy_path']   
+        dataset = np.load(dataset_path, allow_pickle=True)
+        if saveMin == False:
+            if savepred == False:
+                # Save predicitions above the confidence threshold
+                self.confident_predictions = self.pred_labels[self.pred_labels[:,3] > self.conf_thresh]        
+
+                dataset[1] = self.confident_predictions #update the dataset with the new confident predictions
+                
+            else: #Should save all WV datasets, not just the one selected.
+                self.confident_predictions = self.pred_labels_save[self.pred_labels_save[:,3] > self.conf_thresh]
+                dataset[1] = self.confident_predictions
+            np.save(filename, dataset) #save the dataset as npy file
+            print('File saved to', filename)
+        else:
+            total = 0
+            numClasses = cfg['num_classes']
+            minSize =  100000
+            classSize = 0
+            classes = 0
+            predictions = []
+            if savepred == False:
+                
+                # Save predicitions above the confidence threshold
+                for i in range(numClasses):
+                    data = self.pred_labels[self.pred_labels[:,2] == i]
+                    self.confident_predictions = data[data[:,3] > self.conf_thresh]
+                    classSize = len(self.confident_predictions)
+                    if classSize < minSize: 
+                        minSize = classSize
+                for i in range(numClasses): 
+                    data = self.pred_labels[self.pred_labels[:,2] == i]
+                    self.confident_predictions = data[data[:,3] > self.conf_thresh]
+                    if classSize != 0:
+                        for i in range(minSize): #Should select the highest confidence images from each class
+                                highest_confidence_index = np.argmax(self.confident_predictions[:, 3])
+                                predictions.append(self.confident_predictions[highest_confidence_index])
+                                self.confident_predictions = np.delete(self.confident_predictions, highest_confidence_index, axis=0)
+                                total += 1
+                predictions = np.array(predictions)
+                dataset[1] = predictions #update the dataset with the new confident predictions
+                
+            else: #Should save all WV datasets, not just the one selected.
+                # Save predicitions above the confidence threshold
+                for i in range(numClasses):
+                    data = self.pred_labels_save[self.pred_labels_save[:,2] == i]
+                    self.confident_predictions = data[data[:,3] > self.conf_thresh]
+                    classSize = len(self.confident_predictions)
+                    if classSize != 0:
+                        print("Saving images from class ", i)
+                        classes += 1
+                        if classSize < minSize: 
+                            minSize = classSize
+                            print("Smallest class size: ", i, "Sze: ", classSize)
+                for i in range(numClasses): 
+                    data = self.pred_labels_save[self.pred_labels_save[:,2] == i]
+                    self.confident_predictions = data[data[:,3] > self.conf_thresh]
+                    classSize = len(self.confident_predictions)
+                    if classSize != 0:
+                        for i in range(minSize):  #Should select the highest confidence images from each class
+                            highest_confidence_index = np.argmax(self.confident_predictions[:, 3])
+                            predictions.append(self.confident_predictions[highest_confidence_index])
+                            self.confident_predictions = np.delete(self.confident_predictions, highest_confidence_index, axis=0)
+                            total += 1
+                predictions = np.array(predictions)
+                dataset[1] = predictions #update the dataset with the new confident predictions
+            print(minSize, "Images saved in for each class for a total dataset size of ", total, "images from ", classes, "crevasse classes")
+            np.save(filename, dataset) #save the dataset as npy file
+            print('File saved to', filename)
+
+
+    def saveContourCallback(self):
+        if self.batch_select_polygon != []:
+            np.save(self.cfg_path[:-4]+'_contour.npy', np.array(self.batch_select_polygon))
+
+    def newClass(self):
+        self.class_enum.append(self.new_class_label)
+        self.selected_classes = np.ones(len(self.class_enum))
+        #self.addClassButton(len(self.class_enum)-1, self.new_class_label, self.class_buttons_columns_list[-1])
+        self.clearLayout(self.class_buttons)
+        self.initClassButtons()
+        self.left_layout.addLayout(self.class_buttons)
+        self.update()
+
+    def newClassCallback(self):
+        print('')
+
+    def closeEvent(self, event):
+        print('-------- Saving Data --------')
+        self.split_info_save = self.split_info # if multiple plots use [self.split_info_save[:,6] == self.tiff_selector]
+        self.label_data[1] = self.split_info_save
+        #save_array = np.array([self.dataset_info, self.split_info], dtype=object)
+        np.save(self.label_path, self.label_data)
+
+        self.cfg['class_enum'] = self.class_enum
+        self.cfg['num_classes'] = len(self.class_enum)
+        f = open(args.config, 'w')
+        f.write(generate_config_calipso(self.cfg))
+        f.close()
+
+        if self.to_netcdf:
+            save_array = np.array([self.dataset_info, self.pred_labels], dtype=object)
+            to_netCDF(save_array, self.label_path[:-4])
+
+        event.accept()
+        return
+
+if __name__ == '__main__':
+    # Parse command line flags
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("config", type=str)
+    parser.add_argument("--load_labels", type=str, default=None)
+    parser.add_argument("--netcdf", action="store_true")
+    args = parser.parse_args()
+    # Read config file
+    with open(args.config, 'r') as ymlfile:
+        cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
+
+    app = QApplication(sys.argv)
+    QGuiApp = QApplication(sys.argv)
+    ex = SplitImageTool(args.config, args.load_labels, args.netcdf)
+
+    sys.exit(app.exec_())
