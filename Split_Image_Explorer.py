@@ -1,7 +1,7 @@
 from utils import *
 from auto_rotate_geotiff import *
 #CST20240312
-from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QHBoxLayout, QVBoxLayout, QCheckBox, QSlider, QLineEdit, QPushButton, QButtonGroup, QMainWindow, QGridLayout
+from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QHBoxLayout, QVBoxLayout, QCheckBox, QSlider, QLineEdit, QPushButton, QButtonGroup, QMainWindow, QGridLayout, QSizePolicy
 #CST 20240308
 from PyQt5.QtGui import QPixmap, QImage, QFont, QGuiApplication, QFont, qRgb
 
@@ -127,7 +127,7 @@ class SplitImageTool(QWidget):
         if self.checkpoint != None:
             self.pred_labels = self.pred_labels_save[self.pred_labels_save[:,6] == self.tiff_selector]
 
-        self.geotiff = rio.open(self.dataset_info['filename'][self.tiff_selector])
+        self.geotiff = rio.open(self.dataset_info['filename'][self.tiff_selector], nodata=65535)
 
         # Load Contour file if specified
         if self.cfg['contour_path'] != 'None':
@@ -138,9 +138,11 @@ class SplitImageTool(QWidget):
             self.contour_np = get_geotiff_bounds(self.geotiff, self.utm_epsg_code)
         self.contour_polygon = Polygon(self.contour_np)
 
-        self.tiff_image_matrix = self.geotiff.read(1)
-
-        self.tiff_image_max = get_img_sigma(self.tiff_image_matrix[::10,::10])
+        raw_band = self.geotiff.read(1)
+        nodata_set = wv_geotiff_nodata_set(self.geotiff.nodata)
+        valid_samples = valid_raster_samples(raw_band, stride=10, nodata_set=nodata_set)
+        self.tiff_image_max = get_img_sigma(valid_samples) if valid_samples.size >= 1 else 1.0
+        self.tiff_image_matrix = mask_nodata_for_display(raw_band, nodata_set)
 
     def clearLayout(self, layout):
         if layout is not None:
@@ -151,10 +153,23 @@ class SplitImageTool(QWidget):
                 elif child.layout() is not None:
                     self.clearLayout(child.layout())
 
+    def right_column_image_width(self):
+        """Pixel width for the split preview and geotiff in the right column (shared for layout + mouse mapping)."""
+        return max(420, min(1600, int(self.width * 0.46) - 24))
+
+    def variogram_thumb_width(self):
+        w = self.right_column_image_width()
+        return max(220, min(420, w // 2 - 8))
+
+    def split_preview_fixed_height(self):
+        """Fixed QLabel height for the patch preview (screen-based); pixmap scales inside without vertical clipping."""
+        return max(260, min(520, int(self.height * 0.28)))
+
     def initUI(self):
 
         self.master_layout = QHBoxLayout()
         self.left_layout = QVBoxLayout()
+        self.right_layout = QVBoxLayout()
         self.visualization_widgets = QVBoxLayout()
         self.conf_slider_container = QHBoxLayout()
         self.visualization_interactive = QHBoxLayout()
@@ -170,6 +185,8 @@ class SplitImageTool(QWidget):
         self.split_image_label = QLabel(self)
         self.split_image_label.setMargin(0)
         self.split_image_label.setAlignment(Qt.AlignCenter)
+        self.split_image_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        self.split_image_label.setFixedHeight(self.split_preview_fixed_height())
         #self.split_image_labels = [QLabel() for _ in self.lagstep]
         self.split_image_labels = [QLabel(self) for _ in range(4)]
         for i in range(4):
@@ -261,17 +278,10 @@ class SplitImageTool(QWidget):
 
         self.initClassButtons()
 
-        self.split_text.addSpacing(200)
+        self.split_text.addStretch(1)
         self.split_text.addWidget(self.split_image_class)
         self.split_text.addWidget(self.split_image_conf)
-        self.split_text.addSpacing(200)
-
-        # self.visualization_widgets.addWidget(self.split_image_label)
-        for image_label in self.split_image_labels:
-            self.visualization_widgets.addWidget(image_label)
-        self.visualization_widgets.addLayout(self.split_text)
-        self.visualization_widgets.addWidget(self.split_image_label)
-        
+        self.split_text.addStretch(1)
 
         self.conf_slider_container.addWidget(self.conf_thresh_slider)
         self.conf_slider_container.addWidget(self.conf_thresh_value)
@@ -327,9 +337,14 @@ class SplitImageTool(QWidget):
         
         self.left_layout.addLayout(self.grid_layout) #something about this causes a warning: QLayout::addChildLayout: layout "" already has a parent
         # this might be the issue? as in the layout is added to the master too early?
-        self.master_layout.addLayout(self.left_layout)
-        
-        self.master_layout.addWidget(self.tiff_image_label)
+
+        # Right column: class/conf, fixed-height split preview, then geotiff (extra height goes to the map)
+        self.right_layout.addLayout(self.split_text)
+        self.right_layout.addWidget(self.split_image_label, stretch=0)
+        self.right_layout.addWidget(self.tiff_image_label, stretch=1)
+
+        self.master_layout.addLayout(self.left_layout, stretch=0)
+        self.master_layout.addLayout(self.right_layout, stretch=1)
 
         
 
@@ -407,7 +422,8 @@ class SplitImageTool(QWidget):
         #CST 20240312
         self.bg_qimg = QImage(self.bg_img_cv.data,self.bg_img_cv.shape[1],self.bg_img_cv.shape[0],self.bg_img_cv.shape[1]*3,QImage.Format_RGB888)
         self.tiff_image_pixmap = QPixmap(self.bg_qimg)
-        self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToWidth(int(self.width/2) - 10)
+        tw = self.right_column_image_width()
+        self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToWidth(tw)
         #self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
         #print('bg_img_pixmap:  {}x{}'.format(self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
         # Get scaling factor between cv and q image
@@ -444,22 +460,29 @@ class SplitImageTool(QWidget):
     def draw_variogram_on_image(self, vario, qimage):
         width = qimage.width()
         height = qimage.height()
-        
-        # Normalize vario values to fit within image dimensions
-        max_value = max(vario)
-        min_value = min(vario)
-        
-        for i in range(len(vario) - 1):
-            x1 = int(i * width / len(vario))
-            y1 = int((vario[i] - min_value) * height / (max_value - min_value))
-            x2 = int((i + 1) * width / len(vario))
-            y2 = int((vario[i + 1] - min_value) * height / (max_value - min_value))
-            
-            # Ensure coordinates are within bounds
-            y1 = height - min(max(y1, 0), height - 1)
-            y2 = height - min(max(y2, 0), height - 1)
-            
-            # Draw line on the image (basic line drawing algorithm)
+        v = np.asarray(vario, dtype=np.float64).ravel()
+        finite = np.isfinite(v)
+        if not np.any(finite):
+            return
+        min_value = np.nanmin(v[finite])
+        max_value = np.nanmax(v[finite])
+        denom = max_value - min_value
+        # Avoid divide-by-zero or near-zero range blowing up y coordinates
+        if denom <= 0 or not np.isfinite(denom):
+            return
+        denom = max(denom, 1e-12 * max(1.0, abs(max_value)))
+
+        n = len(v)
+        for i in range(n - 1):
+            x1 = int(i * width / n)
+            x2 = int((i + 1) * width / n)
+            ry1 = (float(v[i]) - min_value) / denom * height
+            ry2 = (float(v[i + 1]) - min_value) / denom * height
+            ry1 = float(np.clip(ry1, 0.0, float(height)))
+            ry2 = float(np.clip(ry2, 0.0, float(height)))
+            y1 = int(np.clip(height - ry1, 0, height - 1))
+            y2 = int(np.clip(height - ry2, 0, height - 1))
+
             self.draw_line(qimage, x1, y1, x2, y2, qRgb(0, 0, 0))
 
     def getNewImage(self, index):
@@ -470,14 +493,18 @@ class SplitImageTool(QWidget):
         x,y,x_utm,y_utm,label,conf,_ = self.split_info[index]
         x,y,x_utm,y_utm,label = int(x),int(y),int(x_utm),int(y_utm),int(label)
         #CST20240313
-        # Get split image from image matrix
-        img = self.tiff_image_matrix[x:x+self.win_size[0],y:y+self.win_size[1]]
-        img = scaleImage(img, self.tiff_image_max)
-        variograms = silas_directional_vario(img)
+        # Split from masked full raster (no 65535). Float avoids uint wraparound in lag differences.
+        raw_split = self.tiff_image_matrix[x:x+self.win_size[0],y:y+self.win_size[1]]
+        img = scaleImage(raw_split, self.tiff_image_max)
+        variograms = silas_directional_vario(np.asarray(raw_split, dtype=np.float64))
         qimg = QImage(img.data, img.shape[1], img.shape[0], img.shape[1], QImage.Format_Grayscale8)
         image = Image.fromarray(img).convert("L")
          # Wrap split image in QPixmap       
-        self.split_image_pixmap = QPixmap.fromImage(qimg).scaledToWidth(270)
+        mw = self.right_column_image_width()
+        mh = self.split_preview_fixed_height()
+        self.split_image_pixmap = QPixmap.fromImage(qimg).scaled(
+            mw, mh, Qt.KeepAspectRatio, Qt.SmoothTransformation
+        )
         self.split_image_label.setPixmap(self.split_image_pixmap)
         
 
@@ -495,7 +522,7 @@ class SplitImageTool(QWidget):
             col = i % 2
 
             # Wrap split image in QPixmap
-            split_image_pixmap = QPixmap.fromImage(qimage).scaledToWidth(270)
+            split_image_pixmap = QPixmap.fromImage(qimage).scaledToWidth(self.variogram_thumb_width())
 
             # Set the pixmap of the QLabel at the current index
             self.split_image_labels[i].setPixmap(split_image_pixmap)
@@ -533,7 +560,7 @@ class SplitImageTool(QWidget):
         bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
         background_image = QPixmap(bg_img)
         #background_image = background_image.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
-        background_image = background_image.scaledToWidth(int(self.width/2) - 10)
+        background_image = background_image.scaledToWidth(self.right_column_image_width())
 
         self.tiff_image_label.setPixmap(background_image)
 
@@ -673,7 +700,7 @@ class SplitImageTool(QWidget):
             bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
             background_image = QPixmap(bg_img)
             #background_image = background_image.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
-            background_image = background_image.scaledToWidth(int(self.width/2) - 10)
+            background_image = background_image.scaledToWidth(self.right_column_image_width())
             #bg_img_scaled = background_image
             self.tiff_image_label.setPixmap(background_image)
 
