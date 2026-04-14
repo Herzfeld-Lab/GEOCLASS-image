@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 import math
-from utils import directional_vario
-from Dataset import *
+from utils_MS import directional_vario
+from Dataset_MS import *
 from torch.utils.data import DataLoader
 
 class VarioMLP(nn.Module):
