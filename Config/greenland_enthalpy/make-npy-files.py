@@ -4,14 +4,18 @@ from pathlib import Path
 import numpy as np
 from pyproj import Transformer
 
+# FOR JAK S1 images, crs is EPSG:32622
+# FOR WV images, crs is EPSG:3413
+
 # Input GeoJSON paths
 avannarleq_json_file = "/Volumes/rachel_hdd/greenland-enthalpy/data/arcgis-online-map/avannarleq-glacier.geojson"
 jakobshavn_json_file = "/Volumes/rachel_hdd/greenland-enthalpy/data/arcgis-online-map/jakobshavn-glacier.geojson"
 
 HERE = Path(__file__).resolve().parent
+jakobshavn_icestream_json_file = HERE / "jakobshavn-wv" / "jak-ice-stream-v2.geojson"
 avannarleq_npy_file = HERE / "avannarleq-s2" / "avannarleq_contour.npy"
 jakobshavn_npy_file = HERE / "jakobshavn-s2" / "jakobshavn_contour.npy"
-
+jakobshavn_icestream_npy_file = HERE / "jakobshavn-wv" / "jak-ice-stream.npy"
 # check projection of avannarleq_json_file and jakobshavn_json_file
 with open(avannarleq_json_file, "r", encoding="utf-8") as f:
     data = json.load(f)
@@ -21,7 +25,8 @@ with open(jakobshavn_json_file, "r", encoding="utf-8") as f:
     print(data.get("crs"))
 
 # GeoJSON is WGS84 lon/lat; pipeline expects UTM coordinates (see utm_epsg_code in configs).
-WGS84_TO_UTM22N = Transformer.from_crs("EPSG:3413", "EPSG:32622", always_xy=True)
+# WGS84_TO_UTM22N = Transformer.from_crs("EPSG:3413", "EPSG:32622", always_xy=True)
+WGS84_TO_UTM22N = Transformer.from_crs("EPSG:3413", "EPSG:3413", always_xy=True)
 
 
 
@@ -62,20 +67,21 @@ def coords_from_geojson(path: str) -> np.ndarray:
 def main() -> None:
     avannarleq_npy = lonlat_to_utm22n(coords_from_geojson(avannarleq_json_file))
     jakobshavn_npy = lonlat_to_utm22n(coords_from_geojson(jakobshavn_json_file))
+    jakobshavn_icestream_npy = lonlat_to_utm22n(coords_from_geojson(jakobshavn_icestream_json_file))
 
     avannarleq_npy_file.parent.mkdir(parents=True, exist_ok=True)
     jakobshavn_npy_file.parent.mkdir(parents=True, exist_ok=True)
-
-    np.save(avannarleq_npy_file, avannarleq_npy)
-    np.save(jakobshavn_npy_file, jakobshavn_npy)
-
+    jakobshavn_icestream_npy_file.parent.mkdir(parents=True, exist_ok=True)
+    # np.save(avannarleq_npy_file, avannarleq_npy)
+    # np.save(jakobshavn_npy_file, jakobshavn_npy)
+    np.save(jakobshavn_icestream_npy_file, jakobshavn_icestream_npy)
     print(f"Wrote {avannarleq_npy_file} shape {avannarleq_npy.shape}")
     print(f"Wrote {jakobshavn_npy_file} shape {jakobshavn_npy.shape}")
-
+    print(f"Wrote {jakobshavn_icestream_npy_file} shape {jakobshavn_icestream_npy.shape}")
     # print first 10 coordinates
     print(avannarleq_npy[:10])
     print(jakobshavn_npy[:10])
-
+    print(jakobshavn_icestream_npy[:10])
 
 if __name__ == "__main__":
     main()
