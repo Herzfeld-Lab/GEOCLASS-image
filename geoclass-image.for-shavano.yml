@@ -1,0 +1,7 @@
+name: geoclass-image
+channels:
+  - defaults
+dependencies:
+  - python
+  - numba
+prefix: /opt/anaconda3/envs/geoclass-image
