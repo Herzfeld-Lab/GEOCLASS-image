@@ -37,6 +37,9 @@ hidden_layers = cfg['hidden_layers']
 imgTrain = cfg['train_with_img']
 adapt = cfg['adaptive']
 
+# When use_cuda is False, force checkpoints saved on a GPU to load onto CPU.
+load_map_location = None if cfg.get('use_cuda', False) else torch.device('cpu')
+
 # Set dataset hyperparameters as specified by config file
 topDir = cfg['img_path']
 dataset_path = cfg['npy_path']
@@ -68,8 +71,8 @@ elif cfg['model'] == 'VarioNet':
     beta = cfg['beta']
     vario_mlp = VarioMLP.VarioMLP(num_classes, vario_num_lag, hidden_layers=hidden_layers)
     resnet18 = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
-    vario_mlp.load_state_dict(torch.load('vario_mlp.pth'))
-    resnet18.load_state_dict(torch.load('resnet18.pth'))
+    vario_mlp.load_state_dict(torch.load('0512vario_mlp.pth', map_location=load_map_location))
+    resnet18.load_state_dict(torch.load('0512resnet18.pth', map_location=load_map_location))
     model = CombinedModel(vario_mlp, resnet18, num_classes, a = alpha, b = beta, adaptive=adapt)
     transform = transforms.Compose([
             transforms.Resize((224, 224)),  # Resize images to match ResNet18 input size
@@ -97,7 +100,7 @@ if args.load_checkpoint:
     checkpoint_str = split[-1]
     output_dir = split[0]+'/'+split[1]
     print(checkpoint_str, output_dir)
-    checkpoint = torch.load(checkpoint_path)
+    checkpoint = torch.load(checkpoint_path, map_location=load_map_location)
     model.load_state_dict(checkpoint['state_dict'])
 
 else:
