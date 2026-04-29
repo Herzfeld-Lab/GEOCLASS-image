@@ -1,0 +1,31 @@
+# After creating the env from geoclass-image.for-shavano.yml:
+#
+#   conda activate geoclass-image
+#
+# Install these with pip (not satisfiable from conda-forge on Intel macOS at versions
+# compatible with numpy<2 in this file, or not shipped as conda metapackages):
+
+# PyTorch CPU — last line with official macOS x86_64 wheels; pairs with numpy<2 from the yml.
+pip install torch==2.2.2 torchvision==0.17.2
+
+# -----------------------------------------------------------------------------
+# Optional verification
+# -----------------------------------------------------------------------------
+# python -c "import torch, numpy; print(torch.__version__, numpy.__version__, torch.cuda.is_available())"
+# Expected: 2.2.2  1.26.x  False
+
+# -----------------------------------------------------------------------------
+# Deliberate differences vs M2 (geoclass-image.rachels-mac.yml / pip-freeze)
+# -----------------------------------------------------------------------------
+# - python: 3.11 here vs 3.14.3 on M2 (Intel PyTorch wheels).
+# - numpy: 1.26.x (conda, <2) vs 2.4.3 on M2.
+# - pandas: 2.2.3 (conda) vs 3.0.2 on M2 — pandas 3 + numpy<2 is a poor match; upgrade path on
+#   Intel would require a PyTorch build that supports numpy 2 on osx-64 (not available from PyPI
+#   in the same way as arm64).
+# - torch / torchvision: pip 2.2.2 / 0.17.2 here vs pip 2.11.0 / 0.26.0 on M2.
+# - PyQt6: omitted from conda env — M2 had both PyQt5 and PyQt6; having both triggers objc
+#   duplicate-class warnings. Add only if another tool requires it:
+#     pip install PyQt6==6.11.0
+#
+# If conda env create fails (unsatisfiable pins), relax the patch version on the reported
+# package or remove optional pins (e.g. contourpy, fonttools) and let conda choose.
