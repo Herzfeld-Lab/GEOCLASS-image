@@ -23,6 +23,12 @@ parser.add_argument("config", type=str)
 parser.add_argument("-c", "--cuda", action="store_true")
 parser.add_argument("--load_checkpoint", type=str, default=None)
 parser.add_argument("--netCDF", action="store_true")
+parser.add_argument(
+    "--output_dir",
+    type=str,
+    default=None,
+    help="Directory to save output .npy file. Defaults to './Output/new_run_{date_time}'.",
+)
 args = parser.parse_args()
 
 # Read config file
@@ -71,8 +77,8 @@ elif cfg['model'] == 'VarioNet':
     beta = cfg['beta']
     vario_mlp = VarioMLP.VarioMLP(num_classes, vario_num_lag, hidden_layers=hidden_layers)
     resnet18 = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
-    vario_mlp.load_state_dict(torch.load('0512vario_mlp.pth', map_location=load_map_location))
-    resnet18.load_state_dict(torch.load('0512resnet18.pth', map_location=load_map_location))
+    vario_mlp.load_state_dict(torch.load('vario_mlp.pth', map_location=load_map_location))
+    resnet18.load_state_dict(torch.load('resnet18.pth', map_location=load_map_location))
     model = CombinedModel(vario_mlp, resnet18, num_classes, a = alpha, b = beta, adaptive=adapt)
     transform = transforms.Compose([
             transforms.Resize((224, 224)),  # Resize images to match ResNet18 input size
@@ -98,7 +104,12 @@ if args.load_checkpoint:
     checkpoint_path = args.load_checkpoint
     split = checkpoint_path.split('/')
     checkpoint_str = split[-1]
-    output_dir = split[0]+'/'+split[1]
+    if args.output_dir:
+        output_dir = args.output_dir
+    else:
+        date_time = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        output_dir = os.path.join('.', 'Output', f'new_run_{date_time}')
+    os.makedirs(os.path.join(output_dir, 'labels'), exist_ok=True)
     print(checkpoint_str, output_dir)
     checkpoint = torch.load(checkpoint_path, map_location=load_map_location)
     model.load_state_dict(checkpoint['state_dict'])
@@ -106,6 +117,9 @@ if args.load_checkpoint:
 else:
     print("Please specify a model checkpoint with the --load_checkpoint argument")
     exit(1)
+
+print('---- Evaluating Model -----')
+print(model.eval())
 
 # Initialize Datasets and DataLoaders
 print('----- Initializing Dataset -----')
