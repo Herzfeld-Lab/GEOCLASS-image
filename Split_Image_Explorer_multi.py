@@ -7,7 +7,7 @@ from PyQt5.QtGui import QPixmap, QImage, QFont, QGuiApplication, QFont, qRgb
 
 from PyQt5.QtCore import Qt
 
-from PIL.ImageQt import ImageQt
+# from PIL.ImageQt import ImageQt  # Not needed
 import os
 import shutil
 
@@ -28,21 +28,44 @@ import yaml
 
 
 def stretch_band_percentile(band, low=2, high=98):
+    """Stretch band using percentiles with robust handling of different value ranges."""
     band = band.astype(np.float32)
-    p_low, p_high = np.percentile(band, (low, high))
-    if p_high <= p_low:
+    
+    # Filter out invalid values (NaN, inf) before percentile calculation
+    valid_mask = np.isfinite(band)
+    if not np.any(valid_mask):
         return np.zeros_like(band, dtype=np.uint8)
+    
+    band_valid = band[valid_mask]
+    p_low, p_high = np.percentile(band_valid, (low, high))
+    
+    # If band is essentially flat/constant, return mid-gray
+    if p_high <= p_low:
+        # Try using min/max instead
+        min_val = np.min(band_valid)
+        max_val = np.max(band_valid)
+        if max_val <= min_val:
+            # Completely uniform band
+            return np.full_like(band, 128, dtype=np.uint8)
+        p_low, p_high = min_val, max_val
+    
     out = (band - p_low) / (p_high - p_low)
     out = np.clip(out, 0, 1)
     return (out * 255).astype(np.uint8)
 
 
 def stretch_rgb_percentile(img_rgb, low=2, high=98):
-    return np.dstack([
-        stretch_band_percentile(img_rgb[:, :, 0], low, high),
-        stretch_band_percentile(img_rgb[:, :, 1], low, high),
-        stretch_band_percentile(img_rgb[:, :, 2], low, high),
-    ])
+    """Apply percentile stretching to RGB bands, handling different image types."""
+    stretched_bands = []
+    for i in range(min(3, img_rgb.shape[2])):
+        stretched_bands.append(stretch_band_percentile(img_rgb[:, :, i], low, high))
+    
+    if len(stretched_bands) < 3:
+        # Pad with the first band if less than 3 bands
+        while len(stretched_bands) < 3:
+            stretched_bands.append(stretched_bands[0])
+    
+    return np.dstack(stretched_bands)
 
 
 class SplitImageTool(QWidget):
@@ -133,10 +156,14 @@ class SplitImageTool(QWidget):
 
     def initDataset(self):
         self.dataset_info = self.label_data[0]
-        self.split_info = self.split_info_save[self.split_info_save[:,8] == self.tiff_selector]
-        #self.split_infoMS = self.split_info[self.split_info[:,7] == True]
-        #self.split_infoP = self.split_info[self.split_info[:,7] == False]
-        self.class_enum = self.dataset_info['class_enumeration']
+        # Column 10 is now TIFF selector (was 8)
+        self.split_info = self.split_info_save[self.split_info_save[:,10] == self.tiff_selector]
+        self.class_enum_PAN = self.cfg['class_enum_PAN']
+        self.class_enum_MS = self.cfg['class_enum_MS']
+        if self.isMulti:
+            self.class_enum = self.dataset_info['class_enumeration_MS']
+        else:
+            self.class_enum = self.dataset_info['class_enumeration_PAN']
         if hasattr(self, "selected_classes"):
             self.selected_classes = np.ones(len(self.class_enum))
         self.utm_epsg_code = self.cfg['utm_epsg_code']
@@ -162,7 +189,8 @@ class SplitImageTool(QWidget):
             self.predictions = False
 
         if self.checkpoint != None:
-            self.pred_labels = self.pred_labels_save[self.pred_labels_save[:,8] == self.tiff_selector]
+            # Column 10 is TIFF selector
+            self.pred_labels = self.pred_labels_save[self.pred_labels_save[:,10] == self.tiff_selector]
 
 
         #Check to make sure this still works or figure out a way to ensure that this image is multispectral CST20260203
@@ -307,7 +335,7 @@ class SplitImageTool(QWidget):
         self.save_heatmap_button = QPushButton('Save Heatmap Image')
         self.save_heatmap_button.clicked.connect(self.saveHeatmapCallback)
 
-        self.change_MS_button = QPushButton('Toggle Multispectral', self)
+        self.change_MS_button = QPushButton('Toggle Panchromatic' if self.isMulti else 'Toggle Multispectral', self)
         self.change_MS_button.clicked.connect(self.toggleMS)
 
          #SAVE CONFIDENCE PREDICTIONS
@@ -511,9 +539,17 @@ class SplitImageTool(QWidget):
             height,width,_ = self.bg_img_cv.shape
 
             # Convert to QImage from cv and wrap in QPixmap container
-            #CST 20240312
-            self.bg_qimg = QImage(self.bg_img_cv.data,self.bg_img_cv.shape[1],self.bg_img_cv.shape[0],self.bg_img_cv.shape[1]*3,QImage.Format_RGB888)
-            self.tiff_image_pixmap = QPixmap(self.bg_qimg)
+            # Ensure data is contiguous and in correct format
+            self.bg_img_cv = np.ascontiguousarray(self.bg_img_cv)
+            
+            # Create QImage from numpy array properly
+            # Note: rotate_and_crop returns RGB already, no need to convert
+            h, w, ch = self.bg_img_cv.shape
+            bytes_per_line = 3 * w
+            self.bg_qimg = QImage(self.bg_img_cv.data, w, h, bytes_per_line, QImage.Format_RGB888)
+            
+            # Important: convert to QPixmap to own the data (QImage doesn't copy memory)
+            self.tiff_image_pixmap = QPixmap.fromImage(self.bg_qimg)
             self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToWidth(int(self.width/2) - 10)
             #self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
             #print('bg_img_pixmap:  {}x{}'.format(self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
@@ -522,7 +558,7 @@ class SplitImageTool(QWidget):
             bg_img_q_size = np.array((self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
     #CST 20240312
             self.scale_factor = bg_img_cv_size / bg_img_q_size
-            self.tiff_image_label.setPixmap(QPixmap(self.tiff_image_pixmap))
+            self.tiff_image_label.setPixmap(self.tiff_image_pixmap)
         else:
             # Scale down tiff image for visualization and convert to 8-bit RGB
             scale_factor = int(self.tiff_image_matrix_pan.shape[0] / 1200)
@@ -535,21 +571,20 @@ class SplitImageTool(QWidget):
 
             # Draw split images on scaled down preview image
             if self.visualize_labels:
-                draw = self.split_info[self.split_info[:,7] > self.conf_thresh] #set this to all to visualize a dataset created through a folder
-                #draw = self.split_info
+                # PAN labels use columns 6-7
+                draw = self.split_info[self.split_info[:,7] > self.conf_thresh]
                 cmap = (np.array(self.label_cmap.colors)*255).astype(np.uint8)
-                draw_split_image_labels(bg_img_scaled, scale_factor, split_disp_size, draw, self.selected_classes, cmap, False)
+                draw_split_image_labels(bg_img_scaled, scale_factor, split_disp_size, draw, self.selected_classes, cmap, False, label_col=6, conf_col=7)
 
             elif self.visualize_predictions and self.predictions:
-                #draw = self.split_info
                 draw = self.pred_labels[self.pred_labels[:,7] > self.conf_thresh]
                 cmap = (np.array(self.label_cmap.colors)*255).astype(np.uint8)
-                draw_split_image_labels(bg_img_scaled, scale_factor, split_disp_size, draw, self.selected_classes, cmap, False)
+                draw_split_image_labels(bg_img_scaled, scale_factor, split_disp_size, draw, self.selected_classes, cmap, False, label_col=6, conf_col=7)
 
             elif self.visualize_heatmap and self.predictions:
                 draw = self.pred_labels[self.pred_labels[:,7] > self.conf_thresh]
                 cmap = (np.array(self.conf_cmap.colors)*255).astype(np.uint8)
-                draw_split_image_confs(bg_img_scaled, scale_factor, split_disp_size, draw, self.selected_classes, cmap, False)
+                draw_split_image_confs(bg_img_scaled, scale_factor, split_disp_size, draw, self.selected_classes, cmap, False, label_col=6, conf_col=7)
 
             # Rotate tiff to align North and plot glacier contour
             if self.isMulti:
@@ -560,9 +595,17 @@ class SplitImageTool(QWidget):
             height,width,_ = self.bg_img_cv.shape
 
             # Convert to QImage from cv and wrap in QPixmap container
-            #CST 20240312
-            self.bg_qimg = QImage(self.bg_img_cv.data,self.bg_img_cv.shape[1],self.bg_img_cv.shape[0],self.bg_img_cv.shape[1]*3,QImage.Format_RGB888)
-            self.tiff_image_pixmap = QPixmap(self.bg_qimg)
+            # Ensure data is contiguous and in correct format
+            self.bg_img_cv = np.ascontiguousarray(self.bg_img_cv)
+            
+            # Create QImage from numpy array properly
+            # Note: rotate_and_crop returns RGB already, no need to convert
+            h, w, ch = self.bg_img_cv.shape
+            bytes_per_line = 3 * w
+            self.bg_qimg = QImage(self.bg_img_cv.data, w, h, bytes_per_line, QImage.Format_RGB888)
+            
+            # Important: convert to QPixmap to own the data (QImage doesn't copy memory)
+            self.tiff_image_pixmap = QPixmap.fromImage(self.bg_qimg)
             self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToWidth(int(self.width/2) - 10)
             #self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
             #print('bg_img_pixmap:  {}x{}'.format(self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
@@ -571,7 +614,7 @@ class SplitImageTool(QWidget):
             bg_img_q_size = np.array((self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
     #CST 20240312
             self.scale_factor = bg_img_cv_size / bg_img_q_size
-            self.tiff_image_label.setPixmap(QPixmap(self.tiff_image_pixmap))
+            self.tiff_image_label.setPixmap(self.tiff_image_pixmap)
 
     def updateBgImage(self):
         return
@@ -601,76 +644,97 @@ class SplitImageTool(QWidget):
         width = qimage.width()
         height = qimage.height()
         
-        # Normalize vario values to fit within image dimensions
-        max_value = max(vario)
-        min_value = min(vario)
+        # Convert to numpy array and handle NaN values properly
+        vario = np.array(vario, dtype=np.float32)
         
-        for i in range(len(vario) - 1):
-            x1 = int(i * width / len(vario))
-            y1 = int((vario[i] - min_value) * height / (max_value - min_value))
-            x2 = int((i + 1) * width / len(vario))
-            y2 = int((vario[i + 1] - min_value) * height / (max_value - min_value))
+        # Filter out NaN and infinite values
+        valid_mask = np.isfinite(vario)
+        vario_clean = vario[valid_mask]
+        
+        # If no valid values, draw empty plot
+        if len(vario_clean) < 2:
+            return
+        
+        # Get valid indices for plotting
+        valid_indices = np.where(valid_mask)[0]
+        
+        # If we have valid data, proceed with normalization
+        max_value = np.max(vario_clean)
+        min_value = np.min(vario_clean)
+        
+        # Handle flat variograms (all same value)
+        if max_value == min_value:
+            # Draw a horizontal line at the middle
+            y_level = height // 2
+            for i in range(width - 1):
+                self.draw_line(qimage, i, y_level, i + 1, y_level, qRgb(0, 0, 0))
+            return
+        
+        # Draw the variogram line, connecting only valid points
+        prev_x, prev_y = None, None
+        for i in range(len(vario)):
+            if not valid_mask[i]:
+                continue
+                
+            x = int(i * width / len(vario))
+            y = int((vario[i] - min_value) * height / (max_value - min_value))
             
             # Ensure coordinates are within bounds
-            y1 = height - min(max(y1, 0), height - 1)
-            y2 = height - min(max(y2, 0), height - 1)
+            y = height - min(max(y, 0), height - 1)
             
-            # Draw line on the image (basic line drawing algorithm)
-            self.draw_line(qimage, x1, y1, x2, y2, qRgb(0, 0, 0))
+            if prev_x is not None and prev_y is not None:
+                # Draw line from previous valid point to current
+                self.draw_line(qimage, prev_x, prev_y, x, y, qRgb(0, 0, 0))
+            
+            prev_x, prev_y = x, y
 
     def getNewImage(self, index):
         
         self.image_index = index
         if self.isMulti:
-            # Grab info of split image at index
+            # MS MODE: grab info of split image at index
             row = self.split_info[index]
-            x,y,ms_x,ms_y,x_utm,y_utm = row[:6]
-            label = int(row[6])
-            conf = row[7]
-            x,y,ms_x,ms_y,x_utm,y_utm = int(x),int(y),int(ms_x),int(ms_y),int(x_utm),int(y_utm)
-            #CST20240313
-            # Get split image from image matrix
-            #Panchromatic for variogram
-            pan_img = self.tiff_image_matrix_pan[x:x+self.win_size[0],y:y+self.win_size[1]]
-            # QGIS-like per-band percentile stretch for pan
-            # pan_img = scaleImage(pan_img, self.tiff_image_max_pan)
+            pan_x, pan_y, ms_x, ms_y, x_utm, y_utm = row[:6]
+            pan_label = int(row[6])
+            pan_conf = row[7]
+            ms_label = int(row[8])
+            ms_conf = row[9]
+            pan_x, pan_y, ms_x, ms_y = int(pan_x), int(pan_y), int(ms_x), int(ms_y)
+            
+            # Get panchromatic for variogram
+            pan_img = self.tiff_image_matrix_pan[pan_x:pan_x+self.win_size[0], pan_y:pan_y+self.win_size[1]]
             pan_img = stretch_band_percentile(pan_img, 2, 98)
             variograms = silas_directional_vario(pan_img)
-            #For multispectral its [bands, height, width]?
-            img = self.tiff_image_matrix_ms[:,ms_x:ms_x+self.win_sizeMS[0],ms_y:ms_y+self.win_sizeMS[1]]
-            #img = self.tiff_image_matrix_ms[:, ms_y:ms_y+self.win_sizeMS[0], ms_x:ms_x+self.win_sizeMS[1]]
-            # img = scaleImage(img, self.tiff_image_max_ms)
-            #Bands R,G,B 
+            
+            # Get multispectral image
+            img = self.tiff_image_matrix_ms[:, ms_x:ms_x+self.win_sizeMS[0], ms_y:ms_y+self.win_sizeMS[1]]
             img_rgb = img[[self.r, self.g, self.b], :, :]
             img_rgb = np.transpose(img_rgb, (1, 2, 0))
-            #Normalize
-            # img_rgb = cv2.normalize(img_rgb, None, 0, 255, cv2.NORM_MINMAX)
-            # img_rgb = img_rgb.astype(np.uint8)
             img_rgb = stretch_rgb_percentile(img_rgb, 2, 98)
             img_rgb = np.ascontiguousarray(img_rgb)
             h, w = img_rgb.shape[:2]
             qimg = QImage(img_rgb.data, w, h, w * 3, QImage.Format_RGB888)
-            image = Image.fromarray(img_rgb)
+            
             # Wrap split image in QPixmap       
             self.split_image_pixmap = QPixmap.fromImage(qimg).scaledToWidth(270)
             self.split_image_label.setPixmap(self.split_image_pixmap)
         else:
-            # Grab info of split image at index
+            # PAN MODE: grab info of split image at index
             row = self.split_info[index]
-            x,y,ms_x,ms_y,x_utm,y_utm = row[:6]
-            label = int(row[6])
-            conf = row[7]
-            x,y,ms_x,ms_y,x_utm,y_utm = int(x),int(y),int(ms_x),int(ms_y),int(x_utm),int(y_utm)
-            #CST20240313
-            # Get split image from image matrix
-            img = self.tiff_image_matrix_pan[x:x+self.win_size[0],y:y+self.win_size[1]]
-            # QGIS-like per-band percentile stretch for pan
-            # img = scaleImage(img, self.tiff_image_max_pan)
+            pan_x, pan_y, ms_x, ms_y, x_utm, y_utm = row[:6]
+            pan_label = int(row[6])
+            pan_conf = row[7]
+            ms_label = int(row[8])
+            ms_conf = row[9]
+            pan_x, pan_y, ms_x, ms_y = int(pan_x), int(pan_y), int(ms_x), int(ms_y)
+            
+            # Get panchromatic image
+            img = self.tiff_image_matrix_pan[pan_x:pan_x+self.win_size[0], pan_y:pan_y+self.win_size[1]]
             img = stretch_band_percentile(img, 2, 98)
             pan_img = img
             variograms = silas_directional_vario(img)
             qimg = QImage(img.data, img.shape[1], img.shape[0], img.shape[1], QImage.Format_Grayscale8)
-            image = Image.fromarray(img).convert("L")
+            
             # Wrap split image in QPixmap       
             self.split_image_pixmap = QPixmap.fromImage(qimg).scaledToWidth(270)
             self.split_image_label.setPixmap(self.split_image_pixmap)
@@ -680,34 +744,58 @@ class SplitImageTool(QWidget):
         
         
         for i, vario in enumerate(self.variograms):
-            qimage = QImage(pan_img.shape[1], pan_img.shape[0], QImage.Format_RGB32)
-            qimage.fill(Qt.white)
-
-            # Convert variogram data to image plot
-            self.draw_variogram_on_image(vario, qimage)
+            # Skip if variogram is all NaN or all zeros
+            vario_array = np.array(vario, dtype=np.float32)
+            if np.all(np.isnan(vario_array)) or np.all(vario_array == 0):
+                # Create blank image for this variogram
+                qimage = QImage(pan_img.shape[1], pan_img.shape[0], QImage.Format_RGB32)
+                qimage.fill(Qt.white)
+            else:
+                qimage = QImage(pan_img.shape[1], pan_img.shape[0], QImage.Format_RGB32)
+                qimage.fill(Qt.white)
+                # Convert variogram data to image plot
+                self.draw_variogram_on_image(vario, qimage)
             
-            row = i // 2
-            col = i % 2
+            grid_row = 0
+            col = i
 
             # Wrap split image in QPixmap
-            split_image_pixmap = QPixmap.fromImage(qimage).scaledToWidth(270)
+            split_image_pixmap = QPixmap.fromImage(qimage).scaledToWidth(150)
 
             # Set the pixmap of the QLabel at the current index
             self.split_image_labels[i].setPixmap(split_image_pixmap)
-            self.grid_layout.addWidget(self.split_image_labels[i], row, col)
-        # Update label text
+            self.grid_layout.addWidget(self.split_image_labels[i], grid_row, col)
+        # Update label text - show which mode we're in
         class_text = ''
         if self.predictions:
-            label = int(self.pred_labels[index,6])
-            conf = self.pred_labels[index,7]
-            class_text = "Class %d: %s"%(label, self.class_enum[label])
-            class_conf = "Conf: {:.2%}".format(conf)
-        elif label == -1:
-            class_text = "No class assigned yet"
-            class_conf = ''
+            if self.isMulti:
+                label = int(self.pred_labels[index, 8])
+                conf = self.pred_labels[index, 9]
+                class_text = "Class %d: %s" % (label, self.class_enum[label]) if label >= 0 else "[MS] Unlabeled"
+                class_conf = "Conf: {:.2%}".format(conf)
+            else:
+                label = int(self.pred_labels[index, 6])
+                conf = self.pred_labels[index, 7]
+                class_text = "Class %d: %s" % (label, self.class_enum[label]) if label >= 0 else "[PAN] Unlabeled"
+                class_conf = "Conf: {:.2%}".format(conf)
+        elif self.isMulti:
+            label = int(row[8])
+            conf = row[9]
+            if label == -1:
+                class_text = "No class assigned yet"
+                class_conf = ''
+            else:
+                class_text = "Class %d: %s" % (label, self.class_enum[label])
+                class_conf = "Conf: {:.2%}".format(conf)
         else:
-            class_text = "Class %d: %s"%(label, self.class_enum[label])
-            class_conf = "Conf: {:.2%}".format(conf)
+            label = int(row[6])
+            conf = row[7]
+            if label == -1:
+                class_text = "No class assigned yet"
+                class_conf = ''
+            else:
+                class_text = "Class %d: %s" % (label, self.class_enum[label])
+                class_conf = "Conf: {:.2%}".format(conf)
 
         self.split_image_class.setText(class_text)
         self.split_image_conf.setText(class_conf)
@@ -737,16 +825,12 @@ class SplitImageTool(QWidget):
         p = os.path.join(filePath, fileName)
         fp = p + '.png'
         self.image_index = index
-         # Grab info of split image at index
+        # Grab info of split image at index
         if self.isMulti:
             row = self.split_info[index]
-            x,y,ms_x,ms_y,x_utm,y_utm = row[:6]
-            x,y,ms_x,ms_y,x_utm,y_utm = int(x),int(y),int(ms_x),int(ms_y),int(x_utm),int(y_utm)
+            pan_x, pan_y, ms_x, ms_y = int(row[0]), int(row[1]), int(row[2]), int(row[3])
             # Get split image from image matrix
             img = self.tiff_image_matrix_ms[:, ms_y:ms_y+self.win_sizeMS[0], ms_x:ms_x+self.win_sizeMS[1]]
-            #img = self.tiff_image_matrix_ms[:,ms_x:ms_x+self.win_sizeMS[0],ms_y:ms_y+self.win_sizeMS[1]]
-            # QGIS-like per-band percentile stretch for MS bands
-            # img = scaleImage(img, self.tiff_image_max_ms)
             img = np.stack(
                 [stretch_band_percentile(b, 2, 98) for b in img],
                 axis=0
@@ -755,12 +839,9 @@ class SplitImageTool(QWidget):
             image.save(fp,"png")
         else:
             row = self.split_info[index]
-            x,y,ms_x,ms_y,x_utm,y_utm = row[:6]
-            x,y,ms_x,ms_y,x_utm,y_utm = int(x),int(y),int(ms_x),int(ms_y),int(x_utm),int(y_utm)
+            pan_x, pan_y, ms_x, ms_y = int(row[0]), int(row[1]), int(row[2]), int(row[3])
             # Get split image from image matrix
-            img = self.tiff_image_matrix_pan[x:x+self.win_size[0],y:y+self.win_size[1]]
-            # QGIS-like per-band percentile stretch for pan
-            # img = scaleImage(img, self.tiff_image_max_pan)
+            img = self.tiff_image_matrix_pan[pan_x:pan_x+self.win_size[0], pan_y:pan_y+self.win_size[1]]
             img = stretch_band_percentile(img, 2, 98)
             image = QImage(img.data, img.shape[1], img.shape[0], img.shape[1], QImage.Format_Grayscale8)
             image.save(fp,"png")
@@ -777,24 +858,30 @@ class SplitImageTool(QWidget):
     
     def label(self, mask, class_label):
         if self.isMulti:
-            self.split_info[mask,6] = class_label
+            # MS labels: columns 8-9
+            self.split_info[mask, 8] = class_label
+            self.split_info[mask, 9] = 1
         else:
-             self.split_info[mask,6] = class_label
-        self.split_info[mask,7] = 1
-        if self.isMulti:
-            self.split_info_ms = self._labels_to_ms_pixels(self.split_info)
+            # PAN labels: columns 6-7
+            self.split_info[mask, 6] = class_label
+            self.split_info[mask, 7] = 1
+        self.split_info_ms = self._labels_to_ms_pixels(self.split_info)
         self.getNewImage(self.image_index)
         self.update()
 
     def labelCurrent(self, class_label):
         if self.isMulti:
-            self.split_info[self.image_index][6] = class_label
+            # MS labels: columns 8-9
+            self.split_info[self.image_index, 8] = class_label
+            self.split_info[self.image_index, 9] = 1
         else:
-            self.split_info[self.image_index][6] = class_label
-        self.split_info[self.image_index][7] = 1
-        if self.isMulti:
-            self.split_info_ms = self._labels_to_ms_pixels(self.split_info)
-                #Load training img path
+            # PAN labels: columns 6-7
+            self.split_info[self.image_index, 6] = class_label
+            self.split_info[self.image_index, 7] = 1
+        
+        # Rest of labeling logic stays the same
+        self.split_info_ms = self._labels_to_ms_pixels(self.split_info)
+        #Load training img path
         if self.cfg['training_img_path'] != 'None':
             labeled_img_path = cfg['training_img_path']
             if not os.path.exists(labeled_img_path+"/"): os.mkdir(labeled_img_path+"/")
@@ -818,8 +905,8 @@ class SplitImageTool(QWidget):
         if self.isMulti:
             for i,img in enumerate(self.split_info):
                 if Point(img[4],img[5]).within(batch_select):
-                    self.split_info[i][6] = class_label
-                    self.split_info[i][7] = 1
+                    self.split_info[i, 8] = class_label
+                    self.split_info[i, 9] = 1
                     if self.cfg['training_img_path'] != 'None':
                         labeled_img_path = self.cfg['training_img_path']
                         if not os.path.exists(labeled_img_path+"/"): os.mkdir(labeled_img_path+"/")
@@ -835,8 +922,8 @@ class SplitImageTool(QWidget):
         else:
             for i,img in enumerate(self.split_info):
                 if Point(img[4],img[5]).within(batch_select):
-                    self.split_info[i][6] = class_label
-                    self.split_info[i][7] = 1
+                    self.split_info[i, 6] = class_label
+                    self.split_info[i, 7] = 1
                     if self.cfg['training_img_path'] != 'None':
                         labeled_img_path = self.cfg['training_img_path']
                         if not os.path.exists(labeled_img_path+"/"): os.mkdir(labeled_img_path+"/")
@@ -850,8 +937,7 @@ class SplitImageTool(QWidget):
                         self.writeImage("Classifications/"+str(class_label), str(class_label)+str(i)+str(numTiff), i)
                         cfg['training_img_path'] = 'Classifications'
         self.batch_select_polygon = []
-        if self.isMulti:
-            self.split_info_ms = self._labels_to_ms_pixels(self.split_info)
+        self.split_info_ms = self._labels_to_ms_pixels(self.split_info)
         self.getNewImage(self.image_index)
         self.update()
 
@@ -957,7 +1043,9 @@ class SplitImageTool(QWidget):
         elif event.key() == 65: #Left arrow key
             if self.visualize_predictions or self.visualize_heatmap:
                 index -= 1 
-                while self.pred_labels[index,7] < self.conf_thresh or not self.selected_classes[int(self.pred_labels[index,6])]:
+                conf_col = 9 if self.isMulti else 7
+                label_col = 8 if self.isMulti else 6
+                while self.pred_labels[index, conf_col] < self.conf_thresh or not self.selected_classes[int(self.pred_labels[index, label_col])]:
                     index -= 1
             else:
                 index -= 1
@@ -966,7 +1054,9 @@ class SplitImageTool(QWidget):
                 index += 1
                 if index >= len(self.pred_labels):
                     index = 0
-                while self.pred_labels[index,7] < self.conf_thresh or not self.selected_classes[int(self.pred_labels[index,6])]:
+                conf_col = 9 if self.isMulti else 7
+                label_col = 8 if self.isMulti else 6
+                while self.pred_labels[index, conf_col] < self.conf_thresh or not self.selected_classes[int(self.pred_labels[index, label_col])]:
                     index += 1
                     if index >= len(self.pred_labels):
                         index = 0
@@ -979,14 +1069,16 @@ class SplitImageTool(QWidget):
         elif event.key() == 76: #l key - add current split image to training dataset
             modifiers = QApplication.keyboardModifiers()
             if modifiers == Qt.ShiftModifier:
-                #images_to_label = self.pred_labels[self.pred_labels[:,5] > self.conf_thresh]
+                label_col = 8 if self.isMulti else 6
+                conf_col = 9 if self.isMulti else 7
                 for i in range(len(self.selected_classes)):
                     if self.selected_classes[i]:
-                        mask = (self.pred_labels[:,7] > self.conf_thresh) & (self.pred_labels[:,6] == i)
+                        mask = (self.pred_labels[:, conf_col] > self.conf_thresh) & (self.pred_labels[:, label_col] == i)
                         self.label(mask, i)
 
             else:
-                _class = self.pred_labels[self.image_index][6]
+                label_col = 8 if self.isMulti else 6
+                _class = self.pred_labels[self.image_index, label_col]
                 self.labelCurrent(_class)
 
         self.getNewImage(index)
@@ -1004,7 +1096,8 @@ class SplitImageTool(QWidget):
 
     def makeTiffSelectorCallbacks(self, tiff_num):
         def tiff_selector_callback():
-            self.split_info_save[self.split_info_save[:,8] == self.tiff_selector] = self.split_info
+            # Column 10 is TIFF selector
+            self.split_info_save[self.split_info_save[:,10] == self.tiff_selector] = self.split_info
             self.tiff_selector = tiff_num
             self.initDataset()
             self.initBgImage()
@@ -1072,14 +1165,21 @@ class SplitImageTool(QWidget):
         self.new_class_label = text
 
     def toggleMS(self):
-        self.split_info_save[self.split_info_save[:,8] == self.tiff_selector] = self.split_info
+        # Column 10 is TIFF selector
+        self.split_info_save[self.split_info_save[:,10] == self.tiff_selector] = self.split_info
+        current_index = self.image_index if self.image_index is not None else 0
         if self.isMulti:
             self.isMulti = False
+            self.change_MS_button.setText('Toggle Multispectral')
         else:
             self.isMulti = True
+            self.change_MS_button.setText('Toggle Panchromatic')
         self.initDataset()
+        self.clearLayout(self.class_buttons)
+        self.initClassButtons()
         self.initBgImage()
-        self.getNewImage(0)
+        current_index = max(0, min(current_index, len(self.split_info) - 1))
+        self.getNewImage(current_index)
 
     def savePredictionsCallback(self):
         if self.predictions:
@@ -1123,15 +1223,20 @@ class SplitImageTool(QWidget):
         #get the dataset
         dataset_path = cfg['npy_path']   
         dataset = np.load(dataset_path, allow_pickle=True)
+        
+        # Use appropriate columns based on mode
+        label_col = 8 if self.isMulti else 6
+        conf_col = 9 if self.isMulti else 7
+        
         if saveMin == False:
             if savepred == False:
-                # Save predicitions above the confidence threshold
-                self.confident_predictions = self.pred_labels[self.pred_labels[:,7] > self.conf_thresh]        
+                # Save predictions above the confidence threshold
+                self.confident_predictions = self.pred_labels[self.pred_labels[:, conf_col] > self.conf_thresh]        
 
                 dataset[1] = self.confident_predictions #update the dataset with the new confident predictions
                 
             else: #Should save all WV datasets, not just the one selected.
-                self.confident_predictions = self.pred_labels_save[self.pred_labels_save[:,7] > self.conf_thresh]
+                self.confident_predictions = self.pred_labels_save[self.pred_labels_save[:, conf_col] > self.conf_thresh]
                 dataset[1] = self.confident_predictions
             np.save(filename, dataset) #save the dataset as npy file
             print('File saved to', filename)
@@ -1141,28 +1246,28 @@ class SplitImageTool(QWidget):
             classSize = 0
             classes = 0
             predictions = []
-            data = self.pred_labels[self.pred_labels[:,6] == 1]
-            self.confident_predictions = data[data[:,7] > self.conf_thresh]
+            data = self.pred_labels[self.pred_labels[:, label_col] == 1]
+            self.confident_predictions = data[data[:, conf_col] > self.conf_thresh]
             classSize = len(self.confident_predictions)
             minSize =  classSize
             if savepred == False:
                 
                 
-                # Save predicitions above the confidence threshold
+                # Save predictions above the confidence threshold
                 for i in range(numClasses):
                     if self.selected_classes[i] != 0.:
-                        data = self.pred_labels[self.pred_labels[:,6] == i]
-                        self.confident_predictions = data[data[:,7] > self.conf_thresh]
+                        data = self.pred_labels[self.pred_labels[:, label_col] == i]
+                        self.confident_predictions = data[data[:, conf_col] > self.conf_thresh]
                         classSize = len(self.confident_predictions)
                         if classSize < minSize: 
                             minSize = classSize
                 for i in range(numClasses): 
                     if self.selected_classes[i] != 0.:
-                        data = self.pred_labels[self.pred_labels[:,6] == i]
-                        self.confident_predictions = data[data[:,7] > self.conf_thresh]
+                        data = self.pred_labels[self.pred_labels[:, label_col] == i]
+                        self.confident_predictions = data[data[:, conf_col] > self.conf_thresh]
                         if classSize != 0:
-                            for i in range(minSize): #Should select the highest confidence images from each class
-                                    highest_confidence_index = np.argmax(self.confident_predictions[:, 7])
+                            for j in range(minSize): #Should select the highest confidence images from each class
+                                    highest_confidence_index = np.argmax(self.confident_predictions[:, conf_col])
                                     predictions.append(self.confident_predictions[highest_confidence_index])
                                     self.confident_predictions = np.delete(self.confident_predictions, highest_confidence_index, axis=0)
                                     total += 1
@@ -1170,11 +1275,11 @@ class SplitImageTool(QWidget):
                 dataset[1] = predictions #update the dataset with the new confident predictions
                 
             else: #Should save all WV datasets, not just the one selected.
-                # Save predicitions above the confidence threshold
+                # Save predictions above the confidence threshold
                 for i in range(numClasses):
                     if self.selected_classes[i] != 0.:
-                        data = self.pred_labels_save[self.pred_labels_save[:,6] == i]
-                        self.confident_predictions = data[data[:,7] > self.conf_thresh]
+                        data = self.pred_labels_save[self.pred_labels_save[:, label_col] == i]
+                        self.confident_predictions = data[data[:, conf_col] > self.conf_thresh]
                         classSize = len(self.confident_predictions)
                         if classSize != 0:
                             print("Saving images from class ", i)
@@ -1184,12 +1289,12 @@ class SplitImageTool(QWidget):
                                 minSize = classSize                           
                 for i in range(numClasses): 
                     if self.selected_classes[i] != 0.:
-                        data = self.pred_labels_save[self.pred_labels_save[:,6] == i]
-                        self.confident_predictions = data[data[:,7] > self.conf_thresh]
+                        data = self.pred_labels_save[self.pred_labels_save[:, label_col] == i]
+                        self.confident_predictions = data[data[:, conf_col] > self.conf_thresh]
                         classSize = len(self.confident_predictions)
                         if classSize != 0:
-                            for i in range(minSize):  #Should select the highest confidence images from each class
-                                highest_confidence_index = np.argmax(self.confident_predictions[:, 7])
+                            for j in range(minSize):  #Should select the highest confidence images from each class
+                                highest_confidence_index = np.argmax(self.confident_predictions[:, conf_col])
                                 predictions.append(self.confident_predictions[highest_confidence_index])
                                 self.confident_predictions = np.delete(self.confident_predictions, highest_confidence_index, axis=0)
                                 total += 1
@@ -1206,6 +1311,10 @@ class SplitImageTool(QWidget):
 
     def newClass(self):
         self.class_enum.append(self.new_class_label)
+        if self.isMulti:
+            self.class_enum_MS.append(self.new_class_label)
+        else:
+            self.class_enum_PAN.append(self.new_class_label)
         self.selected_classes = np.ones(len(self.class_enum))
         #self.addClassButton(len(self.class_enum)-1, self.new_class_label, self.class_buttons_columns_list[-1])
         self.clearLayout(self.class_buttons)
@@ -1218,12 +1327,13 @@ class SplitImageTool(QWidget):
 
     def closeEvent(self, event):
         print('-------- Saving Data --------')
-        self.split_info_save[self.split_info_save[:,8] == self.tiff_selector] = self.split_info
+        # Column 10 is TIFF selector
+        self.split_info_save[self.split_info_save[:,10] == self.tiff_selector] = self.split_info
         self.label_data[1] = self.split_info_save
-        #save_array = np.array([self.dataset_info, self.split_info], dtype=object)
         np.save(self.label_path, self.label_data)
 
-        self.cfg['class_enum'] = self.class_enum
+        self.cfg['class_enum_PAN'] = self.class_enum_PAN
+        self.cfg['class_enum_MS'] = self.class_enum_MS
         self.cfg['num_classes'] = len(self.class_enum)
         f = open(args.config, 'w')
         f.write(generate_config_silas(self.cfg))

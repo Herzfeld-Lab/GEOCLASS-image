@@ -14,6 +14,44 @@ import tarfile
 import re
 import geopandas as gpd
 
+
+def is_bad(tile, nodata_value=None):
+    """
+    Flag tiles with effectively no texture or fill values.
+    Handles both 2D (PAN) and 3D (MS) arrays.
+    """
+    # Check for low texture/variation
+    if tile.ndim == 3:
+        # For multispectral (3D), check each band separately
+        stds = [np.nanstd(band) for band in tile]
+        if all(std < 1e-6 for std in stds):
+            return True
+    elif tile.ndim == 2:
+        # For panchromatic (2D), standard check
+        if np.nanstd(tile) < 1e-6:
+            return True
+
+    # Check for tiles that are all nodata or uniform fill
+    if nodata_value is not None:
+        if np.all(tile == nodata_value):
+            return True
+    else:
+        # Fallback when nodata metadata is missing
+        # Only reject if entire tile is uniform (very strict condition)
+        if tile.ndim == 3:
+            # For 3D, check if all bands are completely uniform
+            uniform = all(np.all(band == 0) or np.all(band == 65535)
+                         for band in tile)
+            if uniform:
+                return True
+        else:
+            # For 2D, check if entire tile is uniform
+            if np.all(tile == 0) or np.all(tile == 65535):
+                return True
+
+    return False
+
+
 # Parse command line flags
 parser = argparse.ArgumentParser()
 parser.add_argument("config", type=str)
@@ -29,7 +67,8 @@ topDir = cfg['img_path']
 winSize = cfg['split_img_size']
 contourPath = cfg['contour_path']
 epsgCode = cfg['utm_epsg_code']
-classEnum = cfg['class_enum']
+classEnumMS = cfg['class_enum_MS']
+classEnumPAN = cfg['class_enum_PAN']
 convFactor = cfg['conversion_factor']
 msWinSize = [0,0]
 
@@ -72,6 +111,8 @@ for folder in scene_folders:
     pan_utm_affine_transform = None
     ms_transformer = None
     pan_transformer = None
+    ms_nodata = None
+    pan_nodata = None
 
     tif_paths = sorted(folder.glob("*.tif"), key=lambda p: ("P1BS" in p.name, p.name))
     for imgPath in tif_paths:
@@ -96,6 +137,9 @@ for folder in scene_folders:
             MSimg_h = ms_data.shape[1]
             MSimg_w = ms_data.shape[2]
             imgSize = ms_data[0].shape
+            ms_nodata = tiffImg.nodata
+            if ms_nodata is None:
+                print(f"WARNING: MS image has no nodata value set: {imgPath}")
         else:
             panImg = tiffImg
             panPath = imgPath
@@ -104,6 +148,9 @@ for folder in scene_folders:
             band1 = tiffImg.read(1)
             imgSize = pan_data.shape
             h_pan, w_pan = pan_data.shape
+            pan_nodata = tiffImg.nodata
+            if pan_nodata is None:
+                print(f"WARNING: PAN image has no nodata value set: {imgPath}")
         utm_affine_transform = None
         
         print('Image size: {}x{}'.format(imgSize[0],imgSize[1]))
@@ -281,12 +328,22 @@ for folder in scene_folders:
             UL_pix = (i,j)
             LR_pix = (i+winSize[0],j+winSize[1])
 
-            ms_i = int(i / convFactor)
-            ms_j = int(j / convFactor)
+            ms_i = int(round(i / convFactor))
+            ms_j = int(round(j / convFactor))
+            ms_i_end = ms_i + msWinSize[0]
+            ms_j_end = ms_j + msWinSize[1]
+
+            if (ms_i < 0 or ms_j < 0 or
+                ms_i_end > ms_data.shape[1] or
+                ms_j_end > ms_data.shape[2]):
+                continue
 
             pan_split = pan_data[i:i+winSize[0], j:j+winSize[1]]
             ms_split  = ms_data[:, ms_i:ms_i+msWinSize[0], ms_j:ms_j+msWinSize[1]]
-
+            
+            if is_bad(pan_split, pan_nodata) or is_bad(ms_split, ms_nodata):
+                continue
+                
             if not isGeotiff:
                 UL_UTM = np.asarray(utm_affine_transform*(UL_pix[1],imgSize[0] - UL_pix[0]))
                 LR_UTM = np.asarray(utm_affine_transform*(LR_pix[1],imgSize[0] - LR_pix[0]))
@@ -306,10 +363,20 @@ for folder in scene_folders:
             # pix_coords_list data is used to access actual data at runtime - avoids loading giant data all at once
             if Point(UL_UTM[0], UL_UTM[1]).within(contourPolygon) and Point(LR_UTM[0], LR_UTM[1]).within(contourPolygon):
 
-                pan_valid = np.mean(pan_split == 0) < 0.05
-                ms_valid  = np.mean(ms_split == 0) < 0.05
+                # Check for too-high fraction of nodata/fill pixels using the actual nodata value
+                pan_nodata_pct = np.mean(pan_split == pan_nodata) if pan_nodata is not None else 0
+                ms_nodata_pct = np.mean(ms_split == ms_nodata) if ms_nodata is not None else 0
+                
+                pan_valid = pan_nodata_pct < 0.5
+                ms_valid = ms_nodata_pct < 0.5
+                
+                #print(pan_valid, "pan valid", pan_nodata_pct)
+                #print(ms_valid, "ms valid", ms_nodata_pct)
+                
                 if pan_valid and ms_valid:
-                    pair_coords.append([i, j, ms_i, ms_j, UL_UTM[0], UL_UTM[1], -1, 0, IMG_NUM])
+                    # Format: [pan_x, pan_y, ms_x, ms_y, utm_x, utm_y, pan_label, pan_conf, ms_label, ms_conf, img_num]
+                    pair_coords.append([i, j, ms_i, ms_j, UL_UTM[0], UL_UTM[1], -1, 0, -1, 0, IMG_NUM])
+                    #pair_coords.append([i, j, ms_i, ms_j, UL_UTM[0], UL_UTM[1], -1, 0, IMG_NUM])
                     count += 1
             
 
@@ -336,7 +403,8 @@ info = {'filename': trueImgPaths,
         'MS_winsize_pix': msWinSize,
         #'winsize_utm': UTM_winSize,
         'transform': transforms,
-        'class_enumeration': classEnum}
+        'class_enumeration_MS': classEnumMS,
+        'class_enumeration_PAN': classEnumPAN}
 
 #print('DATASET INFO: ')
 #print(json.dumps(info, indent=2))

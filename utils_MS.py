@@ -29,7 +29,7 @@ def draw_split_image_labels(img_mat, scale_factor, split_disp_size, labels, sele
     if MS:
         for i,selected_class in enumerate(selected_classes):
             if selected_class:
-                clas = labels[labels[:,6] == i]
+                clas = labels[labels[:,8] == i]
                 c = cmap[i]
 
                 # MS labels use ms_x, ms_y columns (2,3)
@@ -59,12 +59,12 @@ def draw_split_image_confs(img_mat, scale_factor, split_disp_size, labels, selec
     if MS:
         for i,selected_class in enumerate(selected_classes):
             if selected_class:
-                clas = labels[labels[:,6] == i]
+                clas = labels[labels[:,8] == i]
 
                 # MS labels use ms_x, ms_y columns (2,3)
                 x = np.floor(clas[:,2]/scale_factor).reshape(-1,1).astype(np.int32)
                 y = np.floor(clas[:,3]/scale_factor).reshape(-1,1).astype(np.int32)
-                conf = np.floor(clas[:,7]*100).reshape(-1,1).astype(np.int32)
+                conf = np.floor(clas[:,9]*100).reshape(-1,1).astype(np.int32)
                 xy = np.concatenate((x,y,conf),axis=1)
 
                 for splitImg in xy:
@@ -588,7 +588,9 @@ def silas_directional_vario(img, numLag = 53, lagThresh = 1):
         numPairs = diff.shape[0]*diff.shape[1]
         if numPairs != 0:
             v_h = (1. / numPairs) * np.sum(diff*diff)
-            vario[0,i] = v_h
+            # Ensure result is finite
+            if np.isfinite(v_h):
+                vario[0,i] = v_h
         #print("North/South Direction:")
         #print("Number of lag steps:", numLagNS)
         #print("Shape of diff:", diff.shape)
@@ -602,7 +604,9 @@ def silas_directional_vario(img, numLag = 53, lagThresh = 1):
         numPairs = diff.shape[0]*diff.shape[1]
         if numPairs != 0:
             v_h = (1. / numPairs) * np.sum(diff*diff)
-            vario[1,i] = v_h
+            # Ensure result is finite
+            if np.isfinite(v_h):
+                vario[1,i] = v_h
         #print("East/West Direction:")
         #print("Number of lag steps:", numLagEW)
         #print("Shape of diff:", diff.shape)
@@ -620,7 +624,9 @@ def silas_directional_vario(img, numLag = 53, lagThresh = 1):
             numPairs = diff.shape[1]
         if numPairs != 0:
             v_h = (1. / numPairs) * np.sum(diff * diff)
-            vario[2, i] = v_h
+            # Ensure result is finite
+            if np.isfinite(v_h):
+                vario[2, i] = v_h
         
     
     # Diagonal direction (bottom right to top left)
@@ -636,7 +642,9 @@ def silas_directional_vario(img, numLag = 53, lagThresh = 1):
                 numPairs = diff.shape[1]
         if numPairs != 0:
             v_h = (1. / numPairs) * np.sum(diff * diff)
-            vario[3, i] = v_h
+            # Ensure result is finite
+            if np.isfinite(v_h):
+                vario[3, i] = v_h
     return vario
 
 def batch_directional_vario(img_arr, numLag, lagThresh = 0.8):
@@ -846,7 +854,8 @@ img_path:           {}
 npy_path:           {}
 train_path:         {}
 valid_path:         {}
-class_enum:         {}
+class_enum_PAN:     {}
+class_enum_MS:      {}
 utm_epsg_code:      {}
 split_img_size:     {}
 train_test_split:   {}
@@ -898,7 +907,8 @@ bg_UTM_path:        {}
                    yaml_obj['npy_path'],
                    yaml_obj['train_path'],
                    yaml_obj['valid_path'],
-                   yaml_obj['class_enum'],
+                   yaml_obj['class_enum_PAN'],
+                   yaml_obj['class_enum_MS'],
                    yaml_obj['utm_epsg_code'],
                    yaml_obj['split_img_size'],
                    yaml_obj['train_test_split'],

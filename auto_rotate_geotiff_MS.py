@@ -3,7 +3,6 @@ from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QLineEdi
 from PyQt5.QtGui import QIcon, QPixmap, QImage
 from PyQt5.QtCore import pyqtSlot
 from PyQt5 import QtCore
-from PIL.ImageQt import ImageQt
 from utils_MS import *
 from Models import *
 from Dataset_MS import *
@@ -270,6 +269,7 @@ def rotate_and_crop_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM, t
         # Find angle between image orientation and due north
         rot_angle = angle_between(ur_out - ul_out, [1,0])*180/math.pi
 
+        
         # Rotate image to line up with north/south
         img_mat_rot = rotate(
             img_mat,
@@ -279,6 +279,10 @@ def rotate_and_crop_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM, t
             mode='constant',
             cval=0
         )
+        
+        # Debug: Check output after rotation
+        print(f"DEBUG rotate_and_crop: After rotation shape={img_mat_rot.shape}, dtype={img_mat_rot.dtype}")
+        print(f"DEBUG rotate_and_crop: After rotation min={img_mat_rot.min()}, max={img_mat_rot.max()}")
 
         # Get pixel -> UTM affine transform for rotated image
         height,width,channels = img_mat_rot.shape
@@ -357,6 +361,21 @@ def rotate_and_crop_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM, t
 
 
         img_mat_rot = cv2.flip(img_mat_rot,0)
+        
+        
+        # Ensure image is uint8 for proper display
+        if img_mat_rot.dtype != np.uint8:
+            if img_mat_rot.max() <= 1.0:
+                # Normalized float (0-1), scale to 0-255
+                img_mat_rot = (img_mat_rot * 255).astype(np.uint8)
+            elif img_mat_rot.max() < 256:
+                # Float in range 0-255, convert directly
+                img_mat_rot = img_mat_rot.astype(np.uint8)
+            else:
+                # Clip to 0-255 range and convert
+                img_mat_rot = np.clip(img_mat_rot, 0, 255).astype(np.uint8)
+        
+       
 
 
     return img_mat_rot, UTM_bounds, transform_rot_1
