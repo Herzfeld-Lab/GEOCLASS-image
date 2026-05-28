@@ -1,5 +1,9 @@
 from utils import *
 from auto_rotate_geotiff import *
+#CST20240312
+from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QHBoxLayout, QVBoxLayout, QCheckBox, QSlider, QLineEdit, QPushButton, QButtonGroup, QMainWindow, QGridLayout, QSizePolicy
+#CST 20240308
+from PyQt5.QtGui import QPixmap, QImage, QFont, QGuiApplication, QFont, qRgb
 
 from PyQt5.QtCore import Qt
 
