@@ -64,11 +64,13 @@ git clone https://github.com/Herzfeld-Lab/NN_Class.git
 
 If you don't have an ssh key for github set up on your machine, it will ask for your github username and password in the terminal. If you want to set up an ssh key to make things easier in the future, you can follow the tutorial [here](https://help.github.com/en/github/authenticating-to-github/connecting-to-github-with-ssh)
 
-Once it's finished downloading, navigate into the `NN_Class` directory and run the install dependencies script:
+Now that the repository is downloaded, [create a virtual environment](https://www.w3schools.com/python/python_virtualenv.asp) 
+
+Once this environment is created and activated you shoud see the name of your environment in parantheses in fornt of your working directory within the terminal. With this activated, navigate into the `NN_Class` directory and install the required packages:
 
 ```
 cd NN_Class
-./install_dependencies.sh
+pip -r install requirments.txt
 ```
 
 This will probably take some time.
