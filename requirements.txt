@@ -1,39 +1,39 @@
 
     #numba: 
-    pip3 install numba
+    numba
     #pandas: 
-    pip3 install pandas
+    pandas
     #cv2: 
-    pip3 install opencv-python
+    opencv-python
     #PIL: 
-    pip3 install pillow
+    pillow
     #netCDF4: 
-    pip3 install netCDF4
+    netCDF4
     #pyproj: 
-    pip3 install pyproj
+    pyproj
     #yaml: 
-    pip3 install pyyaml
+    pyyaml
     #shapely: 
-    pip3 isntall shapely
+    shapely
     #utm: 
-    pip3 install utm
+    utm
     #rasterio: 
-    pip3 install rasterio
+    rasterio
     #PyQt5: 
-    pip3 install PyQt5
+    PyQt5
     #PyQt6: 
-    pip3 install PyQt6
+    PyQt6
     #torch: 
-    pip3 install torch
+    torch
     #skimage: 
-    pip3 install scikit-image
+    scikit-image
     #torchvision: 
-    pip3 install torchvision
+    torchvision
     #geopandas: 
-    pip3 install geopandas
+    geopandas
     #matplotlib: 
-    pip3 install matplotlib
+    matplotlib
     #Affine: 
-    pip3 install affine
+    affine
     #Scikit Learn: 
-    pip3 install scikit-learn
+    scikit-learn
