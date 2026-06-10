@@ -70,7 +70,7 @@ Once this environment is created and activated you shoud see the name of your en
 
 ```
 cd NN_Class
-pip -r install requirments.txt
+pip install -r requirements.txt
 ```
 
 This will probably take some time.
