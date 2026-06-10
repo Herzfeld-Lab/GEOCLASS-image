@@ -1,0 +1,19 @@
+----- Initializing Neural Network Model -----
+Traceback (most recent call last):
+  File "/home/twickler/ws/GEOCLASS-image/NN_Class/train_only_varnet.py", line 112, in <module>
+    image_paths, variogram_data, labels = collect_image_paths_and_labels(image_folder)
+  File "/home/twickler/ws/GEOCLASS-image/NN_Class/VarioNet.py", line 59, in collect_image_paths_and_labels
+    vario = get_varios(image_np)
+  File "/home/twickler/ws/GEOCLASS-image/NN_Class/VarioNet.py", line 78, in get_varios
+    return silas_directional_vario(img, numLag)
+  File "/home/twickler/ws/GEOCLASS-image/NN_Class/utils.py", line 461, in silas_directional_vario
+    v_h = (1. / numPairs) * np.sum(diff*diff)
+  File "/home/twickler/ws/venv/lib/python3.10/site-packages/numpy/core/fromnumeric.py", line 2313, in sum
+    return _wrapreduction(a, np.add, 'sum', axis, dtype, out, keepdims=keepdims,
+  File "/home/twickler/ws/venv/lib/python3.10/site-packages/numpy/core/fromnumeric.py", line 88, in _wrapreduction
+    return ufunc.reduce(obj, axis, dtype, out, **passkwargs)
+  File "/home/twickler/ws/GEOCLASS-image/NN_Class/train_only_varnet.py", line 38, in signal_handler
+    save_losses()
+  File "/home/twickler/ws/GEOCLASS-image/NN_Class/train_only_varnet.py", line 43, in save_losses
+    np.save(output_dir+'/losses/'+checkpoint_str+"_train_losses",np.array(train_losses))
+NameError: name 'output_dir' is not defined

@@ -365,8 +365,8 @@ class CombinedModel(nn.Module):
             
             sm_res = softmax(resnet_out)
             sm_var = softmax(vario_out)
-            #b = (sm_res.max()+(1-sm_var.max()))/2
-            b = sm_res.max()
+            b = (sm_res.max()+(1-sm_var.max()))/2
+            #b = sm_res.max()
             self.b_values.append(b.item())
             a = 1-b
             self.beta = nn.Parameter(b.clone().detach().requires_grad_(True))

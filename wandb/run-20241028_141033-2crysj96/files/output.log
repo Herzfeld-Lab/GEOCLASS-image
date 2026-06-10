@@ -1,0 +1,16 @@
+----- Initializing Neural Network Model -----
+VarioNet
+----- Initializing Dataset -----
+Training set size: 	660 images
+----- Initializing DataLoader -----
+train loader <class 'torch.utils.data.dataloader.DataLoader'>
+----- Initializing Output Directory -----
+Output saved at Output/mlp_test_negri_28-10-2024_14:10
+----- Training -----
+----- Initializing CUDA -----
+Training VarioNet
+EPOCH: 0
+Traceback (most recent call last):
+  File "/home/twickler/ws/GEOCLASS-image/NN_Class/train_only_varnet.py", line 272, in <module>
+    for batch_idx, (images, variograms, labels) in enumerate(train_loader):
+ValueError: not enough values to unpack (expected 3, got 2)

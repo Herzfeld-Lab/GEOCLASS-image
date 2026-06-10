@@ -1,0 +1,92 @@
+----- Initializing Neural Network Model -----
+VarioNet
+----- Initializing Dataset -----
+Training set size: 	660 images
+----- Initializing DataLoader -----
+train loader <class 'torch.utils.data.dataloader.DataLoader'>
+----- Initializing Output Directory -----
+Output saved at Output/mlp_test_negri_17-10-2024_11:46
+----- Training -----
+----- Initializing CUDA -----
+Training VarioNet
+EPOCH: 0 running validation
+	TRAIN LOSS = 1.05142	VALID LOSS = 0.90738
+EPOCH: 1 running validation
+	TRAIN LOSS = 0.38222	VALID LOSS = 0.82513
+EPOCH: 2 running validation
+	TRAIN LOSS = 0.30951	VALID LOSS = 0.58848
+EPOCH: 3 running validation
+	TRAIN LOSS = 0.34043	VALID LOSS = 0.86395
+EPOCH: 4 running validation
+	TRAIN LOSS = 0.28543	VALID LOSS = 0.78711
+EPOCH: 5 running validation
+	TRAIN LOSS = 0.30190	VALID LOSS = 0.59187
+EPOCH: 6 running validation
+	TRAIN LOSS = 0.27869	VALID LOSS = 0.83277
+EPOCH: 7 running validation
+	TRAIN LOSS = 0.31592	VALID LOSS = 0.51972
+EPOCH: 8 running validation
+	TRAIN LOSS = 0.28263	VALID LOSS = 0.61455
+EPOCH: 9 running validation
+	TRAIN LOSS = 0.21397	VALID LOSS = 0.63890
+EPOCH: 10 running validation
+	TRAIN LOSS = 0.24412	VALID LOSS = 0.53032
+EPOCH: 11 running validation
+	TRAIN LOSS = 0.25554	VALID LOSS = 0.62793
+EPOCH: 12 running validation
+	TRAIN LOSS = 0.23687	VALID LOSS = 0.53375
+EPOCH: 13 running validation
+	TRAIN LOSS = 0.25693	VALID LOSS = 0.48274
+EPOCH: 14 running validation
+	TRAIN LOSS = 0.25252	VALID LOSS = 0.46018
+EPOCH: 15 running validation
+	TRAIN LOSS = 0.26533	VALID LOSS = 0.43454
+EPOCH: 16 running validation
+	TRAIN LOSS = 0.22196	VALID LOSS = 0.45393
+EPOCH: 17 running validation
+	TRAIN LOSS = 0.21377	VALID LOSS = 0.66310
+EPOCH: 18 running validation
+	TRAIN LOSS = 0.22501	VALID LOSS = 0.59782
+EPOCH: 19 running validation
+	TRAIN LOSS = 0.24431	VALID LOSS = 0.44050
+EPOCH: 20 running validation
+	TRAIN LOSS = 0.25975	VALID LOSS = 0.49031
+EPOCH: 21 running validation
+	TRAIN LOSS = 0.22612	VALID LOSS = 0.44047
+EPOCH: 22 running validation
+	TRAIN LOSS = 0.22302	VALID LOSS = 0.50538
+EPOCH: 23 running validation
+	TRAIN LOSS = 0.26849	VALID LOSS = 0.43435
+EPOCH: 24 running validation
+	TRAIN LOSS = 0.19758	VALID LOSS = 0.59433
+Fine Tuning VarioNet
+EPOCH: 0 running validation
+	TRAIN LOSS = 0.20095	VALID LOSS = 0.50268
+saving checkpoint
+EPOCH: 1 running validation
+	TRAIN LOSS = 0.14433	VALID LOSS = 0.45945
+saving checkpoint
+EPOCH: 2 running validation
+	TRAIN LOSS = 0.18391	VALID LOSS = 0.44015
+saving checkpoint
+EPOCH: 3 running validation
+	TRAIN LOSS = 0.11740	VALID LOSS = 0.42728
+saving checkpoint
+EPOCH: 4 running validation
+	TRAIN LOSS = 0.10961	VALID LOSS = 0.40260
+saving checkpoint
+EPOCH: 5 running validation
+	TRAIN LOSS = 0.11781	VALID LOSS = 0.41490
+saving checkpoint
+EPOCH: 6 running validation
+	TRAIN LOSS = 0.09757	VALID LOSS = 0.39289
+saving checkpoint
+EPOCH: 7 running validation
+	TRAIN LOSS = 0.09997	VALID LOSS = 0.40487
+saving checkpoint
+EPOCH: 8 running validation
+	TRAIN LOSS = 0.08822	VALID LOSS = 0.41625
+saving checkpoint
+EPOCH: 9 running validation
+	TRAIN LOSS = 0.08136	VALID LOSS = 0.38098
+saving checkpoint

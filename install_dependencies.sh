@@ -15,15 +15,16 @@ cd Desktop
 
 
 # Create the virtual environment
-python3 -m venv venv
-cd ~/venv
+cd ~/Workspace/venvs 
+python3 -m venv geoclass-image
+
 # Activate the virtual environment
-source venv/bin/activate
+source geoclass-image/bin/activate
 
 
 # Provide instructions to the user
 echo "Virtual environment created successfully. You can activate it by running:"
-echo "source Desktop/venv/bin/activate"
+echo "source ~/Workspace/venvs/geoclass-image/bin/activate"
 
 
 

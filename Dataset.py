@@ -16,6 +16,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 import pandas as pd
 import random
+import statistics
 import numpy
 
 #def load_split_images(img_mat, max, winSize):
@@ -141,85 +142,6 @@ class SplitImageDataset(Dataset):
         else:
             return IMGnp, int(label)
         """
-class PlotSplitImageDataset(Dataset):
-
-    def __init__(self, imgPath, imgData, labels, labels_binary, labels_multiclass, transform=None, train=False):
-
-        self.train = train
-        imagePath = imgPath
-        imageLabels = labels
-        imageData = imgData
-        self.labels_binary = labels_binary
-        self.labels_multiclass = labels_multiclass
-        self.transform = transform
-        # Extract all split images and store in dataframe (takes longer to initialize but saves loads on memory usage during training)
-        dataArray = []
-        #CST20240315print("image data", imageData)
-        if self.train:
-                img = Image.open(imagePath)
-                imageMatrix = np.array(img)
-                max = get_img_sigma(imageMatrix[::10,::10])
-                winSize = imageData['winsize_pix']
-                for i in range(0,len(imageLabels[:])):
-                        row = imageLabels[i]
-                        x,y = row[0:2].astype('int')
-                        splitImg_np = imageMatrix[y:y+winSize[1],x:x+winSize[0]]
-                        splitImg_np = scaleImage(splitImg_np, max)
-                        rowlist = list(row)
-                        #rowlist.append(splitImg_np)
-                        #rowlist.append(self.labels_multiclass[i])
-                        #rowlist.append(self.labels_binary[i])
-                        if (splitImg_np.shape[0] == 0) or (splitImg_np.shape[1] == 0):
-                            print("Error with an image: ", i, "class: ", rowlist[4], "image source: ", rowlist[6])
-                        else:
-                            dataArray.append(rowlist)
-                        #CST20240315print("data array", dataArray)
-        else: #testing
-                    # If training, and there are no labeled split images from tiff image, skip loading it
-                 
-
-                img = Image.open(imagePath)
-                imageMatrix = np.array(img)
-                
-                max = get_img_sigma(imageMatrix[::10,::10])
-                winSize = imageData['winsize_pix']
-                for i in range(0,len(imageLabels[:])):
-                        row = imageLabels[i]
-                        #print(row)
-                        x,y = row[0:2].astype('int')
-                        splitImg_np = imageMatrix[y:y+winSize[1],x:x+winSize[0]]
-                        splitImg_np = scaleImage(splitImg_np, max)
-                        rowlist = list(row)
-                        #rowlist.append(splitImg_np)
-                        #rowlist.append(self.labels_multiclass[i])
-                        #rowlist.append(self.labels_binary[i])
-                        if (splitImg_np.shape[0] == 0) or (splitImg_np.shape[1] == 0):
-                            print("Error with an image: ", i, "class: ", rowlist[4], "image source: ", rowlist[6])
-                        else:
-                            dataArray.append(rowlist)
-                        
-
-        self.dataFrame = pd.DataFrame(dataArray, columns=['x_pix','y_pix','label','conf','img_mat'])
-
-    def __len__(self):
-        return len(self.dataFrame)
-
-    def __getitem__(self, idx):
-
-        splitImg_np = self.dataFrame.iloc[idx,4]
-
-        if self.transform:
-            splitImg_np = self.transform(splitImg_np)
-
-        splitImg_tensor = torch.from_numpy(splitImg_np)
-
-        if self.train:
-            bin_label = int(self.dataFrame.iloc[idx,6])
-            multi_label = int(self.dataFrame.iloc[idx,5])
-            return (splitImg_tensor, int(bin_label), int(multi_label))
-
-        else:
-            return splitImg_tensor
 
 class CalipsoDataset(Dataset):
 
@@ -230,8 +152,21 @@ class CalipsoDataset(Dataset):
         imageLabels = labels
         imageData = imgData
         self.transform = transform
+        TotDen = labels[:][5]
+        density1 = TotDen[0]
+        density2 = TotDen[1]
+        density3 = TotDen[2]
+        TotTab = labels[6]
+        tab1 = TotTab[0]
+        tab2 = TotTab[1]
+        tab3 = TotTab[2]
+        TotAsr = labels[7]
+        asr1 = TotAsr[0]
+        asr2 = TotAsr[1]
+        asr3 = TotAsr[2]
         # Extract all split images and store in dataframe (takes longer to initialize but saves loads on memory usage during training)
         dataArray = []
+        
         
         #CST20240315print("image data", imageData)
         if self.train:
@@ -245,7 +180,16 @@ class CalipsoDataset(Dataset):
                         splitImg_np = imageMatrix[y:y+winSize[1],x:x+winSize[0]]
                         splitImg_np = scaleImage(splitImg_np, max)
                         rowlist = list(row)
-                        #rowlist.append(splitImg_np)
+                        rowlist.append(splitImg_np)
+                        rowlist.append(density1[y:y+winSize[1],x:x+winSize[0]])
+                        rowlist.append(density2[y:y+winSize[1],x:x+winSize[0]])
+                        rowlist.append(density3[y:y+winSize[1],x:x+winSize[0]])
+                        rowlist.append(tab1[y:y+winSize[1],x:x+winSize[0]])
+                        rowlist.append(tab2[y:y+winSize[1],x:x+winSize[0]])
+                        rowlist.append(tab3[y:y+winSize[1],x:x+winSize[0]])
+                        rowlist.append(asr1[y:y+winSize[1],x:x+winSize[0]])
+                        rowlist.append(asr2[y:y+winSize[1],x:x+winSize[0]])
+                        rowlist.append(asr3[y:y+winSize[1],x:x+winSize[0]])
                         #rowlist.append(self.labels_multiclass[i])
                         #rowlist.append(self.labels_binary[i])
                         if (splitImg_np.shape[0] == 0) or (splitImg_np.shape[1] == 0):
@@ -269,7 +213,16 @@ class CalipsoDataset(Dataset):
                         splitImg_np = imageMatrix[y:y+winSize[1],x:x+winSize[0]]
                         splitImg_np = scaleImage(splitImg_np, max)
                         rowlist = list(row)
-                        #rowlist.append(splitImg_np)
+                        rowlist.append(splitImg_np)
+                        rowlist.append(density1[y:y+winSize[1],x:x+winSize[0]])
+                        rowlist.append(density2[y:y+winSize[1],x:x+winSize[0]])
+                        rowlist.append(density3[y:y+winSize[1],x:x+winSize[0]])
+                        rowlist.append(tab1[y:y+winSize[1],x:x+winSize[0]])
+                        rowlist.append(tab2[y:y+winSize[1],x:x+winSize[0]])
+                        rowlist.append(tab3[y:y+winSize[1],x:x+winSize[0]])
+                        rowlist.append(asr1[y:y+winSize[1],x:x+winSize[0]])
+                        rowlist.append(asr2[y:y+winSize[1],x:x+winSize[0]])
+                        rowlist.append(asr3[y:y+winSize[1],x:x+winSize[0]])
                         #rowlist.append(self.labels_multiclass[i])
                         #rowlist.append(self.labels_binary[i])
                         if (splitImg_np.shape[0] == 0) or (splitImg_np.shape[1] == 0):
@@ -278,26 +231,277 @@ class CalipsoDataset(Dataset):
                             dataArray.append(rowlist)
                         
 
-        self.dataFrame = pd.DataFrame(dataArray, columns=['x_pix','y_pix','label','conf', 'density_fields', 'img_mat'])
+        self.dataFrame = pd.DataFrame(dataArray, columns=['x_pix','y_pix','label','conf','img_mat',
+                                                          'density1','density2','density3','TAB1','TAB2','TAB3','ASR1','ASR2','ASR3'])
+
+    def __len__(self):
+        return len(self.dataFrame)
+
+    def __getitem__(self, idx):
+        density1 = self.dataFrame.iloc[idx,5]
+        density2 = self.dataFrame.iloc[idx,6]
+        density3 = self.dataFrame.iloc[idx,7]
+        tab1 = self.dataFrame.iloc[idx,8]
+        tab2 = self.dataFrame.iloc[idx,9]
+        tab3 = self.dataFrame.iloc[idx,10]
+        asr1 = self.dataFrame.iloc[idx,11]
+        asr2 = self.dataFrame.iloc[idx,12]
+        asr3 = self.dataFrame.iloc[idx,13]
+
+        #if self.transform:
+            #splitImg_np = self.transform(splitImg_np)
+
+        #density_tensor = torch.from_numpy([density1,density2,density3])
+        #tab_tensor = torch.from_numpy([tab1,tab2,tab3])
+        #asr_tensor = torch.from_numpy([asr1,asr2,asr3])
+        train_tensor = torch.from_numpy([density1,density2,density3,tab1,tab2,tab3,asr1,asr2,asr3])
+
+        if self.train:
+            label = int(self.dataFrame.iloc[idx,2])
+            return (train_tensor, int(label))
+
+        else:
+            return (train_tensor)
+        
+
+
+
+class CalipsoDataset2(Dataset): #gets density fields here instead of from dataset
+
+    def __init__(self, imgPath, imgData, labels, den, tab, asr, tile_width, tile_height, transform=None, train=False):
+
+        self.train = train
+        imagePath = imgPath
+        imageLabels = labels
+        imageData = imgData
+        self.transform = transform
+
+        max = 0 #only will work if density conatins more than one entry
+        max = 0
+        for dens in den:
+            for each_den in dens:
+                if each_den > max:
+                    max = each_den
+                if each_den < 0:
+                    each_den = 0
+  
+        
+        img = den
+        img_width, img_height = img.shape
+        pad_height = (tile_height - img_height % tile_height) % tile_height
+        pad_width = (tile_width - img_width % tile_width) % tile_width
+
+    
+        tab1 = tab[0]
+        tab2 = tab[1]
+        tab3 = tab[2]
+
+        asr1 = asr[0]
+        asr2 = asr[1]
+        asr3 = asr[2]
+
+        padded_tab1 = np.pad(
+        tab1,
+        ((0, pad_height), (0, pad_width)),  # Pad only bottom & right
+        mode='constant',
+        constant_values=0  # Fill with 0s (can change)
+        )   
+        padded_tab2 = np.pad(
+        tab2,
+        ((0, pad_height), (0, pad_width)),  # Pad only bottom & right
+        mode='constant',
+        constant_values=0  # Fill with 0s (can change)
+        )   
+        padded_tab3 = np.pad(
+        tab3,
+        ((0, pad_height), (0, pad_width)),  # Pad only bottom & right
+        mode='constant',
+        constant_values=0  # Fill with 0s (can change)
+        )   
+        padded_asr1 = np.pad(
+        asr1,
+        ((0, pad_height), (0, pad_width)),  # Pad only bottom & right
+        mode='constant',
+        constant_values=0  # Fill with 0s (can change)
+        )   
+        padded_asr2 = np.pad(
+        asr2,
+        ((0, pad_height), (0, pad_width)),  # Pad only bottom & right
+        mode='constant',
+        constant_values=0  # Fill with 0s (can change)
+        )   
+        padded_asr3 = np.pad(
+        asr3,
+        ((0, pad_height), (0, pad_width)),  # Pad only bottom & right
+        mode='constant',
+        constant_values=0  # Fill with 0s (can change)
+        )   
+
+        
+        # Extract all split images and store in dataframe (takes longer to initialize but saves loads on memory usage during training)
+        dataArray = []
+
+        #CST20240315print("image data", imageData)
+        if self.train:
+                #img = Image.open(imagePath)
+                imageMatrix = np.array(img)
+                max = get_img_sigma(imageMatrix[::10,::10])
+                winSize = imageData['winsize_pix']
+                for i in range(0,len(imageLabels[:])):
+                        row = imageLabels[i]
+                        x,y = row[0:2].astype('int')
+                        splitImg_np = imageMatrix[y:y+winSize[1],x:x+winSize[0]]
+                        #splitImg_np = scaleImage(splitImg_np, max)
+                        rowlist = list(row[0:4])
+                        rowlist.append(splitImg_np)
+
+                        
+                        totTab1 = padded_tab1[y:y+winSize[1],x:x+winSize[0]]
+                        totTab2 = padded_tab2[y:y+winSize[1],x:x+winSize[0]]
+                        totTab3 = padded_tab3[y:y+winSize[1],x:x+winSize[0]]
+                        depolTab = np.divide(totTab1, (totTab2-totTab1), where=(totTab2-totTab1) != 0)
+                        depolTab[(totTab2-totTab1) == 0] = 999 # Set division by zero elements to 999
+                        crTab = np.divide(totTab3, totTab2, where=totTab2 != 0)
+                        crTab[totTab2 == 0] = 999 # Set division by zero elements to 999
+                        totAsr1 = padded_asr1[y:y+winSize[1],x:x+winSize[0]]
+                        totAsr2 = padded_asr2[y:y+winSize[1],x:x+winSize[0]]
+                        totAsr3 = padded_asr3[y:y+winSize[1],x:x+winSize[0]]
+                        depolAsr = np.divide(totAsr1, (totAsr2-totAsr1), where=(totAsr2-totAsr1) != 0)
+                        depolAsr[(totAsr2-totAsr1) == 0] = 999 # Set division by zero elements to 999
+                        crAsr = np.divide(totAsr3, totAsr2, where=totAsr2 != 0)
+                        crAsr[totAsr2 == 0] = 999 # Set division by zero elements to 999
+                        avgTab1 = [float(np.median(totTab1[0])),float(np.median(totTab1[1])), np.max(totTab1)]
+                        avgTab2 = [float(np.median(totTab2[0])),float(np.median(totTab2[1])), np.max(totTab1)]
+                        avgTab3 = [float(np.median(totTab3[0])),float(np.median(totTab3[1])), np.max(totTab1)]
+                        avgDepolTab = [float(np.median(depolTab[0])),float(np.median(depolTab[1])), np.max(depolTab)]
+                        avgCRTab = [float(np.median(crTab[0])),float(np.median(crTab[1])), np.max(crTab)]
+                        avgAsr1 = [float(np.median(totAsr1[0])),float(np.median(totAsr1[1])), np.max(totTab1)]
+                        avgAsr2 = [float(np.median(totAsr2[0])),float(np.median(totAsr2[1])), np.max(totTab1)]
+                        avgAsr3 = [float(np.median(totAsr3[0])),float(np.median(totAsr3[1])), np.max(totTab1)]
+                        avgDepolAsr = [float(np.median(depolAsr[0])),float(np.median(depolAsr[1])), np.max(depolAsr)]
+                        avgCRAsr = [float(np.median(crAsr[0])),float(np.median(crAsr[1])), np.max(crAsr)]
+                        height = [y,0,0]
+                        
+                        rowlist.append(avgTab1)
+                        rowlist.append(avgTab2)
+                        rowlist.append(avgTab3)
+                        rowlist.append(avgDepolTab)
+                        rowlist.append(avgCRTab)
+                        rowlist.append(avgAsr1)
+                        rowlist.append(avgAsr2)
+                        rowlist.append(avgAsr3)
+                        rowlist.append(avgDepolAsr)
+                        rowlist.append(avgCRAsr)
+                        rowlist.append(height)
+                        
+
+                        #rowlist.append(self.labels_multiclass[i])
+                        #rowlist.append(self.labels_binary[i])
+                        if (splitImg_np.shape[0] == 0) or (splitImg_np.shape[1] == 0):
+                            print("Error with an image: ", i, "class: ", rowlist[2])
+                        else:
+                            dataArray.append(rowlist)
+                        #CST20240315print("data array", dataArray)
+        else: #testing
+                    # If training, and there are no labeled split images from tiff image, skip loading it
+                 
+                imageMatrix = np.array(img)
+                
+                max = get_img_sigma(imageMatrix[::10,::10])
+                winSize = imageData['winsize_pix']
+                for i in range(0,len(imageLabels[:])):
+                        row = imageLabels[i]
+                        #print(row)
+                        x,y = row[0:2].astype('int')
+                        splitImg_np = imageMatrix[y:y+winSize[1],x:x+winSize[0]]
+                        #splitImg_np = scaleImage(splitImg_np, max)
+                        rowlist = list(row[0:4])
+                        rowlist.append(splitImg_np)
+
+                        totTab1 = padded_tab1[y:y+winSize[1],x:x+winSize[0]]
+                        totTab2 = padded_tab2[y:y+winSize[1],x:x+winSize[0]]
+                        totTab3 = padded_tab3[y:y+winSize[1],x:x+winSize[0]]
+                        depolTab = np.divide(totTab1, (totTab2-totTab1), where=(totTab2-totTab1) != 0)
+                        depolTab[(totTab2-totTab1) == 0] = 999 # Set division by zero elements to 999
+                        crTab = np.divide(totTab3, totTab2, where=totTab2 != 0)
+                        crTab[totTab2 == 0] = 999 # Set division by zero elements to 999
+                        totAsr1 = padded_asr1[y:y+winSize[1],x:x+winSize[0]]
+                        totAsr2 = padded_asr2[y:y+winSize[1],x:x+winSize[0]]
+                        totAsr3 = padded_asr3[y:y+winSize[1],x:x+winSize[0]]
+                        depolAsr = np.divide(totAsr1, (totAsr2-totAsr1), where=(totAsr2-totAsr1) != 0)
+                        depolAsr[(totAsr2-totAsr1) == 0] = 999 # Set division by zero elements to 999
+                        crAsr = np.divide(totAsr3, totAsr2, where=totAsr2 != 0)
+                        crAsr[totAsr2 == 0] = 999 # Set division by zero elements to 999
+                        avgTab1 = [float(np.median(totTab1[0])),float(np.median(totTab1[1])), np.max(totTab1)]
+                        avgTab2 = [float(np.median(totTab2[0])),float(np.median(totTab2[1])), np.max(totTab1)]
+                        avgTab3 = [float(np.median(totTab3[0])),float(np.median(totTab3[1])), np.max(totTab1)]
+                        avgDepolTab = [float(np.median(depolTab[0])),float(np.median(depolTab[1])), np.max(depolTab)]
+                        avgCRTab = [float(np.median(crTab[0])),float(np.median(crTab[1])), np.max(crTab)]
+                        avgAsr1 = [float(np.median(totAsr1[0])),float(np.median(totAsr1[1])), np.max(totTab1)]
+                        avgAsr2 = [float(np.median(totAsr2[0])),float(np.median(totAsr2[1])), np.max(totTab1)]
+                        avgAsr3 = [float(np.median(totAsr3[0])),float(np.median(totAsr3[1])), np.max(totTab1)]
+                        avgDepolAsr = [float(np.median(depolAsr[0])),float(np.median(depolAsr[1])), np.max(depolAsr)]
+                        avgCRAsr = [float(np.median(crAsr[0])),float(np.median(crAsr[1])), np.max(crAsr)]
+                        height = [y,0,0]
+                        
+                        rowlist.append(avgTab1)
+                        rowlist.append(avgTab2)
+                        rowlist.append(avgTab3)
+                        rowlist.append(avgDepolTab)
+                        rowlist.append(avgCRTab)
+                        rowlist.append(avgAsr1)
+                        rowlist.append(avgAsr2)
+                        rowlist.append(avgAsr3)
+                        rowlist.append(avgDepolAsr)
+                        rowlist.append(avgCRAsr)
+                        rowlist.append(height)
+
+    
+                        #rowlist.append(self.labels_multiclass[i])
+                        #rowlist.append(self.labels_binary[i])
+                        if (splitImg_np.shape[0] == 0) or (splitImg_np.shape[1] == 0):
+                            print("Error with an image: ", i, "class: ", rowlist[2])
+                        else:
+                            dataArray.append(rowlist)
+                        
+
+        self.dataFrame = pd.DataFrame(dataArray, columns=['x_pix','y_pix','label','conf','img_mat', 'TAB1','TAB2','TAB3','depTab','crTab','ASR1','ASR2','ASR3','depAsr','crAsr', 'y'])
 
     def __len__(self):
         return len(self.dataFrame)
 
     def __getitem__(self, idx):
 
-        density = self.dataFrame.iloc[idx,4]
+        tab1 = self.dataFrame.iloc[idx,5]
+        tab2 = self.dataFrame.iloc[idx,6]
+        tab3 = self.dataFrame.iloc[idx,7]
+        depTab = self.dataFrame.iloc[idx,8]
+        crTab = self.dataFrame.iloc[idx,9]
+        asr1 = self.dataFrame.iloc[idx,10]
+        asr2 = self.dataFrame.iloc[idx,11]
+        asr3 = self.dataFrame.iloc[idx,12]
+        depAsr = self.dataFrame.iloc[idx,13]
+        crAsr = self.dataFrame.iloc[idx,14]
+        y = self.dataFrame.iloc[idx,15]
+        np_array = np.array([tab1,tab2,tab3,depTab,crTab,asr1,asr2,asr3,depAsr,crAsr,y])
 
         #if self.transform:
             #splitImg_np = self.transform(splitImg_np)
 
-        density_tensor = torch.from_numpy(density)
+        #density_tensor = torch.from_numpy([density1,density2,density3])
+        #tab_tensor = torch.from_numpy([tab1,tab2,tab3])
+        #asr_tensor = torch.from_numpy([asr1,asr2,asr3])
+        train_tensor = torch.from_numpy(np_array)
 
         if self.train:
             label = int(self.dataFrame.iloc[idx,2])
-            return (density, int(label))
+            return (train_tensor, int(label))
 
         else:
-            return density_tensor
+            return (train_tensor)
+
+
+
 
 
 class RandomRotateVario(object):

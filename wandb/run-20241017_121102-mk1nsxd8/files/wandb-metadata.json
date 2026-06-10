@@ -1,0 +1,47 @@
+{
+  "os":  "Linux-6.8.0-40-generic-x86_64-with-glibc2.35",
+  "python":  "3.10.12",
+  "startedAt":  "2024-10-17T18:11:02.705395Z",
+  "args":  [
+    "Config/mlp_test_negri/mlp_test_negri.config",
+    "--cuda"
+  ],
+  "program":  "/home/twickler/ws/GEOCLASS-image/NN_Class/train_only_varnet.py",
+  "codePath":  "train_only_varnet.py",
+  "git":  {
+    "remote":  "https://github.com/Herzfeld-Lab/NN_Class.git",
+    "commit":  "190afc44819672b6b07d3f2d4939aa23eb30bffd"
+  },
+  "email":  "sitw2043@colorado.edu",
+  "root":  "/home/twickler/ws/GEOCLASS-image/NN_Class",
+  "host":  "peele",
+  "username":  "twickler",
+  "executable":  "/home/twickler/ws/venv/bin/python3",
+  "codePathLocal":  "train_only_varnet.py",
+  "cpu_count":  8,
+  "cpu_count_logical":  16,
+  "gpu":  "[NVIDIA GeForce RTX 2070 SUPER]",
+  "gpu_count":  1,
+  "disk":  {
+    "/":  {
+      "total":  "1006450962432",
+      "used":  "746159210496"
+    }
+  },
+  "memory":  {
+    "total":  "67354460160"
+  },
+  "cpu":  {
+    "count":  8,
+    "countLogical":  16
+  },
+  "gpu_nvidia":  [
+    {
+      "name":  "NVIDIA GeForce RTX 2070 SUPER",
+      "memoryTotal":  "8589934592",
+      "cudaCores":  2560,
+      "architecture":  "Turing"
+    }
+  ],
+  "cudaVersion":  "12.2"
+}

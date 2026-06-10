@@ -170,6 +170,67 @@ def scaleImage(img, max):
     img[img[:,:] > 255] = 255
     return np.ceil(img).astype(np.uint8)
 
+
+def wv_geotiff_nodata_set(raster_nodata=None, extra_values=None):
+    """WV GeoTIFF NoData is 65535 (uint16); union GDAL nodata when set on the file."""
+    s = {65535}
+    if raster_nodata is not None:
+        if not (isinstance(raster_nodata, float) and np.isnan(raster_nodata)):
+            s.add(raster_nodata)
+    if extra_values is not None:
+        for v in extra_values:
+            if v is not None and not (isinstance(v, float) and np.isnan(v)):
+                s.add(v)
+    return s
+
+
+def split_region_contains_nodata(split_img, nodata_set):
+    for v in nodata_set:
+        if isinstance(v, float) and np.isnan(v):
+            if np.any(np.isnan(split_img)):
+                return True
+        else:
+            if np.any(split_img == v):
+                return True
+    if np.issubdtype(split_img.dtype, np.floating) and np.any(np.isnan(split_img)):
+        return True
+    return False
+
+
+def mask_nodata_for_display(band, nodata_set):
+    """Set nodata pixels to 0 so scaleImage uses only valid dynamic range."""
+    out = np.array(band, copy=True)
+    mask = np.zeros(band.shape, dtype=bool)
+    for v in nodata_set:
+        if isinstance(v, float) and np.isnan(v):
+            mask |= np.isnan(band)
+        else:
+            mask |= (band == v)
+    if np.issubdtype(band.dtype, np.floating):
+        mask |= np.isnan(band)
+    out[mask] = 0
+    return out
+
+
+def valid_raster_samples(band, stride=10, nodata_set=None):
+    """Subsample band (stride) and return 1D array of non-nodata pixels for statistics."""
+    sub = band[::stride, ::stride]
+    if nodata_set is None:
+        nodata_set = wv_geotiff_nodata_set()
+    mask = np.ones(sub.shape, dtype=bool)
+    for v in nodata_set:
+        if isinstance(v, float) and np.isnan(v):
+            mask &= ~np.isnan(sub)
+        else:
+            mask &= (sub != v)
+    if np.issubdtype(sub.dtype, np.floating):
+        mask &= ~np.isnan(sub)
+    vflat = sub[mask].ravel()
+    if vflat.size == 0:
+        return np.array([1.0], dtype=np.float64)
+    return vflat
+
+
 def scalePlot(img, max):
     # Normalize the image if the max value is not 255
     img = img / max  # Normalize based on the provided 'max' value

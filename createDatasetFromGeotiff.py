@@ -42,17 +42,18 @@ for IMG_NUM,imgPath in enumerate(imgPaths):
     print("**** Loading Tiff Image {}: {} ****".format(IMG_NUM, imgPath))
 
     try:
-        tiffImg = rio.open(imgPath)
+        tiffImg = rio.open(imgPath, nodata=65535)
         isGeotiff = True
     except rio.errors.NotGeoreferencedWarning as warning:
         print('NOTE: tiff image has no georeferencing data. Attempting to get transform from metadata tarfile'.format(imgPath))
         warnings.filterwarnings("ignore")
-        tiffImg = rio.open(imgPath)
+        tiffImg = rio.open(imgPath, nodata=65535)
         isGeotiff = False
 
     geotiff_bool.append(isGeotiff)
 
     band1 = tiffImg.read(1)
+    nodata_set = wv_geotiff_nodata_set(tiffImg.nodata)
     imgSize = band1.shape
     print('Image size: {}x{}'.format(imgSize[0],imgSize[1]))
     #Treat image as a non Geotiff if it has no crs data.
@@ -222,7 +223,7 @@ for IMG_NUM,imgPath in enumerate(imgPaths):
 
             # pix_coords_list data is used to access actual data at runtime - avoids loading giant data all at once
             if Point(UL_UTM[0],UL_UTM[1]).within(contourPolygon) and Point(LR_UTM[0],LR_UTM[1]).within(contourPolygon):
-                if splitImg[splitImg==0].shape[0] == 0:
+                if not split_region_contains_nodata(splitImg, nodata_set):
                     pix_coords_list.append([i,j,UL_UTM[0],UL_UTM[1],-1,0,IMG_NUM])
                     count += 1
     print('Created {} split images\n'.format(count))

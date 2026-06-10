@@ -1,0 +1,18 @@
+{"time":"2024-10-28T14:49:16.058323522-06:00","level":"INFO","msg":"using version","core version":"0.18.3"}
+{"time":"2024-10-28T14:49:16.058454657-06:00","level":"INFO","msg":"created symlink","path":"/home/twickler/ws/GEOCLASS-image/NN_Class/wandb/run-20241028_144916-sd999k8c/logs/debug-core.log"}
+{"time":"2024-10-28T14:49:16.074453602-06:00","level":"ERROR","msg":"dialing: google: could not find default credentials. See https://cloud.google.com/docs/authentication/external/set-up-adc for more information"}
+{"time":"2024-10-28T14:49:16.081560643-06:00","level":"INFO","msg":"created new stream","id":"sd999k8c"}
+{"time":"2024-10-28T14:49:16.081594442-06:00","level":"INFO","msg":"stream: started","id":"sd999k8c"}
+{"time":"2024-10-28T14:49:16.081605111-06:00","level":"INFO","msg":"writer: Do: started","stream_id":{"value":"sd999k8c"}}
+{"time":"2024-10-28T14:49:16.08162703-06:00","level":"INFO","msg":"handler: started","stream_id":{"value":"sd999k8c"}}
+{"time":"2024-10-28T14:49:16.081631694-06:00","level":"INFO","msg":"sender: started","stream_id":{"value":"sd999k8c"}}
+{"time":"2024-10-28T14:49:16.380913729-06:00","level":"INFO","msg":"wandb-core","!BADKEY":null}
+{"time":"2024-10-28T14:49:16.382829996-06:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2024-10-28T14:52:01.650922631-06:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2024-10-28T14:52:01.652475589-06:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2024-10-28T14:52:02.165586053-06:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2024-10-28T14:52:03.233318288-06:00","level":"INFO","msg":"stream: closing","id":"sd999k8c"}
+{"time":"2024-10-28T14:52:03.233345334-06:00","level":"INFO","msg":"handler: closed","stream_id":{"value":"sd999k8c"}}
+{"time":"2024-10-28T14:52:03.233356286-06:00","level":"INFO","msg":"writer: Close: closed","stream_id":{"value":"sd999k8c"}}
+{"time":"2024-10-28T14:52:03.23338466-06:00","level":"INFO","msg":"sender: closed","stream_id":{"value":"sd999k8c"}}
+{"time":"2024-10-28T14:52:03.233392308-06:00","level":"INFO","msg":"stream: closed","id":"sd999k8c"}

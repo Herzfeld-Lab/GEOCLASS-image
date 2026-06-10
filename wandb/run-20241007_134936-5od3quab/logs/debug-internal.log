@@ -1,0 +1,18 @@
+{"time":"2024-10-07T13:49:36.105286064-06:00","level":"INFO","msg":"using version","core version":"0.18.3"}
+{"time":"2024-10-07T13:49:36.10529815-06:00","level":"INFO","msg":"created symlink","path":"/home/twickler/ws/GEOCLASS-image/NN_Class/wandb/run-20241007_134936-5od3quab/logs/debug-core.log"}
+{"time":"2024-10-07T13:49:36.120499328-06:00","level":"ERROR","msg":"dialing: google: could not find default credentials. See https://cloud.google.com/docs/authentication/external/set-up-adc for more information"}
+{"time":"2024-10-07T13:49:36.122867939-06:00","level":"INFO","msg":"created new stream","id":"5od3quab"}
+{"time":"2024-10-07T13:49:36.122880513-06:00","level":"INFO","msg":"stream: started","id":"5od3quab"}
+{"time":"2024-10-07T13:49:36.122896051-06:00","level":"INFO","msg":"handler: started","stream_id":{"value":"5od3quab"}}
+{"time":"2024-10-07T13:49:36.122932782-06:00","level":"INFO","msg":"writer: Do: started","stream_id":{"value":"5od3quab"}}
+{"time":"2024-10-07T13:49:36.122919825-06:00","level":"INFO","msg":"sender: started","stream_id":{"value":"5od3quab"}}
+{"time":"2024-10-07T13:49:36.333231117-06:00","level":"INFO","msg":"wandb-core","!BADKEY":null}
+{"time":"2024-10-07T13:49:36.334171619-06:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2024-10-07T13:53:41.452924087-06:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2024-10-07T13:53:41.454170907-06:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2024-10-07T13:53:41.808730635-06:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2024-10-07T13:53:42.904100216-06:00","level":"INFO","msg":"stream: closing","id":"5od3quab"}
+{"time":"2024-10-07T13:53:42.904137834-06:00","level":"INFO","msg":"handler: closed","stream_id":{"value":"5od3quab"}}
+{"time":"2024-10-07T13:53:42.90419993-06:00","level":"INFO","msg":"writer: Close: closed","stream_id":{"value":"5od3quab"}}
+{"time":"2024-10-07T13:53:42.904235292-06:00","level":"INFO","msg":"sender: closed","stream_id":{"value":"5od3quab"}}
+{"time":"2024-10-07T13:53:42.904341956-06:00","level":"INFO","msg":"stream: closed","id":"5od3quab"}

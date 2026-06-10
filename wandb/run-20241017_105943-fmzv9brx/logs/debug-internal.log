@@ -1,0 +1,18 @@
+{"time":"2024-10-17T10:59:43.964642554-06:00","level":"INFO","msg":"using version","core version":"0.18.3"}
+{"time":"2024-10-17T10:59:43.964693812-06:00","level":"INFO","msg":"created symlink","path":"/home/twickler/ws/GEOCLASS-image/NN_Class/wandb/run-20241017_105943-fmzv9brx/logs/debug-core.log"}
+{"time":"2024-10-17T10:59:43.979489417-06:00","level":"ERROR","msg":"dialing: google: could not find default credentials. See https://cloud.google.com/docs/authentication/external/set-up-adc for more information"}
+{"time":"2024-10-17T10:59:43.981818244-06:00","level":"INFO","msg":"created new stream","id":"fmzv9brx"}
+{"time":"2024-10-17T10:59:43.981830745-06:00","level":"INFO","msg":"stream: started","id":"fmzv9brx"}
+{"time":"2024-10-17T10:59:43.981873605-06:00","level":"INFO","msg":"sender: started","stream_id":{"value":"fmzv9brx"}}
+{"time":"2024-10-17T10:59:43.981838366-06:00","level":"INFO","msg":"writer: Do: started","stream_id":{"value":"fmzv9brx"}}
+{"time":"2024-10-17T10:59:43.981885063-06:00","level":"INFO","msg":"handler: started","stream_id":{"value":"fmzv9brx"}}
+{"time":"2024-10-17T10:59:44.117546957-06:00","level":"INFO","msg":"wandb-core","!BADKEY":null}
+{"time":"2024-10-17T10:59:44.117937729-06:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2024-10-17T11:02:29.614432063-06:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2024-10-17T11:02:29.61601168-06:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2024-10-17T11:02:31.00519901-06:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2024-10-17T11:02:32.144562591-06:00","level":"INFO","msg":"stream: closing","id":"fmzv9brx"}
+{"time":"2024-10-17T11:02:32.144573637-06:00","level":"INFO","msg":"handler: closed","stream_id":{"value":"fmzv9brx"}}
+{"time":"2024-10-17T11:02:32.144609622-06:00","level":"INFO","msg":"writer: Close: closed","stream_id":{"value":"fmzv9brx"}}
+{"time":"2024-10-17T11:02:32.144637228-06:00","level":"INFO","msg":"sender: closed","stream_id":{"value":"fmzv9brx"}}
+{"time":"2024-10-17T11:02:32.144653261-06:00","level":"INFO","msg":"stream: closed","id":"fmzv9brx"}

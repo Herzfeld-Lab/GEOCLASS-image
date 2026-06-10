@@ -1,0 +1,80 @@
+# GeoCLASS-image — Intel macOS (osx-64), e.g. Shavano (Ventura+).
+# Derived from geoclass-image.rachels-mac.yml + geoclass-image.pip-freeze.txt.
+#
+# Not portable from Apple Silicon: use conda-forge and rebuild; do not copy the M2 env directory.
+#
+# Python: 3.11 (PyTorch CPU wheels for Intel Mac do not support 3.14; M2 env used 3.14.3.)
+# NumPy: <2 (PyTorch 2.2.2 + torchvision 0.17.2 — install via pip after this file — expect numpy<2.)
+#
+# After: conda env create -f geoclass-image.for-shavano.yml
+#        conda activate geoclass-image
+#        See geoclass-image.for-shavano.PIP-AFTER.txt for torch/torchvision and notes.
+
+name: geoclass-image
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11.*
+  - pip
+
+  # --- Core numerics (M2 conda: numpy 2.4.3 — here constrained for Intel + pip torch 2.2.2) ---
+  - numpy>=1.26,<2
+  - scipy=1.17.1
+  - numba=0.64.0
+
+  # --- Data / ML / plotting (pip-freeze / rachels-mac pip block) ---
+  # pandas: M2 had 3.0.2 via pip; pandas 3.x typically wants numpy 2.x, which conflicts with torch 2.2.2 on Intel.
+  - pandas=2.2.3
+  - matplotlib=3.10.8
+  - scikit-learn=1.8.0
+  - scikit-image=0.26.0
+
+  # --- Geospatial ---
+  - rasterio
+  - geopandas=1.1.3
+  - shapely=2.1.2
+  - pyproj=3.7.2
+  - pyogrio=0.12.1
+  - affine=2.4.0
+
+  # --- Imaging / IO ---
+  - pillow
+  - opencv>=4.13.0,<5
+  - imageio
+  - tifffile=2026.3.3
+  - netcdf4=1.7.4
+
+  # --- Config / graph / math helpers ---
+  - pyyaml=6.0.3
+  - networkx=3.6.1
+  - sympy=1.14.0
+  - utm
+
+  # --- Common dependencies (pip-freeze; conda-forge names) ---
+  - jinja2=3.1.6
+  - markupsafe=3.0.3
+  - click=8.3.1
+  - fsspec=2026.3.0
+  - filelock=3.25.2
+  - joblib=1.5.3
+  - threadpoolctl=3.6.0
+  - mpmath=1.3.0
+  - typing_extensions=4.15.0
+  - python-dateutil=2.9.0.*
+  - six=1.17.0
+  - setuptools=81.0.0
+  - packaging>=24.0
+  - attrs>=24.2.0
+  - certifi>=2024.8.30
+  - cftime=1.6.5
+  - cligj=0.7.2
+  - contourpy=1.3.3
+  - cycler=0.12.1
+  - fonttools=4.62.1
+  - kiwisolver=1.5.0
+  - pyparsing=3.3.2
+  - lazy_loader=0.5
+
+  # --- Qt: codebase uses PyQt5. Omit PyQt6 to avoid duplicate Qt frameworks on macOS. ---
+  - pyqt=5.15.11

@@ -1,13 +1,13 @@
 from utils import *
 from auto_rotate_geotiff import *
 #CST20240312
-from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QHBoxLayout, QVBoxLayout, QCheckBox, QSlider, QLineEdit, QPushButton, QButtonGroup, QMainWindow, QGridLayout
+from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QHBoxLayout, QVBoxLayout, QCheckBox, QSlider, QLineEdit, QPushButton, QButtonGroup, QMainWindow, QGridLayout, QSizePolicy
 #CST 20240308
 from PyQt5.QtGui import QPixmap, QImage, QFont, QGuiApplication, QFont, qRgb
 
 from PyQt5.QtCore import Qt
 
-from PIL.ImageQt import ImageQt
+# from PIL.ImageQt import ImageQt
 import os
 import shutil
 
@@ -21,10 +21,15 @@ from scipy.spatial import KDTree
 
 from matplotlib.pyplot import get_cmap
 from matplotlib.colors import ListedColormap
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 import yaml
 
 
+class SplitImageTool(QWidget):
+    global numTiff
+    numTiff = 0
 class SplitImageTool(QWidget):
     global numTiff
     numTiff = 0
@@ -35,13 +40,18 @@ class SplitImageTool(QWidget):
         print('-------- Initializing App --------')
         
         # geometry
+        
+        # geometry
         screen_resolution = app.desktop().availableGeometry()
         self.title = 'Split Image Labeling tool'
         self.width, self.height = int(screen_resolution.width()), int(screen_resolution.height())
         self.setMinimumSize(self.width - 100, self.height - 100) # the default min size runs of the screen!
         self.setGeometry(0, 0, self.width - 100, self.height - 100)
+        self.setMinimumSize(self.width - 100, self.height - 100) # the default min size runs of the screen!
+        self.setGeometry(0, 0, self.width - 100, self.height - 100)
         self.setWindowTitle(self.title)
         self.to_netcdf = netcdf
+
 
 
         # Load Tiff Image and split image data
@@ -57,8 +67,17 @@ class SplitImageTool(QWidget):
         self.checkpoint = checkpoint
         self.label_path = self.cfg['npy_path']
         self.lagstep = self.cfg['vario_num_lag']
+        self.lagstep = self.cfg['vario_num_lag']
         self.label_data = np.load(self.label_path, allow_pickle=True)
         self.split_info_save = self.label_data[1]
+        if self.split_info_save.ndim != 2 or self.split_info_save.shape[0] == 0:
+            raise ValueError(
+                "Dataset at {} has no split images; nothing to explore.".format(self.label_path)
+            )
+        # Only GeoTIFF indices that actually have splits in the .npy (others can be skipped by createDatasetFromGeotiff)
+        self.tiff_indices_with_splits = np.unique(self.split_info_save[:, 6].astype(int))
+        if self.tiff_selector not in self.tiff_indices_with_splits:
+            self.tiff_selector = int(self.tiff_indices_with_splits[0])
 
         self.initDataset()
 
@@ -70,6 +89,7 @@ class SplitImageTool(QWidget):
         self.visualize_heatmap = False
 
         # Initialize Image and Dimensions container variables
+        self.downscale_big_image = False
         bg_img_scaled = None
         self.bg_img_cv = None
         self.bg_qimage = None
@@ -105,6 +125,8 @@ class SplitImageTool(QWidget):
 
         
 
+        
+
     def initDataset(self):
         self.dataset_info = self.label_data[0]
         self.split_info = self.split_info_save[self.split_info_save[:,6] == self.tiff_selector]
@@ -118,6 +140,8 @@ class SplitImageTool(QWidget):
             self.pred_label_path = self.checkpoint
             #CST 20240313
             print("label path", self.pred_label_path)
+            #CST 20240313
+            print("label path", self.pred_label_path)
             pred_data = np.load(self.pred_label_path, allow_pickle=True)
             self.pred_labels_save = pred_data[1]
             self.predictions = True
@@ -127,7 +151,7 @@ class SplitImageTool(QWidget):
         if self.checkpoint != None:
             self.pred_labels = self.pred_labels_save[self.pred_labels_save[:,6] == self.tiff_selector]
 
-        self.geotiff = rio.open(self.dataset_info['filename'][self.tiff_selector])
+        self.geotiff = rio.open(self.dataset_info['filename'][self.tiff_selector], nodata=65535)
 
         # Load Contour file if specified
         if self.cfg['contour_path'] != 'None':
@@ -138,9 +162,22 @@ class SplitImageTool(QWidget):
             self.contour_np = get_geotiff_bounds(self.geotiff, self.utm_epsg_code)
         self.contour_polygon = Polygon(self.contour_np)
 
-        self.tiff_image_matrix = self.geotiff.read(1)
+        raw_band = self.geotiff.read(1)
+        nodata_set = wv_geotiff_nodata_set(self.geotiff.nodata)
+        valid_samples = valid_raster_samples(raw_band, stride=10, nodata_set=nodata_set)
+        self.tiff_image_max = get_img_sigma(valid_samples) if valid_samples.size >= 1 else 1.0
+        self.tiff_image_matrix = mask_nodata_for_display(raw_band, nodata_set)
 
-        self.tiff_image_max = get_img_sigma(self.tiff_image_matrix[::10,::10])
+        # Percentile-based contrast bounds for the big-map preview only (patch preview
+        # keeps scaleImage so labeled thumbnails stay consistent across sessions).
+        if valid_samples.size >= 2:
+            lo, hi = np.percentile(valid_samples, [1.0, 99.0])
+        else:
+            lo, hi = 0.0, float(self.tiff_image_max)
+        if not np.isfinite(lo) or not np.isfinite(hi) or hi <= lo:
+            lo, hi = 0.0, max(1.0, float(self.tiff_image_max))
+        self.tiff_display_lo = float(lo)
+        self.tiff_display_hi = float(hi)
 
     def clearLayout(self, layout):
         if layout is not None:
@@ -151,10 +188,27 @@ class SplitImageTool(QWidget):
                 elif child.layout() is not None:
                     self.clearLayout(child.layout())
 
+    def right_column_image_width(self):
+        """Pixel width for the split preview and geotiff in the right column (shared for layout + mouse mapping)."""
+        return max(420, min(1600, int(self.width * 0.46) - 24))
+
+    def variogram_thumb_width(self):
+        w = self.right_column_image_width()
+        return max(220, min(420, w // 2 - 8))
+
+    def split_preview_fixed_height(self):
+        """Fixed QLabel height for the patch preview (screen-based); pixmap scales inside without vertical clipping."""
+        return max(260, min(520, int(self.height * 0.28)))
+
     def initUI(self):
+
+        # Ensure the main widget always receives key events (WASD / arrow navigation,
+        # number keys, L) even after the user clicks a button or slider.
+        self.setFocusPolicy(Qt.StrongFocus)
 
         self.master_layout = QHBoxLayout()
         self.left_layout = QVBoxLayout()
+        self.right_layout = QVBoxLayout()
         self.visualization_widgets = QVBoxLayout()
         self.conf_slider_container = QHBoxLayout()
         self.visualization_interactive = QHBoxLayout()
@@ -170,6 +224,8 @@ class SplitImageTool(QWidget):
         self.split_image_label = QLabel(self)
         self.split_image_label.setMargin(0)
         self.split_image_label.setAlignment(Qt.AlignCenter)
+        self.split_image_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        self.split_image_label.setFixedHeight(self.split_preview_fixed_height())
         #self.split_image_labels = [QLabel() for _ in self.lagstep]
         self.split_image_labels = [QLabel(self) for _ in range(4)]
         for i in range(4):
@@ -196,6 +252,13 @@ class SplitImageTool(QWidget):
         self.split_image_conf.setAlignment(Qt.AlignCenter)
         #CST20240308
         self.split_image_conf.setFont(QFont("Helvetica", 15, QFont.Bold))
+
+        # UTM at crosshair (same anchor as createDatasetFromGeotiff: upper-left of split window in UTM)
+        self.crosshair_utm_label = QLabel(self)
+        self.crosshair_utm_label.setMargin(0)
+        self.crosshair_utm_label.setAlignment(Qt.AlignCenter)
+        self.crosshair_utm_label.setFont(QFont("Helvetica", 11))
+        self.crosshair_utm_label.setWordWrap(True)
 
         # Buttons
         self.button_containers = []
@@ -261,17 +324,10 @@ class SplitImageTool(QWidget):
 
         self.initClassButtons()
 
-        self.split_text.addSpacing(200)
+        self.split_text.addStretch(1)
         self.split_text.addWidget(self.split_image_class)
         self.split_text.addWidget(self.split_image_conf)
-        self.split_text.addSpacing(200)
-
-        # self.visualization_widgets.addWidget(self.split_image_label)
-        for image_label in self.split_image_labels:
-            self.visualization_widgets.addWidget(image_label)
-        self.visualization_widgets.addLayout(self.split_text)
-        self.visualization_widgets.addWidget(self.split_image_label)
-        
+        self.split_text.addStretch(1)
 
         self.conf_slider_container.addWidget(self.conf_thresh_slider)
         self.conf_slider_container.addWidget(self.conf_thresh_value)
@@ -306,15 +362,15 @@ class SplitImageTool(QWidget):
 
         self.tiff_selector_buttons = QGridLayout()
 
-        for tiffNum in range(len(self.dataset_info['filename'])):
+        for grid_idx, tiffNum in enumerate(self.tiff_indices_with_splits):
             button = QPushButton('{}...'.format(self.dataset_info['filename'][tiffNum].split('/')[-1][:13]), self)
-            button.clicked.connect(self.makeTiffSelectorCallbacks(tiffNum))
-            button.clicked.connect(self.getTiffnum(tiffNum))
+            button.clicked.connect(self.makeTiffSelectorCallbacks(int(tiffNum)))
+            button.clicked.connect(self.getTiffnum(int(tiffNum)))
             #self.tiff_selector_buttons.addWidget(button)
             
             # Calculate the row and column numbers
-            row = tiffNum // 4
-            col = tiffNum % 4
+            row = grid_idx // 4
+            col = grid_idx % 4
             
             # Add the button to the layout at the specified row and column
             self.tiff_selector_buttons.addWidget(button, row, col)
@@ -327,9 +383,18 @@ class SplitImageTool(QWidget):
         
         self.left_layout.addLayout(self.grid_layout) #something about this causes a warning: QLayout::addChildLayout: layout "" already has a parent
         # this might be the issue? as in the layout is added to the master too early?
-        self.master_layout.addLayout(self.left_layout)
+
+        # Right column: class/conf, fixed-height split preview, then geotiff (extra height goes to the map)
+        self.right_layout.addLayout(self.split_text)
+        self.right_layout.addWidget(self.crosshair_utm_label)
+        self.right_layout.addWidget(self.split_image_label, stretch=0)
+        self.right_layout.addWidget(self.tiff_image_label, stretch=1)
+
+        self.master_layout.addLayout(self.left_layout, stretch=0)
+        self.master_layout.addLayout(self.right_layout, stretch=1)
+
         
-        self.master_layout.addWidget(self.tiff_image_label)
+
 
         
 
@@ -374,48 +439,109 @@ class SplitImageTool(QWidget):
 
         self.class_buttons.addLayout(self.class_buttons_columns)
     
+    def _big_image_target_size(self):
+        """Target (width, height) in physical pixels for the big-map render.
+
+        Scales to the on-screen pixmap width (logical points) times the device pixel
+        ratio so HiDPI displays get a crisp image, while preserving the source aspect
+        ratio. Never upscales above the source resolution.
+        """
+        src_h, src_w = self.tiff_image_matrix.shape[:2]
+        tw_logical = int(self.right_column_image_width())
+        if self.downscale_big_image:
+            tw_logical = max(240, tw_logical // 2)
+        dpr = float(self.devicePixelRatioF()) if hasattr(self, 'devicePixelRatioF') else 1.0
+        dpr = max(1.0, dpr)
+        target_w = max(1, int(round(tw_logical * dpr)))
+        if src_w > 0:
+            target_h = max(1, int(round(target_w * (src_h / float(src_w)))))
+        else:
+            target_h = 1
+        if target_w > src_w or target_h > src_h:
+            target_w, target_h = src_w, src_h
+        return target_w, target_h, dpr
+
+    def _stretch_for_display(self, arr):
+        """Apply a cached percentile stretch and return uint8 grayscale for display."""
+        lo = getattr(self, 'tiff_display_lo', 0.0)
+        hi = getattr(self, 'tiff_display_hi', float(self.tiff_image_max))
+        if not np.isfinite(lo) or not np.isfinite(hi) or hi <= lo:
+            return scaleImage(arr, max(1.0, float(self.tiff_image_max)))
+        a = np.asarray(arr, dtype=np.float32)
+        a = (a - float(lo)) / (float(hi) - float(lo))
+        np.clip(a, 0.0, 1.0, out=a)
+        return (a * 255.0 + 0.5).astype(np.uint8)
+
     def initBgImage(self):
-        # Scale down tiff image for visualization and convert to 8-bit RGB
-        scale_factor = int(self.tiff_image_matrix.shape[0] / 1200)
-        bg_img_scaled = self.tiff_image_matrix[::scale_factor,::scale_factor]
-        bg_img_scaled = scaleImage(bg_img_scaled, self.tiff_image_max)
-        split_disp_size = (np.array(self.win_size) / scale_factor).astype('int') - 1
-        bg_img_scaled = cv2.cvtColor(bg_img_scaled,cv2.COLOR_GRAY2RGB)
+        target_w, target_h, dpr = self._big_image_target_size()
+        src_h, src_w = self.tiff_image_matrix.shape[:2]
+
+        # Anti-aliased downsample straight to the on-screen physical pixel size.
+        bg_img_scaled = cv2.resize(
+            self.tiff_image_matrix,
+            (target_w, target_h),
+            interpolation=cv2.INTER_AREA,
+        )
+        bg_img_scaled = self._stretch_for_display(bg_img_scaled)
+        bg_img_scaled = cv2.cvtColor(bg_img_scaled, cv2.COLOR_GRAY2RGB)
+
+        # Ratio between raster pixels and the scaled preview (float). Used by the
+        # label/heatmap overlay helpers to convert split window size + centre coords.
+        raster_to_scaled = src_h / float(target_h) if target_h > 0 else 1.0
+        split_disp_size = np.maximum(
+            1, (np.array(self.win_size) / raster_to_scaled).astype('int') - 1
+        )
 
         # Draw split images on scaled down preview image
         if self.visualize_labels:
             draw = self.split_info[self.split_info[:,5] > self.conf_thresh]
             cmap = (np.array(self.label_cmap.colors)*255).astype(np.uint8)
-            draw_split_image_labels(bg_img_scaled, scale_factor, split_disp_size, draw, self.selected_classes, cmap)
+            draw_split_image_labels(bg_img_scaled, raster_to_scaled, split_disp_size, draw, self.selected_classes, cmap)
 
         elif self.visualize_predictions and self.predictions:
             draw = self.pred_labels[self.pred_labels[:,5] > self.conf_thresh]
             cmap = (np.array(self.label_cmap.colors)*255).astype(np.uint8)
-            draw_split_image_labels(bg_img_scaled, scale_factor, split_disp_size, draw, self.selected_classes, cmap)
+            draw_split_image_labels(bg_img_scaled, raster_to_scaled, split_disp_size, draw, self.selected_classes, cmap)
 
         elif self.visualize_heatmap and self.predictions:
             draw = self.pred_labels[self.pred_labels[:,5] > self.conf_thresh]
             cmap = (np.array(self.conf_cmap.colors)*255).astype(np.uint8)
-            draw_split_image_confs(bg_img_scaled, scale_factor, split_disp_size, draw, self.selected_classes, cmap)
+            draw_split_image_confs(bg_img_scaled, raster_to_scaled, split_disp_size, draw, self.selected_classes, cmap)
 
         # Rotate tiff to align North and plot glacier contour
         self.bg_img_cv, self.bg_img_utm, self.bg_img_transform = rotate_and_crop_geotiff(self.dataset_info, self.geotiff, bg_img_scaled, self.utm_epsg_code, self.contour_np, self.tiff_selector)
-        #height,width,_ = bg_img_scaled.shape
-        height,width,_ = self.bg_img_cv.shape
 
-        # Convert to QImage from cv and wrap in QPixmap container
-        #CST 20240312
-        self.bg_qimg = QImage(self.bg_img_cv.data,self.bg_img_cv.shape[1],self.bg_img_cv.shape[0],self.bg_img_cv.shape[1]*3,QImage.Format_RGB888)
-        self.tiff_image_pixmap = QPixmap(self.bg_qimg)
-        self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToWidth(int(self.width/2) - 10)
-        #self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
-        #print('bg_img_pixmap:  {}x{}'.format(self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
-        # Get scaling factor between cv and q image
-        bg_img_cv_size = np.array(self.bg_img_cv.shape[:-1])
-        bg_img_q_size = np.array((self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()))
-#CST 20240312
-        self.scale_factor = bg_img_cv_size / bg_img_q_size
-        self.tiff_image_label.setPixmap(QPixmap(self.tiff_image_pixmap))
+        # Convert to QImage from cv and wrap in QPixmap container. bg_img_cv is already
+        # at display resolution, so set the device pixel ratio and let Qt render 1:1.
+        self.bg_qimg = QImage(
+            self.bg_img_cv.data,
+            self.bg_img_cv.shape[1],
+            self.bg_img_cv.shape[0],
+            self.bg_img_cv.shape[1] * 3,
+            QImage.Format_RGB888,
+        )
+        self.tiff_image_pixmap = QPixmap.fromImage(self.bg_qimg)
+
+        tw_logical = int(self.right_column_image_width())
+        if self.downscale_big_image:
+            tw_logical = max(240, tw_logical // 2)
+        desired_physical_w = max(1, int(round(tw_logical * dpr)))
+        if self.tiff_image_pixmap.width() != desired_physical_w:
+            self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToWidth(
+                desired_physical_w, Qt.SmoothTransformation
+            )
+        self.tiff_image_pixmap.setDevicePixelRatio(dpr)
+
+        # Map from bg_img_cv (physical) coords to the logical pixmap coords used by
+        # mouse events; getMousePosUTM multiplies click_pos (logical) by scale_factor.
+        bg_img_cv_size = np.array(self.bg_img_cv.shape[:-1], dtype=np.float64)
+        pm_physical = np.array(
+            (self.tiff_image_pixmap.size().height(), self.tiff_image_pixmap.size().width()),
+            dtype=np.float64,
+        )
+        pm_logical = pm_physical / dpr
+        self.scale_factor = bg_img_cv_size / np.maximum(pm_logical, 1.0)
+        self.tiff_image_label.setPixmap(self.tiff_image_pixmap)
 
     def updateBgImage(self):
         return
@@ -462,44 +588,177 @@ class SplitImageTool(QWidget):
             # Draw line on the image (basic line drawing algorithm)
             self.draw_line(qimage, x1, y1, x2, y2, qRgb(0, 0, 0))
 
+    def _directional_vario_lag_steps(self, split_shape):
+        """Return (lagStepNS, lagStepEW, lagStepDiag) matching silas_directional_vario."""
+        if split_shape[0] < split_shape[1]:
+            return 3, 4, 5
+        elif split_shape[0] > split_shape[1]:
+            return 4, 3, 5
+        else:
+            # Square patch: silas_directional_vario leaves lag steps undefined in this
+            # branch; pick 1 so lag axes are still in pixel units and monotonic.
+            return 1, 1, 1
+
+    def _variogram_label_size(self):
+        """(width, height) for each variogram thumbnail in the 2x2 grid."""
+        w = self.variogram_thumb_width()
+        return w, max(160, int(w * 0.75))
+
+    def _render_variogram_pixmap(self, vario, lag_step, title):
+        """Render a directional variogram as a matplotlib figure and return a QPixmap."""
+        width_px, height_px = self._variogram_label_size()
+        v = np.asarray(vario, dtype=np.float64).ravel()
+        # silas_directional_vario right-pads each row with zeros so all four directions
+        # share the same column count; trim trailing exact zeros so we don't plot those.
+        if v.size > 0:
+            nonzero = np.flatnonzero(v != 0.0)
+            last = int(nonzero[-1]) + 1 if nonzero.size else 0
+            v = v[:last]
+
+        dpi = 100.0
+        fig = Figure(figsize=(width_px / dpi, height_px / dpi), dpi=dpi, tight_layout=True)
+        canvas = FigureCanvasAgg(fig)
+        ax = fig.add_subplot(111)
+
+        if v.size > 0 and np.any(np.isfinite(v)):
+            lags = np.arange(1, v.size + 1, dtype=np.float64) * float(lag_step)
+            ax.plot(lags, v, color='tab:blue', linewidth=1.2)
+        ax.set_title(title, fontsize=9)
+        ax.set_xlabel("Lag h (pixels)", fontsize=8)
+        ax.set_ylabel("Semi-variance", fontsize=8)
+        ax.tick_params(axis='both', labelsize=7)
+        ax.grid(True, alpha=0.3)
+
+        canvas.draw()
+        w, h = canvas.get_width_height()
+        buf = np.asarray(canvas.buffer_rgba(), dtype=np.uint8).reshape(h, w, 4).copy()
+        qimg = QImage(buf.data, w, h, w * 4, QImage.Format_RGBA8888)
+        return QPixmap.fromImage(qimg)
+
+    def _overlay_scale(self):
+        # self.scale_factor is [cv_h / q_h, cv_w / q_w]. When downscale_big_image is False
+        # this can be ~10-17x, so overlays drawn with fixed pixel thickness on bg_img_cv
+        # collapse to sub-pixel sizes once Qt shrinks the pixmap for display. Multiplying
+        # drawing constants by this factor keeps crosshairs/outlines visually consistent.
+        sf = getattr(self, 'scale_factor', None)
+        if sf is None:
+            return 1.0
+        return max(1.0, float(np.mean(sf)))
+
+    def _get_selected_split_utm_corners(self):
+        if self.image_index is None or len(self.split_info) == 0:
+            return None
+
+        x, y = self.split_info[self.image_index][:2]
+        x = int(x)
+        y = int(y)
+        split_h = int(self.win_size[0])
+        split_w = int(self.win_size[1])
+
+        raster_corners = np.array(
+            [
+                [x, y],
+                [x + split_h - 1, y],
+                [x + split_h - 1, y + split_w - 1],
+                [x, y + split_w - 1],
+            ],
+            dtype=np.float64,
+        )
+        utm_corners = np.array(
+            [self.geotiff.xy(int(r), int(c)) for r, c in raster_corners], dtype=np.float64
+        )
+        return utm_corners
+
+    def _draw_selected_split_boundary(self, bg_img, color=(0, 255, 255), thickness=None):
+        split_utm_corners = self._get_selected_split_utm_corners()
+        if split_utm_corners is None:
+            return
+
+        if thickness is None:
+            thickness = max(1, int(round(2 * self._overlay_scale())))
+
+        height, width, _ = bg_img.shape
+        img_size = np.array([width, height])
+        pix_corners = utm_to_pix(img_size, self.bg_img_utm.T, split_utm_corners)
+        for i in range(len(pix_corners)):
+            p0 = pix_corners[i]
+            p1 = pix_corners[(i + 1) % len(pix_corners)]
+            cv2.line(
+                bg_img,
+                (int(p0[0]), int(height - p0[1])),
+                (int(p1[0]), int(height - p1[1])),
+                color,
+                thickness=thickness,
+            )
+
+    def _set_big_image_pixmap(self, bg_img):
+        height, width, channels = bg_img.shape
+        qimg = QImage(bg_img.data, width, height, width * channels, QImage.Format_RGB888)
+        background_image = QPixmap.fromImage(qimg)
+        dpr = float(self.devicePixelRatioF()) if hasattr(self, 'devicePixelRatioF') else 1.0
+        dpr = max(1.0, dpr)
+        tw_logical = int(self.right_column_image_width())
+        if self.downscale_big_image:
+            tw_logical = max(240, tw_logical // 2)
+        desired_physical_w = max(1, int(round(tw_logical * dpr)))
+        if background_image.width() != desired_physical_w:
+            background_image = background_image.scaledToWidth(
+                desired_physical_w, Qt.SmoothTransformation
+            )
+        background_image.setDevicePixelRatio(dpr)
+        self.tiff_image_label.setPixmap(background_image)
+
     def getNewImage(self, index):
         
         self.image_index = index
 
          # Grab info of split image at index
-        x,y,x_utm,y_utm,label,conf,_ = self.split_info[index]
-        x,y,x_utm,y_utm,label = int(x),int(y),int(x_utm),int(y_utm),int(label)
+        x, y, x_utm, y_utm, label, conf, _ = self.split_info[index]
+        x, y, label = int(x), int(y), int(label)
+        e_utm = float(x_utm)
+        n_utm = float(y_utm)
+        self.crosshair_utm_label.setText(
+            "Crosshair UTM (EPSG {}):  E = {:.2f} m,  N = {:.2f} m".format(
+                int(self.utm_epsg_code), e_utm, n_utm
+            )
+        )
         #CST20240313
-        # Get split image from image matrix
-        img = self.tiff_image_matrix[x:x+self.win_size[0],y:y+self.win_size[1]]
-        img = scaleImage(img, self.tiff_image_max)
-        variograms = silas_directional_vario(img)
+        # Split from masked full raster (no 65535). Float avoids uint wraparound in lag differences.
+        raw_split = self.tiff_image_matrix[x:x+self.win_size[0],y:y+self.win_size[1]]
+        img = scaleImage(raw_split, self.tiff_image_max)
+        variograms = silas_directional_vario(np.asarray(raw_split, dtype=np.float64))
         qimg = QImage(img.data, img.shape[1], img.shape[0], img.shape[1], QImage.Format_Grayscale8)
         image = Image.fromarray(img).convert("L")
          # Wrap split image in QPixmap       
-        self.split_image_pixmap = QPixmap.fromImage(qimg).scaledToWidth(270)
+        mw = self.right_column_image_width()
+        mh = self.split_preview_fixed_height()
+        self.split_image_pixmap = QPixmap.fromImage(qimg).scaled(
+            mw, mh, Qt.KeepAspectRatio, Qt.SmoothTransformation
+        )
         self.split_image_label.setPixmap(self.split_image_pixmap)
         
 
         self.variograms = variograms
-        
-        
-        for i, vario in enumerate(self.variograms):
-            qimage = QImage(img.shape[1], img.shape[0], QImage.Format_RGB32)
-            qimage.fill(Qt.white)
 
-            # Convert variogram data to image plot
-            self.draw_variogram_on_image(vario, qimage)
-            
+        lagStepNS, lagStepEW, lagStepDiag = self._directional_vario_lag_steps(raw_split.shape)
+        vario_meta = [
+            ("North-South variogram", lagStepNS),
+            ("East-West variogram", lagStepEW),
+            ("NE-SW diagonal variogram", lagStepDiag),
+            ("NW-SE diagonal variogram", lagStepDiag),
+        ]
+        thumb_w, thumb_h = self._variogram_label_size()
+        for i, vario in enumerate(self.variograms):
+            title, lag_step = vario_meta[i]
+            pm = self._render_variogram_pixmap(vario, lag_step, title)
+
             row = i // 2
             col = i % 2
 
-            # Wrap split image in QPixmap
-            split_image_pixmap = QPixmap.fromImage(qimage).scaledToWidth(270)
-
-            # Set the pixmap of the QLabel at the current index
-            self.split_image_labels[i].setPixmap(split_image_pixmap)
-            self.grid_layout.addWidget(self.split_image_labels[i], row, col)
+            vario_label = self.split_image_labels[i]
+            vario_label.setFixedSize(thumb_w, thumb_h)
+            vario_label.setPixmap(pm)
+            self.grid_layout.addWidget(vario_label, row, col)
         # Update label text
         class_text = ''
         if self.predictions:
@@ -521,21 +780,19 @@ class SplitImageTool(QWidget):
         height,width,_ = self.bg_img_cv.shape
         imgSize = np.array([width,height])
 
-        pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array([[x_utm,y_utm]]))
+        pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array([[e_utm, n_utm]]))
 
-        # Draw crosshairs
-        cv2.circle(bg_img,(pix_coords[0][0],height-pix_coords[0][1]),4,(255,0,0),thickness=-1)
-        cv2.line(bg_img, (pix_coords[0][0], 0), (pix_coords[0][0], height), (255,0,0),thickness=2)
-        cv2.line(bg_img, (0, height-pix_coords[0][1]), (width, height-pix_coords[0][1]), (255,0,0),thickness=2)
+        # Draw crosshairs (scaled so overlays keep a consistent on-screen size regardless
+        # of downscale_big_image toggle)
+        s = self._overlay_scale()
+        dot_radius = max(2, int(round(4 * s)))
+        line_thickness = max(1, int(round(2 * s)))
+        cv2.circle(bg_img,(pix_coords[0][0],height-pix_coords[0][1]),dot_radius,(255,0,0),thickness=-1)
+        cv2.line(bg_img, (pix_coords[0][0], 0), (pix_coords[0][0], height), (255,0,0),thickness=line_thickness)
+        cv2.line(bg_img, (0, height-pix_coords[0][1]), (width, height-pix_coords[0][1]), (255,0,0),thickness=line_thickness)
+        self._draw_selected_split_boundary(bg_img)
 
-        height,width,channels = bg_img.shape
-        #CST20240312
-        bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
-        background_image = QPixmap(bg_img)
-        #background_image = background_image.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
-        background_image = background_image.scaledToWidth(int(self.width/2) - 10)
-
-        self.tiff_image_label.setPixmap(background_image)
+        self._set_big_image_pixmap(bg_img)
 
     #CST20240313 (creating a function to write images into a folder)
     def writeImage(self,filePath, fileName, index):
@@ -661,78 +918,116 @@ class SplitImageTool(QWidget):
             imgSize = np.array([width,height])
             pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array(self.batch_select_polygon))
             current_pos = utm_to_pix(imgSize, self.bg_img_utm.T, np.array([[click_pos_utm[0], click_pos_utm[1]]]))
+            self._draw_selected_split_boundary(bg_img)
 
+            s = self._overlay_scale()
+            dot_radius = max(2, int(round(4 * s)))
+            line_thickness = max(1, int(round(2 * s)))
             for i in range(len(pix_coords)-1):
-                cv2.circle(bg_img,(pix_coords[i][0],height-pix_coords[i][1]),4,(0,0,255),thickness=-1)
-                cv2.line(bg_img, (pix_coords[i][0], height-pix_coords[i][1]), (pix_coords[i+1][0], height-pix_coords[i+1][1]), (0,0,255),thickness=2)
+                cv2.circle(bg_img,(pix_coords[i][0],height-pix_coords[i][1]),dot_radius,(0,0,255),thickness=-1)
+                cv2.line(bg_img, (pix_coords[i][0], height-pix_coords[i][1]), (pix_coords[i+1][0], height-pix_coords[i+1][1]), (0,0,255),thickness=line_thickness)
 
-            cv2.line(bg_img, (pix_coords[-2][0], height-pix_coords[-2][1]), (current_pos[0][0], height-current_pos[0][1]), (255,0,0),thickness=2)
+            cv2.line(bg_img, (pix_coords[-2][0], height-pix_coords[-2][1]), (current_pos[0][0], height-current_pos[0][1]), (255,0,0),thickness=line_thickness)
+            self._set_big_image_pixmap(bg_img)
 
-            height,width,channels = bg_img.shape
-            #CST 202040312
-            bg_img = QImage(bg_img.data,width,height,width*channels,QImage.Format_RGB888)
-            background_image = QPixmap(bg_img)
-            #background_image = background_image.scaledToHeight(int(self.height - 50)).scaledToWidth(int(self.width/2) - 10)
-            background_image = background_image.scaledToWidth(int(self.width/2) - 10)
-            #bg_img_scaled = background_image
-            self.tiff_image_label.setPixmap(background_image)
+    def _neighbor_in_direction(self, direction):
+        """Return the index of the spatially nearest split in the given direction.
+
+        direction is one of 'up', 'down', 'left', 'right' (screen-aligned, which after
+        the north-up rotation maps to UTM N/S/E/W). If no candidate exists in that
+        direction, returns the current index (no wrap-around at edges).
+        """
+        if self.image_index is None or len(self.split_info) == 0:
+            return self.image_index
+
+        E0 = float(self.split_info[self.image_index, 2])
+        N0 = float(self.split_info[self.image_index, 3])
+        dE = self.split_info[:, 2].astype(np.float64) - E0
+        dN = self.split_info[:, 3].astype(np.float64) - N0
+
+        if direction == 'up':
+            cone = (dN > 0) & (np.abs(dE) < dN)
+            parallel = dN
+            perpendicular = np.abs(dE)
+        elif direction == 'down':
+            cone = (dN < 0) & (np.abs(dE) < -dN)
+            parallel = -dN
+            perpendicular = np.abs(dE)
+        elif direction == 'right':
+            cone = (dE > 0) & (np.abs(dN) < dE)
+            parallel = dE
+            perpendicular = np.abs(dN)
+        elif direction == 'left':
+            cone = (dE < 0) & (np.abs(dN) < -dE)
+            parallel = -dE
+            perpendicular = np.abs(dN)
+        else:
+            return self.image_index
+
+        if self.visualize_predictions or self.visualize_heatmap:
+            if self.predictions and len(self.pred_labels) == len(self.split_info):
+                conf_ok = self.pred_labels[:, 5] >= self.conf_thresh
+                class_ok = np.array(
+                    [bool(self.selected_classes[int(c)]) for c in self.pred_labels[:, 4]],
+                    dtype=bool,
+                )
+                cone &= conf_ok & class_ok
+
+        candidate_idx = np.flatnonzero(cone)
+        if candidate_idx.size == 0:
+            return self.image_index
+
+        # Prefer the candidate closest to the cardinal axis (smallest perpendicular
+        # offset); break ties by the smallest step along the direction. This selects
+        # the immediate neighbour on a regular grid even when the UTM rows/columns
+        # are slightly irregular.
+        perp = perpendicular[candidate_idx]
+        par = parallel[candidate_idx]
+        order = np.lexsort((par, perp))
+        return int(candidate_idx[order[0]])
 
     def keyPressEvent(self, event):
-        index = self.image_index
+        key = event.key()
 
-        if event.key() <= 57 and event.key() >= 48:
-            key_map = {48: 0,
-                       49: 1,
-                       50: 2,
-                       51: 3,
-                       52: 4,
-                       53: 5,
-                       54: 6,
-                       55: 7,
-                       56: 8,
-                       57: 9}
-            if key_map[event.key()] < len(self.class_enum):
+        if 48 <= key <= 57:
+            label_idx = key - 48
+            if label_idx < len(self.class_enum):
                 if self.batch_select_polygon != []:
-                    self.batchSelectLabel(key_map[event.key()])
+                    self.batchSelectLabel(label_idx)
                 else:
-                    self.labelCurrent(key_map[event.key()])
+                    self.labelCurrent(label_idx)
+            self.update()
+            return
 
-        elif event.key() == 65: #Left arrow key
-            if self.visualize_predictions or self.visualize_heatmap:
-                index -= 1
-                while self.pred_labels[index,5] < self.conf_thresh or not self.selected_classes[int(self.pred_labels[index,4])]:
-                    index -= 1
-            else:
-                index -= 1
-        elif event.key() == 68: #Right arrow key
-            if self.visualize_predictions or self.visualize_heatmap:
-                index += 1
-                if index >= len(self.pred_labels):
-                    index = 0
-                while self.pred_labels[index,5] < self.conf_thresh or not self.selected_classes[int(self.pred_labels[index,4])]:
-                    index += 1
-                    if index >= len(self.pred_labels):
-                        index = 0
-            else:
-                index += 1
-            if index >= len(self.pred_labels):
-                index = 0
-        elif event.key() == Qt.Key_Escape:  #Escape key (deselect batch polygon)
+        if key in (Qt.Key_Left, Qt.Key_A):
+            new_index = self._neighbor_in_direction('left')
+        elif key in (Qt.Key_Right, Qt.Key_D):
+            new_index = self._neighbor_in_direction('right')
+        elif key in (Qt.Key_Up, Qt.Key_W):
+            new_index = self._neighbor_in_direction('up')
+        elif key in (Qt.Key_Down, Qt.Key_S):
+            new_index = self._neighbor_in_direction('down')
+        elif key == Qt.Key_Escape:
             self.batch_select_polygon = []
-        elif event.key() == 76: #l key - add current split image to training dataset
+            self.update()
+            return
+        elif key == Qt.Key_L:
             modifiers = QApplication.keyboardModifiers()
             if modifiers == Qt.ShiftModifier:
-                #images_to_label = self.pred_labels[self.pred_labels[:,5] > self.conf_thresh]
                 for i in range(len(self.selected_classes)):
                     if self.selected_classes[i]:
-                        mask = (self.pred_labels[:,5] > self.conf_thresh) & (self.pred_labels[:,4] == i)
+                        mask = (self.pred_labels[:, 5] > self.conf_thresh) & (self.pred_labels[:, 4] == i)
                         self.label(mask, i)
-
             else:
                 _class = self.pred_labels[self.image_index][4]
                 self.labelCurrent(_class)
+            self.update()
+            return
+        else:
+            return
 
-        self.getNewImage(index)
+        if new_index is not None and new_index != self.image_index:
+            self.getNewImage(new_index)
         self.update()
 
     def makeClassLabelCallbacks(self, classLabel):

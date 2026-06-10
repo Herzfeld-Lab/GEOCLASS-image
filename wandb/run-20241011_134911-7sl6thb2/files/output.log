@@ -1,0 +1,59 @@
+----- Initializing Neural Network Model -----
+VarioMLP(
+  (input): Linear(in_features=159, out_features=795, bias=True)
+  (lrelu): LeakyReLU(negative_slope=0.01)
+  (hidden): ModuleList(
+    (0): Linear(in_features=795, out_features=318, bias=True)
+  )
+  (output): Linear(in_features=318, out_features=20, bias=True)
+)
+----- Initializing Dataset -----
+Training set size: 	660 images
+----- Initializing DataLoader -----
+train loader <class 'torch.utils.data.dataloader.DataLoader'>
+----- Initializing Output Directory -----
+Output saved at Output/mlp_test_negri_11-10-2024_13:50
+----- Training -----
+EPOCH: 0 ..........running validation
+	TRAIN LOSS = 3.56352	VALID LOSS = 3.82267
+saving checkpoint
+EPOCH: 1 ..........running validation
+	TRAIN LOSS = 2.85361	VALID LOSS = 2.75949
+saving checkpoint
+EPOCH: 2 ..........running validation
+	TRAIN LOSS = 2.70367	VALID LOSS = 3.22128
+saving checkpoint
+EPOCH: 3 ..........running validation
+	TRAIN LOSS = 2.58994	VALID LOSS = 2.98769
+saving checkpoint
+EPOCH: 4 ..........running validation
+	TRAIN LOSS = 2.42817	VALID LOSS = 2.92677
+saving checkpoint
+EPOCH: 5 ..........running validation
+	TRAIN LOSS = 2.35895	VALID LOSS = 3.32767
+saving checkpoint
+EPOCH: 6 ..........running validation
+	TRAIN LOSS = 2.30200	VALID LOSS = 2.23821
+saving checkpoint
+EPOCH: 7 ..........running validation
+	TRAIN LOSS = 2.21787	VALID LOSS = 2.64613
+saving checkpoint
+EPOCH: 8 ..........running validation
+	TRAIN LOSS = 2.05924	VALID LOSS = 2.33403
+saving checkpoint
+EPOCH: 9 ..........running validation
+	TRAIN LOSS = 2.11756	VALID LOSS = 2.66727
+saving checkpoint
+EPOCH: 10 ..........running validation
+	TRAIN LOSS = 2.10851	VALID LOSS = 2.27772
+saving checkpoint
+EPOCH: 11 ..........running validation
+	TRAIN LOSS = 1.95222	VALID LOSS = 2.43133
+saving checkpoint
+EPOCH: 12 ..........running validation
+	TRAIN LOSS = 1.91003	VALID LOSS = 2.29878
+saving checkpoint
+EPOCH: 13 ..........running validation
+	TRAIN LOSS = 1.87943	VALID LOSS = 3.10049
+saving checkpoint
+EPOCH: 14 .........

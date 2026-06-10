@@ -1,0 +1,202 @@
+----- Initializing Neural Network Model -----
+ResNet(
+  (conv1): Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+  (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+  (relu): ReLU(inplace=True)
+  (maxpool): MaxPool2d(kernel_size=3, stride=2, padding=1, dilation=1, ceil_mode=False)
+  (layer1): Sequential(
+    (0): BasicBlock(
+      (conv1): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu): ReLU(inplace=True)
+      (conv2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    )
+    (1): BasicBlock(
+      (conv1): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu): ReLU(inplace=True)
+      (conv2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    )
+  )
+  (layer2): Sequential(
+    (0): BasicBlock(
+      (conv1): Conv2d(64, 128, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+      (bn1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu): ReLU(inplace=True)
+      (conv2): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (downsample): Sequential(
+        (0): Conv2d(64, 128, kernel_size=(1, 1), stride=(2, 2), bias=False)
+        (1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      )
+    )
+    (1): BasicBlock(
+      (conv1): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu): ReLU(inplace=True)
+      (conv2): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    )
+  )
+  (layer3): Sequential(
+    (0): BasicBlock(
+      (conv1): Conv2d(128, 256, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+      (bn1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu): ReLU(inplace=True)
+      (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (downsample): Sequential(
+        (0): Conv2d(128, 256, kernel_size=(1, 1), stride=(2, 2), bias=False)
+        (1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      )
+    )
+    (1): BasicBlock(
+      (conv1): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu): ReLU(inplace=True)
+      (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    )
+  )
+  (layer4): Sequential(
+    (0): BasicBlock(
+      (conv1): Conv2d(256, 512, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+      (bn1): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu): ReLU(inplace=True)
+      (conv2): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (downsample): Sequential(
+        (0): Conv2d(256, 512, kernel_size=(1, 1), stride=(2, 2), bias=False)
+        (1): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      )
+    )
+    (1): BasicBlock(
+      (conv1): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn1): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu): ReLU(inplace=True)
+      (conv2): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    )
+  )
+  (avgpool): AdaptiveAvgPool2d(output_size=(1, 1))
+  (fc): Linear(in_features=512, out_features=20, bias=True)
+)
+----- Initializing Dataset -----
+Training set size: 	768 images
+----- Initializing DataLoader -----
+train loader <class 'torch.utils.data.dataloader.DataLoader'>
+----- Initializing CUDA -----
+----- Initializing Output Directory -----
+Output saved at Output/mlp_test_negri_10-10-2024_14:03
+----- Training -----
+EPOCH: 0 ...........running validation
+	TRAIN LOSS = 2.31865	VALID LOSS = 2.62188
+saving checkpoint
+EPOCH: 1 ...........running validation
+	TRAIN LOSS = 1.92363	VALID LOSS = 2.50757
+saving checkpoint
+EPOCH: 2 ...........running validation
+	TRAIN LOSS = 1.62415	VALID LOSS = 2.39979
+saving checkpoint
+EPOCH: 3 ...........running validation
+	TRAIN LOSS = 1.44486	VALID LOSS = 2.31175
+saving checkpoint
+EPOCH: 4 ...........running validation
+	TRAIN LOSS = 1.26487	VALID LOSS = 2.30074
+saving checkpoint
+EPOCH: 5 ...........running validation
+	TRAIN LOSS = 1.17540	VALID LOSS = 2.20900
+saving checkpoint
+EPOCH: 6 ...........running validation
+	TRAIN LOSS = 1.10088	VALID LOSS = 2.20739
+saving checkpoint
+EPOCH: 7 ...........running validation
+	TRAIN LOSS = 1.01051	VALID LOSS = 2.05785
+saving checkpoint
+EPOCH: 8 ...........running validation
+	TRAIN LOSS = 0.98040	VALID LOSS = 2.04822
+saving checkpoint
+EPOCH: 9 ...........running validation
+	TRAIN LOSS = 0.84549	VALID LOSS = 1.95790
+saving checkpoint
+EPOCH: 10 ...........running validation
+	TRAIN LOSS = 0.74823	VALID LOSS = 1.95598
+saving checkpoint
+EPOCH: 11 ...........running validation
+	TRAIN LOSS = 0.67099	VALID LOSS = 1.89184
+saving checkpoint
+EPOCH: 12 ...........running validation
+	TRAIN LOSS = 0.60187	VALID LOSS = 1.88265
+saving checkpoint
+EPOCH: 13 ...........running validation
+	TRAIN LOSS = 0.56452	VALID LOSS = 1.82511
+saving checkpoint
+EPOCH: 14 ...........running validation
+	TRAIN LOSS = 0.38846	VALID LOSS = 1.79733
+saving checkpoint
+EPOCH: 15 ...........running validation
+	TRAIN LOSS = 0.46845	VALID LOSS = 1.73716
+saving checkpoint
+EPOCH: 16 ...........running validation
+	TRAIN LOSS = 0.34789	VALID LOSS = 1.72631
+saving checkpoint
+EPOCH: 17 ...........running validation
+	TRAIN LOSS = 0.38066	VALID LOSS = 1.65771
+saving checkpoint
+EPOCH: 18 ...........running validation
+	TRAIN LOSS = 0.33364	VALID LOSS = 1.60456
+saving checkpoint
+EPOCH: 19 ...........running validation
+	TRAIN LOSS = 0.33759	VALID LOSS = 1.56439
+saving checkpoint
+EPOCH: 20 ...........running validation
+	TRAIN LOSS = 0.28879	VALID LOSS = 1.58630
+saving checkpoint
+EPOCH: 21 ...........running validation
+	TRAIN LOSS = 0.33082	VALID LOSS = 1.55125
+saving checkpoint
+EPOCH: 22 ...........running validation
+	TRAIN LOSS = 0.24650	VALID LOSS = 1.52853
+saving checkpoint
+EPOCH: 23 ...........running validation
+	TRAIN LOSS = 0.22818	VALID LOSS = 1.47878
+saving checkpoint
+EPOCH: 24 ...........running validation
+	TRAIN LOSS = 0.26519	VALID LOSS = 1.42324
+saving checkpoint
+EPOCH: 25 ...........running validation
+	TRAIN LOSS = 0.23771	VALID LOSS = 1.44371
+saving checkpoint
+EPOCH: 26 ...........running validation
+	TRAIN LOSS = 0.24288	VALID LOSS = 1.32656
+saving checkpoint
+EPOCH: 27 ...........running validation
+	TRAIN LOSS = 0.20008	VALID LOSS = 1.35424
+saving checkpoint
+EPOCH: 28 ...........running validation
+	TRAIN LOSS = 0.22774	VALID LOSS = 1.39089
+saving checkpoint
+EPOCH: 29 ...........running validation
+	TRAIN LOSS = 0.22199	VALID LOSS = 1.33556
+saving checkpoint
+EPOCH: 30 ...........running validation
+	TRAIN LOSS = 0.22088	VALID LOSS = 1.26838
+saving checkpoint
+EPOCH: 31 ...........running validation
+	TRAIN LOSS = 0.18772	VALID LOSS = 1.27880
+saving checkpoint
+EPOCH: 32 ...........running validation
+	TRAIN LOSS = 0.17519	VALID LOSS = 1.39598
+saving checkpoint
+EPOCH: 33 ...........running validation
+	TRAIN LOSS = 0.18934	VALID LOSS = 1.26051
+saving checkpoint
+EPOCH: 34 ...........running validation
+	TRAIN LOSS = 0.16090	VALID LOSS = 1.11779
+saving checkpoint
+EPOCH: 35 ...........running validation
+	TRAIN LOSS = 0.17738	VALID LOSS = 1.28801
+saving checkpoint
+EPOCH: 36 ........

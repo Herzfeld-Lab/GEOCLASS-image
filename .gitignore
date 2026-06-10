@@ -5,7 +5,8 @@
 *.npy
 Output/*
 *__pycache__*
-
 *.tiff
-%.png
+*.tif
+*.png
+
 plotClassResOverNegri.py
