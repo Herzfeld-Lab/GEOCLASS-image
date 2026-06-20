@@ -40,15 +40,11 @@ class SplitImageTool(QWidget):
         print('-------- Initializing App --------')
         
         # geometry
-        
-        # geometry
-        screen_resolution = app.desktop().availableGeometry()
+        screen_resolution = QGuiApplication.primaryScreen().availableGeometry()
         self.title = 'Split Image Labeling tool'
         self.width, self.height = int(screen_resolution.width()), int(screen_resolution.height())
-        self.setMinimumSize(self.width - 100, self.height - 100) # the default min size runs of the screen!
-        self.setGeometry(0, 0, self.width - 100, self.height - 100)
-        self.setMinimumSize(self.width - 100, self.height - 100) # the default min size runs of the screen!
-        self.setGeometry(0, 0, self.width - 100, self.height - 100)
+        self.setMinimumSize(min(1000, self.width), min(700, self.height))
+        self.setGeometry(screen_resolution)
         self.setWindowTitle(self.title)
         self.to_netcdf = netcdf
 
@@ -130,7 +126,28 @@ class SplitImageTool(QWidget):
     def initDataset(self):
         self.dataset_info = self.label_data[0]
         self.split_info = self.split_info_save[self.split_info_save[:,6] == self.tiff_selector]
-        self.class_enum = self.dataset_info['class_enumeration']
+        self.class_enum = list(self.cfg['class_enum'])
+        if self.cfg['num_classes'] != len(self.class_enum):
+            print(
+                "WARNING: config num_classes ({}) does not match class_enum length ({}); using class_enum length.".format(
+                    self.cfg['num_classes'], len(self.class_enum)
+                )
+            )
+            self.cfg['num_classes'] = len(self.class_enum)
+        dataset_class_enum = list(self.dataset_info.get('class_enumeration', []))
+        if dataset_class_enum != self.class_enum:
+            print(
+                "WARNING: dataset class_enumeration differs from config; updating dataset metadata to match config."
+            )
+            self.dataset_info['class_enumeration'] = self.class_enum
+            self.label_data[0] = self.dataset_info
+        labeled_classes = self.split_info_save[self.split_info_save[:,4] >= 0,4].astype(int)
+        if labeled_classes.size and int(np.max(labeled_classes)) >= len(self.class_enum):
+            raise ValueError(
+                "Dataset contains label {} but config only defines {} classes.".format(
+                    int(np.max(labeled_classes)), len(self.class_enum)
+                )
+            )
         self.utm_epsg_code = self.cfg['utm_epsg_code']
         self.win_size = self.dataset_info['winsize_pix']
         self.lookup_tree = KDTree(self.split_info[:,2:4])
@@ -138,18 +155,36 @@ class SplitImageTool(QWidget):
         # Load classification results if specified
         if self.checkpoint != None:
             self.pred_label_path = self.checkpoint
-            #CST 20240313
-            print("label path", self.pred_label_path)
-            #CST 20240313
-            print("label path", self.pred_label_path)
             pred_data = np.load(self.pred_label_path, allow_pickle=True)
             self.pred_labels_save = pred_data[1]
             self.predictions = True
+            print(
+                "Loaded {} prediction rows from {}".format(
+                    self.pred_labels_save.shape[0], self.pred_label_path
+                )
+            )
+            if self.pred_labels_save.shape[0] != self.split_info_save.shape[0]:
+                print(
+                    "WARNING: prediction row count ({}) does not match dataset row count ({})".format(
+                        self.pred_labels_save.shape[0], self.split_info_save.shape[0]
+                    )
+                )
         else:
             self.predictions = False
 
         if self.checkpoint != None:
             self.pred_labels = self.pred_labels_save[self.pred_labels_save[:,6] == self.tiff_selector]
+            if self.pred_labels.shape[0] > 0:
+                print(
+                    "Current image {} has {} prediction rows; confidence range {:.1f}% - {:.1f}%".format(
+                        self.tiff_selector,
+                        self.pred_labels.shape[0],
+                        100 * float(np.min(self.pred_labels[:,5])),
+                        100 * float(np.max(self.pred_labels[:,5])),
+                    )
+                )
+            else:
+                print("Current image {} has no prediction rows".format(self.tiff_selector))
 
         self.geotiff = rio.open(self.dataset_info['filename'][self.tiff_selector], nodata=65535)
 
@@ -200,6 +235,18 @@ class SplitImageTool(QWidget):
         """Fixed QLabel height for the patch preview (screen-based); pixmap scales inside without vertical clipping."""
         return max(260, min(520, int(self.height * 0.28)))
 
+    def current_tiff_path(self):
+        return self.dataset_info['filename'][self.tiff_selector]
+
+    def current_tiff_name(self):
+        return os.path.basename(self.current_tiff_path())
+
+    def updateSelectedImageName(self):
+        image_name = self.current_tiff_name()
+        self.selected_tiff_name_label.setText("Source image: {}".format(image_name))
+        self.selected_tiff_name_label.setToolTip(self.current_tiff_path())
+        self.setWindowTitle("{} - {}".format(self.title, image_name))
+
     def initUI(self):
 
         # Ensure the main widget always receives key events (WASD / arrow navigation,
@@ -236,7 +283,18 @@ class SplitImageTool(QWidget):
         self.tiff_image_pixmap = QPixmap()
         self.tiff_image_label = QLabel(self)
         self.tiff_image_label.setMargin(0)
+        self.tiff_image_label.setAlignment(Qt.AlignCenter)
         self.tiff_image_label.setMouseTracking(True)
+        self.tiff_image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        # Full selected GeoTIFF name. Selector buttons stay compact, while this label
+        # keeps the complete source image visible for labeling/audit context.
+        self.selected_tiff_name_label = QLabel(self)
+        self.selected_tiff_name_label.setMargin(0)
+        self.selected_tiff_name_label.setAlignment(Qt.AlignCenter)
+        self.selected_tiff_name_label.setFont(QFont("Helvetica", 11, QFont.Bold))
+        self.selected_tiff_name_label.setWordWrap(True)
+        self.selected_tiff_name_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
 
         # Current class label container
         self.split_image_class = QLabel(self)
@@ -363,7 +421,9 @@ class SplitImageTool(QWidget):
         self.tiff_selector_buttons = QGridLayout()
 
         for grid_idx, tiffNum in enumerate(self.tiff_indices_with_splits):
-            button = QPushButton('{}...'.format(self.dataset_info['filename'][tiffNum].split('/')[-1][:13]), self)
+            tiff_name = os.path.basename(self.dataset_info['filename'][tiffNum])
+            button = QPushButton('{}...'.format(tiff_name[:13]), self)
+            button.setToolTip(self.dataset_info['filename'][tiffNum])
             button.clicked.connect(self.makeTiffSelectorCallbacks(int(tiffNum)))
             button.clicked.connect(self.getTiffnum(int(tiffNum)))
             #self.tiff_selector_buttons.addWidget(button)
@@ -386,12 +446,14 @@ class SplitImageTool(QWidget):
 
         # Right column: class/conf, fixed-height split preview, then geotiff (extra height goes to the map)
         self.right_layout.addLayout(self.split_text)
+        self.right_layout.addWidget(self.selected_tiff_name_label)
         self.right_layout.addWidget(self.crosshair_utm_label)
         self.right_layout.addWidget(self.split_image_label, stretch=0)
         self.right_layout.addWidget(self.tiff_image_label, stretch=1)
 
         self.master_layout.addLayout(self.left_layout, stretch=0)
         self.master_layout.addLayout(self.right_layout, stretch=1)
+        self.updateSelectedImageName()
 
         
 
@@ -442,24 +504,62 @@ class SplitImageTool(QWidget):
     def _big_image_target_size(self):
         """Target (width, height) in physical pixels for the big-map render.
 
-        Scales to the on-screen pixmap width (logical points) times the device pixel
-        ratio so HiDPI displays get a crisp image, while preserving the source aspect
-        ratio. Never upscales above the source resolution.
+        Fits the big map inside the available display box (logical points) times the
+        device pixel ratio, preserving source aspect ratio and never upscaling above
+        source resolution.
         """
         src_h, src_w = self.tiff_image_matrix.shape[:2]
-        tw_logical = int(self.right_column_image_width())
+        max_w_logical, max_h_logical = self.big_image_available_size()
         if self.downscale_big_image:
-            tw_logical = max(240, tw_logical // 2)
-        dpr = float(self.devicePixelRatioF()) if hasattr(self, 'devicePixelRatioF') else 1.0
-        dpr = max(1.0, dpr)
-        target_w = max(1, int(round(tw_logical * dpr)))
-        if src_w > 0:
-            target_h = max(1, int(round(target_w * (src_h / float(src_w)))))
-        else:
-            target_h = 1
-        if target_w > src_w or target_h > src_h:
-            target_w, target_h = src_w, src_h
+            max_w_logical = max(240, max_w_logical // 2)
+            max_h_logical = max(180, max_h_logical // 2)
+        dpr = self._device_pixel_ratio()
+        if src_w <= 0 or src_h <= 0:
+            return 1, 1, dpr
+
+        scale = min(
+            max_w_logical / float(src_w),
+            max_h_logical / float(src_h),
+            1.0,
+        )
+        target_w = max(1, int(round(src_w * scale * dpr)))
+        target_h = max(1, int(round(src_h * scale * dpr)))
         return target_w, target_h, dpr
+
+    def _device_pixel_ratio(self):
+        dpr = float(self.devicePixelRatioF()) if hasattr(self, 'devicePixelRatioF') else 1.0
+        return max(1.0, dpr)
+
+    def big_image_available_size(self):
+        """Available logical-pixel box for the big map preview."""
+        max_w = int(self.right_column_image_width())
+
+        # Initial render happens before the layout has assigned final widget sizes.
+        # Reserve the fixed split preview plus label/chrome space so tall maps do not
+        # overflow the screen and get clipped by the QLabel.
+        max_h = max(240, int(self.height - self.split_preview_fixed_height() - 170))
+
+        if hasattr(self, 'tiff_image_label') and self.tiff_image_label is not None:
+            rect = self.tiff_image_label.contentsRect()
+            if rect.width() > 100:
+                max_w = rect.width()
+            if rect.height() > 100:
+                max_h = rect.height()
+
+        return max(240, max_w), max(180, max_h)
+
+    def _scale_big_pixmap_for_display(self, pixmap, dpr):
+        max_w_logical, max_h_logical = self.big_image_available_size()
+        if self.downscale_big_image:
+            max_w_logical = max(240, max_w_logical // 2)
+            max_h_logical = max(180, max_h_logical // 2)
+
+        max_w = max(1, int(round(max_w_logical * dpr)))
+        max_h = max(1, int(round(max_h_logical * dpr)))
+        if pixmap.width() > max_w or pixmap.height() > max_h:
+            pixmap = pixmap.scaled(max_w, max_h, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        pixmap.setDevicePixelRatio(dpr)
+        return pixmap
 
     def _stretch_for_display(self, arr):
         """Apply a cached percentile stretch and return uint8 grayscale for display."""
@@ -500,6 +600,11 @@ class SplitImageTool(QWidget):
 
         elif self.visualize_predictions and self.predictions:
             draw = self.pred_labels[self.pred_labels[:,5] > self.conf_thresh]
+            print(
+                "Drawing {} predictions for image {} above {:.0f}% confidence".format(
+                    draw.shape[0], self.tiff_selector, 100 * self.conf_thresh
+                )
+            )
             cmap = (np.array(self.label_cmap.colors)*255).astype(np.uint8)
             draw_split_image_labels(bg_img_scaled, raster_to_scaled, split_disp_size, draw, self.selected_classes, cmap)
 
@@ -522,15 +627,7 @@ class SplitImageTool(QWidget):
         )
         self.tiff_image_pixmap = QPixmap.fromImage(self.bg_qimg)
 
-        tw_logical = int(self.right_column_image_width())
-        if self.downscale_big_image:
-            tw_logical = max(240, tw_logical // 2)
-        desired_physical_w = max(1, int(round(tw_logical * dpr)))
-        if self.tiff_image_pixmap.width() != desired_physical_w:
-            self.tiff_image_pixmap = self.tiff_image_pixmap.scaledToWidth(
-                desired_physical_w, Qt.SmoothTransformation
-            )
-        self.tiff_image_pixmap.setDevicePixelRatio(dpr)
+        self.tiff_image_pixmap = self._scale_big_pixmap_for_display(self.tiff_image_pixmap, dpr)
 
         # Map from bg_img_cv (physical) coords to the logical pixmap coords used by
         # mouse events; getMousePosUTM multiplies click_pos (logical) by scale_factor.
@@ -695,17 +792,9 @@ class SplitImageTool(QWidget):
         height, width, channels = bg_img.shape
         qimg = QImage(bg_img.data, width, height, width * channels, QImage.Format_RGB888)
         background_image = QPixmap.fromImage(qimg)
-        dpr = float(self.devicePixelRatioF()) if hasattr(self, 'devicePixelRatioF') else 1.0
-        dpr = max(1.0, dpr)
-        tw_logical = int(self.right_column_image_width())
-        if self.downscale_big_image:
-            tw_logical = max(240, tw_logical // 2)
-        desired_physical_w = max(1, int(round(tw_logical * dpr)))
-        if background_image.width() != desired_physical_w:
-            background_image = background_image.scaledToWidth(
-                desired_physical_w, Qt.SmoothTransformation
-            )
-        background_image.setDevicePixelRatio(dpr)
+        dpr = self._device_pixel_ratio()
+        background_image = self._scale_big_pixmap_for_display(background_image, dpr)
+        self.tiff_image_pixmap = background_image
         self.tiff_image_label.setPixmap(background_image)
 
     def getNewImage(self, index):
@@ -811,7 +900,7 @@ class SplitImageTool(QWidget):
 
  #CST20240403 Checks all directories for the image, and deletes it if it finds the image.
     def deleteImage(self,filePath,fileName):
-        numClasses = cfg['num_classes']
+        numClasses = self.cfg['num_classes']
         for i in range(numClasses):
             file_path = (filePath+str(i)+'/'+str(i)+fileName+'.png')
             if os.path.isfile(file_path):
@@ -829,7 +918,7 @@ class SplitImageTool(QWidget):
         self.split_info[self.image_index][5] = 1
                 #Load training img path
         if self.cfg['training_img_path'] != 'None':
-            labeled_img_path = cfg['training_img_path']
+            labeled_img_path = self.cfg['training_img_path']
             if not os.path.exists(labeled_img_path+"/"): os.mkdir(labeled_img_path+"/")
             if not os.path.exists(labeled_img_path+"/"+str(class_label)): os.mkdir(labeled_img_path+"/"+str(class_label))
             self.deleteImage(labeled_img_path+"/", str(self.image_index)+str(numTiff))
@@ -840,7 +929,7 @@ class SplitImageTool(QWidget):
             if not os.path.exists("Classifications/"+str(class_label)): os.mkdir("Classifications/"+str(class_label))
             self.deleteImage("Classifications/", str(self.image_index)+str(numTiff))
             self.writeImage("Classifications/"+str(class_label), str(class_label)+str(self.image_index)+str(numTiff), self.image_index)
-            cfg['training_img_path'] = 'Classifications'
+            self.cfg['training_img_path'] = 'Classifications'
         self.update()
 
     def batchSelectLabel(self, class_label):
@@ -863,7 +952,7 @@ class SplitImageTool(QWidget):
                     if not os.path.exists("Classifications/"+str(class_label)): os.mkdir("Classifications/"+str(class_label))
                     self.deleteImage("Classifications/", str(i)+str(numTiff))
                     self.writeImage("Classifications/"+str(class_label), str(class_label)+str(i)+str(numTiff), i)
-                    cfg['training_img_path'] = 'Classifications'
+                    self.cfg['training_img_path'] = 'Classifications'
         self.batch_select_polygon = []
         self.getNewImage(self.image_index)
         self.update()
@@ -871,18 +960,26 @@ class SplitImageTool(QWidget):
 
     def getMousePosUTM(self, event):
 
-        # Get dimensions of the QT pixmap and window margins for the image preview
-        width, height = self.tiff_image_label.size().width(), self.tiff_image_label.size().height()
-        margin = height - self.tiff_image_pixmap.size().height()
+        # Get dimensions of the QT pixmap and window margins for the image preview.
+        # The big map is centered and may be letterboxed after fitting to screen.
+        label_w = self.tiff_image_label.size().width()
+        label_h = self.tiff_image_label.size().height()
+        dpr = self.tiff_image_pixmap.devicePixelRatio()
+        pixmap_w = self.tiff_image_pixmap.size().width() / max(dpr, 1.0)
+        pixmap_h = self.tiff_image_pixmap.size().height() / max(dpr, 1.0)
+        margin_x = max(0.0, (label_w - pixmap_w) / 2.0)
+        margin_y = max(0.0, (label_h - pixmap_h) / 2.0)
 
         # Get the position of the mouse click in the GUI window
         click_pos = event.pos()
 
         # Map the click position in pixel space from GUI window to Image
-        click_pos_scaled = self.tiff_image_label.mapFromParent(click_pos)
+        click_pos_scaled = self.tiff_image_label.mapFrom(self, click_pos)
 
         # Correct for GUI window margins
-        click_pos_corrected = np.array([click_pos_scaled.y() - int(margin/2), click_pos_scaled.x()])
+        click_pos_corrected = np.array(
+            [click_pos_scaled.y() - margin_y, click_pos_scaled.x() - margin_x]
+        )
 
         # Scale from image display size to underlying actual tiff image size
         click_pos_scaled = click_pos_corrected * self.scale_factor
@@ -1045,6 +1142,7 @@ class SplitImageTool(QWidget):
             self.split_info_save[self.split_info_save[:,6] == self.tiff_selector] = self.split_info
             self.tiff_selector = tiff_num
             self.initDataset()
+            self.updateSelectedImageName()
             self.initBgImage()
             self.getNewImage(0)
         return tiff_selector_callback
@@ -1134,8 +1232,8 @@ class SplitImageTool(QWidget):
 
     #function that saves the confident predictions
     def savePredictionsCallbackNPY(self):
-        savepred = cfg['save_all_pred']
-        saveMin = cfg['equal_dataset']
+        savepred = self.cfg['save_all_pred']
+        saveMin = self.cfg['equal_dataset']
     
         #check if there are predictions loaded so that app doesn't crash
         if self.checkpoint == None:
@@ -1149,7 +1247,7 @@ class SplitImageTool(QWidget):
         filename = f'ConfidentPredictions/confidence_predictions_{self.conf_thresh}.npy'
 
         #get the dataset
-        dataset_path = cfg['npy_path']   
+        dataset_path = self.cfg['npy_path']   
         dataset = np.load(dataset_path, allow_pickle=True)
         if saveMin == False:
             if savepred == False:
@@ -1165,7 +1263,7 @@ class SplitImageTool(QWidget):
             print('File saved to', filename)
         else:
             total = 0
-            numClasses = cfg['num_classes']
+            numClasses = self.cfg['num_classes']
             minSize =  100000
             classSize = 0
             classes = 0
@@ -1245,7 +1343,7 @@ class SplitImageTool(QWidget):
 
         self.cfg['class_enum'] = self.class_enum
         self.cfg['num_classes'] = len(self.class_enum)
-        f = open(args.config, 'w')
+        f = open(self.cfg_path, 'w')
         f.write(generate_config_silas(self.cfg))
         f.close()
 
@@ -1269,7 +1367,6 @@ if __name__ == '__main__':
         cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
     app = QApplication(sys.argv)
-    QGuiApp = QApplication(sys.argv)
     ex = SplitImageTool(args.config, args.load_labels, args.netcdf)
 
     sys.exit(app.exec_())

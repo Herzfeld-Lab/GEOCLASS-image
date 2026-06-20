@@ -23,6 +23,7 @@ parser.add_argument("config", type=str)
 parser.add_argument("-c", "--cuda", action="store_true")
 parser.add_argument("--load_checkpoint", type=str, default=None)
 parser.add_argument("--netCDF", action="store_true")
+parser.add_argument("--model", type=str, default=None)
 parser.add_argument(
     "--output_dir",
     type=str,
@@ -34,6 +35,9 @@ args = parser.parse_args()
 # Read config file
 with open(args.config, 'r') as ymlfile:
     cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
+
+if args.model is not None:
+    cfg['model'] = args.model
 
 # Set training hyperparameters as specified by config file
 learning_rate = float(cfg['learning_rate'])
@@ -68,7 +72,13 @@ if cfg['model'] == 'VarioMLP':
 elif cfg['model'] == 'Resnet18':
     num_classes = cfg['num_classes']
     model = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
-    img_transforms_valid = None
+    img_transforms_valid = transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.Grayscale(num_output_channels=1),
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485], std=[0.229]),
+    ])
 elif cfg['model'] == 'VarioNet':
     num_classes = cfg['num_classes']
     vario_num_lag = cfg['vario_num_lag']
@@ -251,7 +261,10 @@ else:
         if args.cuda:
             X = X.to(device)
 
-        X = torch.unsqueeze(X,1).float()
+        if X.ndim != 4:
+            X = torch.unsqueeze(X,1).float()
+        else:
+            X = X.float()
 
         # Compute forward pass
         Y_hat = model.forward(X)
@@ -267,6 +280,13 @@ else:
             labels.append(num_classes)
 
 split_info = dataset[1]
+if len(labels) != split_info.shape[0]:
+    raise ValueError(
+        "Model produced {} predictions for {} split images. "
+        "The dataset loader likely skipped images; check source filenames and crop errors.".format(
+            len(labels), split_info.shape[0]
+        )
+    )
 if ddaBool:
     split_info[:,0] = labels
     split_info[:,1] = confs

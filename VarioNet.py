@@ -14,6 +14,7 @@ import rasterio as rio
 import numpy
 import yaml
 import argparse
+import sys
 import torch.nn.functional as F
 from datetime import datetime
 from Models import *
@@ -24,14 +25,17 @@ import sklearn
 from sklearn.neighbors import KernelDensity
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument("config", type=str)
-parser.add_argument("-c", "--cuda", action="store_true")
-parser.add_argument("--load_checkpoint", type=str, default=None)
-parser.add_argument("--netCDF", action="store_true")
-args = parser.parse_args()
-with open(args.config, 'r') as ymlfile:
-    cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
+cfg = {}
+args = None
+if len(sys.argv) > 1 and not any(arg in ("-h", "--help") for arg in sys.argv[1:]):
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("config", type=str)
+    parser.add_argument("-c", "--cuda", action="store_true")
+    parser.add_argument("--load_checkpoint", type=str, default=None)
+    parser.add_argument("--netCDF", action="store_true")
+    args, _unknown_args = parser.parse_known_args()
+    with open(args.config, 'r') as ymlfile:
+        cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
 def load_images(image_paths):
     images = []
@@ -49,11 +53,11 @@ def collect_image_paths_and_labels(image_folder):
     labels = []
     variograms = []
 
-    for label_name in os.listdir(image_folder):
+    for label_name in sorted(os.listdir(image_folder), key=lambda name: int(name) if name.isdigit() else name):
         label_path = os.path.join(image_folder, label_name)
         if os.path.isdir(label_path):
             label_index = int(label_name)
-            for img_name in os.listdir(label_path):
+            for img_name in sorted(os.listdir(label_path)):
                 if img_name.endswith(('png', 'tiff', 'tif')):
                     img_path = os.path.join(label_path, img_name)
                     image_paths.append(img_path)
@@ -78,21 +82,16 @@ def collect_image_paths_and_labels(image_folder):
 
 def get_varios(img):
     numLag = cfg['vario_num_lag']
-    imSize = img.shape
-    if (imSize[0] == 201 and imSize[1] == 268) or (imSize[0] == 268 and imSize[1] == 201):
-        return silas_directional_vario(img, numLag)
-    else:
-        print("Use an image size of (201,268) for best results")
-        return fast_directional_vario(img, numLag)
+    return model_directional_vario(img, numLag)
 #Labels are just in order, not the actual class so this needs to change in final implentation
 #Testing Dataset
 
 class TestDataset(dataset):
     def __init__(self, imgPath, imgData, labels, train, transform = None):
         self.train = train
-        imagePaths = getImgPaths(imgPath)
         imageLabels = labels
         imageData = imgData
+        imagePaths = imageData['filename'] if 'filename' in imageData else getImgPaths(imgPath)
         self.transform = transform
         # Extract all split images and store in dataframe
         dataArray = []
@@ -215,12 +214,17 @@ class FromFolderDataset(dataset):
         
         label = int(self.labels[idx])
         if self.transform:
-            image = self.transform(image)
+            transformed_image = self.transform(image)
         if self.model == 'VarioNet':
             variogram = self.variogram_data[idx]/10#should decreases effect on network
             return IMGnp, variogram, int(label)
         else:
+            if self.transform:
+                return transformed_image, int(label)
             return IMGnp, int(label)
+
+    def get_labels(self):
+        return np.asarray(self.labels, dtype=int)
 
 # Define transforms
 transform = transforms.Compose([

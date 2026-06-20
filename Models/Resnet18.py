@@ -216,6 +216,17 @@ class ResNet(nn.Module):
 
 def _resnet(arch, block, layers, pretrained, progress, **kwargs):
     model = ResNet(block, layers, **kwargs)
+    if pretrained:
+        if hasattr(models, "ResNet18_Weights"):
+            weights = models.ResNet18_Weights.DEFAULT
+            pretrained_model = models.resnet18(weights=weights, progress=progress)
+        else:
+            pretrained_model = models.resnet18(pretrained=True, progress=progress)
+        state_dict = pretrained_model.state_dict()
+        state_dict['conv1.weight'] = state_dict['conv1.weight'].mean(dim=1, keepdim=True)
+        state_dict.pop('fc.weight')
+        state_dict.pop('fc.bias')
+        model.load_state_dict(state_dict, strict=False)
 
     return model
 
@@ -229,4 +240,3 @@ def resnet18(pretrained=False, progress=True, **kwargs):
     """
     return _resnet('resnet18', BasicBlock, [2, 2, 2, 2], pretrained, progress,
                    **kwargs)
-

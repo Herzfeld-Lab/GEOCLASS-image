@@ -364,13 +364,16 @@ def plot_geotif_bbox(xmlPath, contourPath, bgImgPath, bgUTMPath):
     #cv2.waitKey(0)
     #cv2.destroyAllWindows()
 
-def get_varios(img, numLag):
+def model_directional_vario(img, numLag):
     imSize = img.shape
     if (imSize[0] == 201 and imSize[1] == 268) or (imSize[0] == 268 and imSize[1] == 201):
-        return silas_directional_vario(img, numLag)
-    else:
-        print("Use an image size of (201,268) for best results")
-        return fast_directional_vario(img, numLag)
+        vario = silas_directional_vario(img, numLag)
+        if vario.shape[1] == numLag:
+            return vario
+    return fast_directional_vario(img, numLag)
+
+def get_varios(img, numLag):
+    return model_directional_vario(img, numLag)
 
 def load_images(image_paths):
     images = []
@@ -387,11 +390,11 @@ def collect_image_paths_and_labels(image_folder, numLag):
     labels = []
     variograms = []
 
-    for label_name in os.listdir(image_folder):
+    for label_name in sorted(os.listdir(image_folder), key=lambda name: int(name) if name.isdigit() else name):
         label_path = os.path.join(image_folder, label_name)
         if os.path.isdir(label_path):
             label_index = int(label_name)
-            for img_name in os.listdir(label_path):
+            for img_name in sorted(os.listdir(label_path)):
                 if img_name.endswith(('png', 'tiff', 'tif')):
                     img_path = os.path.join(label_path, img_name)
                     image_paths.append(img_path)

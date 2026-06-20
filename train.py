@@ -1,4 +1,4 @@
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 from Dataset import *
 from torch import optim
 from torchvision import transforms
@@ -44,7 +44,12 @@ def save_params():
     params={'Hidden Layers': hidden_layers,
             'Learning Rate': learning_rate,
             'Batch Size': batch_size,
-            'Num Epochs': num_epochs}
+            'Num Epochs': num_epochs,
+            'Model': cfg.get('model'),
+            'ResNet Pretrained': cfg.get('resnet_pretrained', False),
+            'Class Weighted Loss': cfg.get('class_weighted', False),
+            'Weighted Sampler': cfg.get('weighted_sampler', False),
+            'Augmentation': cfg.get('augment', False)}
     saveFile = output_dir + '/params.txt'
     with open(saveFile, 'w') as f:
         for key,value in params.items():
@@ -56,11 +61,38 @@ parser = argparse.ArgumentParser()
 parser.add_argument("config", type=str)
 parser.add_argument("-c", "--cuda", action="store_true")
 parser.add_argument("--load_checkpoint", type=str, default=None)
+parser.add_argument("--model", type=str, default=None)
+parser.add_argument("--learning_rate", type=float, default=None)
+parser.add_argument("--batch_size", type=int, default=None)
+parser.add_argument("--num_epochs", type=int, default=None)
+parser.add_argument("--run_name", type=str, default=None)
+parser.add_argument("--output_dir", type=str, default=None)
+parser.add_argument("--resnet_pretrained", action="store_true")
+parser.add_argument("--class_weighted", action="store_true")
+parser.add_argument("--weighted_sampler", action="store_true")
+parser.add_argument("--augment", action="store_true")
 args = parser.parse_args()
 
 # Read config file
 with open(args.config, 'r') as ymlfile:
     cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
+
+if args.model is not None:
+    cfg['model'] = args.model
+if args.learning_rate is not None:
+    cfg['learning_rate'] = args.learning_rate
+if args.batch_size is not None:
+    cfg['batch_size'] = args.batch_size
+if args.num_epochs is not None:
+    cfg['num_epochs'] = args.num_epochs
+if args.resnet_pretrained:
+    cfg['resnet_pretrained'] = True
+if args.class_weighted:
+    cfg['class_weighted'] = True
+if args.weighted_sampler:
+    cfg['weighted_sampler'] = True
+if args.augment:
+    cfg['augment'] = True
 
 # Set training hyperparameters as specified by config file
 learning_rate = float(cfg['learning_rate'])
@@ -77,6 +109,59 @@ classEnum = cfg['class_enum']
 dataset_path = cfg['npy_path']
 train_path = cfg['train_path']
 valid_path = cfg['valid_path']
+
+def collect_folder_image_paths_and_labels(image_folder):
+    image_paths = []
+    labels = []
+    for label_name in sorted(os.listdir(image_folder), key=lambda name: int(name) if name.isdigit() else name):
+        label_path = os.path.join(image_folder, label_name)
+        if os.path.isdir(label_path):
+            label_index = int(label_name)
+            for img_name in sorted(os.listdir(label_path)):
+                if img_name.endswith(('png', 'tiff', 'tif')):
+                    image_paths.append(os.path.join(label_path, img_name))
+                    labels.append(label_index)
+    return image_paths, labels
+
+def resnet_transforms(train=False):
+    ops = [
+        transforms.Grayscale(num_output_channels=1),
+    ]
+    if train and cfg.get('augment', False):
+        ops.extend([
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomVerticalFlip(),
+            transforms.RandomRotation(15),
+            transforms.RandomResizedCrop((224, 224), scale=(0.75, 1.0), ratio=(0.9, 1.1)),
+            transforms.ColorJitter(brightness=0.2, contrast=0.25),
+        ])
+    else:
+        ops.append(transforms.Resize((224, 224)))
+    ops.extend([
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485], std=[0.229]),
+    ])
+    return transforms.Compose(ops)
+
+def class_counts(label_values, num_classes):
+    labels_np = np.asarray(label_values, dtype=int)
+    return {i: int(np.sum(labels_np == i)) for i in range(num_classes)}
+
+def balanced_class_weights(label_values, num_classes):
+    labels_np = np.asarray(label_values, dtype=int)
+    counts = np.array([max(1, np.sum(labels_np == i)) for i in range(num_classes)], dtype=np.float32)
+    weights = len(labels_np) / (num_classes * counts)
+    return torch.from_numpy(weights).float()
+
+def weighted_sampler_for(label_values, num_classes):
+    labels_np = np.asarray(label_values, dtype=int)
+    class_weights = balanced_class_weights(labels_np, num_classes).numpy()
+    sample_weights = class_weights[labels_np]
+    return WeightedRandomSampler(
+        weights=torch.DoubleTensor(sample_weights),
+        num_samples=len(sample_weights),
+        replacement=True,
+    )
 
 # Initialize NN model as specified by config file
 print('----- Initializing Neural Network Model -----')
@@ -103,12 +188,10 @@ elif cfg['model'] == 'Resnet18':
     num_classes = cfg['num_classes']
     vario_num_lag = cfg['vario_num_lag']
     image_folder = cfg['training_img_path']
-    model = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
-    transform = transforms.Compose([
-            transforms.Resize((224, 224)),  # Resize images to match ResNet18 input size
-        ])
-    img_transforms_train = None
-    img_transforms_valid = None
+    model = Resnet18.resnet18(pretrained=cfg.get('resnet_pretrained', False), num_classes=num_classes)
+    img_transforms_train = resnet_transforms(train=True)
+    img_transforms_valid = resnet_transforms(train=False)
+    transform = img_transforms_valid
 elif cfg['model'] == 'VarioNet':
     num_classes = cfg['num_classes']
     vario_num_lag = cfg['vario_num_lag']
@@ -141,7 +224,11 @@ else:
 print(model)
 if imgTrain:
     if cfg['model'] == 'Resnet18' or cfg['model'] == 'VarioMLP' or cfg['model'] == 'VarioNet':
-        image_paths, variogram_data, labels = collect_image_paths_and_labels(image_folder)
+        if cfg['model'] == 'Resnet18':
+            image_paths, labels = collect_folder_image_paths_and_labels(image_folder)
+            variogram_data = [None] * len(image_paths)
+        else:
+            image_paths, variogram_data, labels = collect_image_paths_and_labels(image_folder)
         train_size = int(cfg['train_test_split'] * len(image_paths))
         if cfg['train_indices'] == 'None':
             train_indices = np.random.choice(range(np.array(len(image_paths))), train_size, replace=False)
@@ -213,7 +300,10 @@ if imgTrain:
     if cfg['model'] == 'VarioMLP':
         train_dataset = FromFolderDataset('VarioMLP', train_imgs, train_var, train_labels, None)
         valid_dataset = FromFolderDataset('VarioMLP', test_imgs, test_var, test_labels, None)
-    elif cfg['model'] == 'Resnet18' or cfg['model'] == 'VarioNet':
+    elif cfg['model'] == 'Resnet18':
+        train_dataset = FromFolderDataset(cfg['model'], train_imgs, train_var, train_labels, img_transforms_train)
+        valid_dataset = FromFolderDataset(cfg['model'], test_imgs, test_var, test_labels, img_transforms_valid)
+    elif cfg['model'] == 'VarioNet':
         train_dataset = FromFolderDataset(cfg['model'], train_imgs, train_var, train_labels, transform)
         valid_dataset = FromFolderDataset(cfg['model'], test_imgs, test_var, test_labels, transform)
     else:
@@ -234,6 +324,9 @@ if imgTrain:
             )
          #CST20240315
     print('Training set size: \t%d images'%(len(train_dataset)))
+    if cfg['model'] == 'Resnet18':
+        print('Training class counts: {}'.format(class_counts(train_labels, num_classes)))
+        print('Validation class counts: {}'.format(class_counts(test_labels, num_classes)))
     # for i in range(num_classes):
     #     print('Class {}: {} - {} train images'.format(i,classEnum[i],len(train_coords[train_coords[:,4] == i])))
     # print('Validation set size: \t%d images'%(len(valid_dataset)))
@@ -241,10 +334,14 @@ if imgTrain:
     #     print('Class {}: {} - {} valid images'.format(i,classEnum[i],len(test_coords[test_coords[:,4] == i])))
     print('----- Initializing DataLoader -----')
 
+    train_sampler = None
+    if cfg.get('weighted_sampler', False):
+        train_sampler = weighted_sampler_for(train_labels, num_classes)
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
-        shuffle=True
+        shuffle=(train_sampler is None),
+        sampler=train_sampler
         )
     print("train loader", type(train_loader))
     valid_loader = DataLoader(
@@ -253,23 +350,15 @@ if imgTrain:
         shuffle=False
         )
 
-    weighted = False
+    weighted = cfg.get('class_weighted', False)
     if weighted:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
-            y2 = list(valid_dataset.get_labels())
-            y1 = list(train_dataset.get_labels())
-            y = y1 + y2
-            print('Class 0: {}'.format(y.count(0.0)))
-            print('Class 1: {}'.format(y.count(1.0)))
-            print('Class 2: {}'.format(y.count(2.0)))
-            # print('Class 3: {}'.format(y.count(3.0)))
-
-            class_wts = compute_class_weight('balanced',np.unique(y),y)
-            class_wts = torch.from_numpy(class_wts).float()
+            y = train_labels if cfg['model'] == 'Resnet18' else list(train_dataset.get_labels())
+            class_wts = balanced_class_weights(y, num_classes)
+            print('Class weights: {}'.format(class_wts.tolist()))
             criterion = torch.nn.CrossEntropyLoss(weight=class_wts)
             optimizer = optim.Adam(model.parameters(),lr=learning_rate)
-            scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9) #TODO: what this does?
     else:
         # Initialize loss critereron and gradient descent optimizer
         criterion = torch.nn.CrossEntropyLoss()
@@ -287,19 +376,25 @@ if imgTrain:
         torch.cuda.set_device(0)
         device = torch.device("cuda:0")
         model.cuda()
+        criterion = criterion.to(device)
         #optimizer.cuda()
 
     # Create directory for model checkpoints and output
     print('----- Initializing Output Directory -----')
     now = datetime.now()
-    date_str = now.strftime("%d-%m-%Y_%H:%M")
+    date_str = now.strftime("%d-%m-%Y_%H:%M:%S")
     config_str = args.config.split('/')[1]
-    output_dir = 'Output/%s_%s'%(config_str, date_str)
+    if args.output_dir:
+        output_dir = args.output_dir
+    elif args.run_name:
+        output_dir = 'Output/{}_{}'.format(args.run_name, date_str)
+    else:
+        output_dir = 'Output/%s_%s'%(config_str, date_str)
     checkpoint_str = ''
-    if not os.path.exists(output_dir): os.mkdir(output_dir)
-    if not os.path.exists(output_dir+'/checkpoints'): os.mkdir(output_dir+'/checkpoints')
-    if not os.path.exists(output_dir+'/labels'): os.mkdir(output_dir+'/labels')
-    if not os.path.exists(output_dir+'/losses'): os.mkdir(output_dir+'/losses')
+    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(output_dir+'/checkpoints', exist_ok=True)
+    os.makedirs(output_dir+'/labels', exist_ok=True)
+    os.makedirs(output_dir+'/losses', exist_ok=True)
     print('Output saved at %s'%(output_dir))
 
     save_params()

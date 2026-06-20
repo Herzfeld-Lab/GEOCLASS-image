@@ -26,9 +26,9 @@ class SplitImageDataset(Dataset):
     def __init__(self, imgPath, imgData, labels, transform=None, train=False):
 
         self.train = train
-        imagePaths = getImgPaths(imgPath)
         imageLabels = labels
         imageData = imgData
+        imagePaths = imageData['filename'] if 'filename' in imageData else getImgPaths(imgPath)
         self.transform = transform
         # Extract all split images and store in dataframe (takes longer to initialize but saves loads on memory usage during training)
         dataArray = []
@@ -109,8 +109,9 @@ class SplitImageDataset(Dataset):
 
         if self.transform:
             splitImg_np = self.transform(splitImg_np)
-
-        splitImg_tensor = torch.from_numpy(splitImg_np)
+            splitImg_tensor = splitImg_np if torch.is_tensor(splitImg_np) else torch.from_numpy(splitImg_np)
+        else:
+            splitImg_tensor = torch.from_numpy(splitImg_np)
 
         if self.train:
             label = int(self.dataFrame.iloc[idx,4])
@@ -506,17 +507,15 @@ class CalipsoDataset2(Dataset): #gets density fields here instead of from datase
 
 class RandomRotateVario(object):
 
-    def __init__(self):
-        self.random = random.uniform(0,1)
-
     def __call__(self, vario):
-        if self.random < 0.25:
+        random_value = random.uniform(0,1)
+        if random_value < 0.25:
             return np.concatenate((vario[0,:],vario[1,:],vario[2,:]))
-        elif self.random < 0.5:
+        elif random_value < 0.5:
             return np.concatenate((vario[1,:],vario[0,:],vario[2,:]))
-        elif self.random < 0.75:
+        elif random_value < 0.75:
             return np.concatenate((vario[0,:],vario[1,:],vario[3,:]))
-        elif self.random < 1:
+        elif random_value < 1:
             return np.concatenate((vario[1,:],vario[0,:],vario[3,:]))
 
 class DefaultRotateVario(object):
@@ -530,12 +529,7 @@ class DirectionalVario(object):
         self.numLag = numLag
 
     def __call__(self, img):
-        imSize = img.shape
-        if (imSize[0] == 201 and imSize[1] == 268) or (imSize[0] == 268 and imSize[1] == 201):
-            return silas_directional_vario(img, self.numLag)
-        else:
-            print("Use an image size of (201,268) for best results")
-            return fast_directional_vario(img, self.numLag)
+        return model_directional_vario(img, self.numLag)
         
 
 class RandomShift(object):
