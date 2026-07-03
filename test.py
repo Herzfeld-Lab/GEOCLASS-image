@@ -24,6 +24,8 @@ parser.add_argument("-c", "--cuda", action="store_true")
 parser.add_argument("--load_checkpoint", type=str, default=None)
 parser.add_argument("--netCDF", action="store_true")
 parser.add_argument("--model", type=str, default=None)
+parser.add_argument("--hidden_layers", type=str, default=None)
+parser.add_argument("--vario_num_lag", type=int, default=None)
 parser.add_argument(
     "--output_dir",
     type=str,
@@ -38,6 +40,10 @@ with open(args.config, 'r') as ymlfile:
 
 if args.model is not None:
     cfg['model'] = args.model
+if args.hidden_layers is not None:
+    cfg['hidden_layers'] = yaml.safe_load(args.hidden_layers)
+if args.vario_num_lag is not None:
+    cfg['vario_num_lag'] = args.vario_num_lag
 
 # Set training hyperparameters as specified by config file
 learning_rate = float(cfg['learning_rate'])

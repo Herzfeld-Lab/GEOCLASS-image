@@ -65,6 +65,8 @@ parser.add_argument("--model", type=str, default=None)
 parser.add_argument("--learning_rate", type=float, default=None)
 parser.add_argument("--batch_size", type=int, default=None)
 parser.add_argument("--num_epochs", type=int, default=None)
+parser.add_argument("--hidden_layers", type=str, default=None)
+parser.add_argument("--vario_num_lag", type=int, default=None)
 parser.add_argument("--run_name", type=str, default=None)
 parser.add_argument("--output_dir", type=str, default=None)
 parser.add_argument("--resnet_pretrained", action="store_true")
@@ -85,6 +87,10 @@ if args.batch_size is not None:
     cfg['batch_size'] = args.batch_size
 if args.num_epochs is not None:
     cfg['num_epochs'] = args.num_epochs
+if args.hidden_layers is not None:
+    cfg['hidden_layers'] = yaml.safe_load(args.hidden_layers)
+if args.vario_num_lag is not None:
+    cfg['vario_num_lag'] = args.vario_num_lag
 if args.resnet_pretrained:
     cfg['resnet_pretrained'] = True
 if args.class_weighted:
