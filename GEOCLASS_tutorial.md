@@ -125,11 +125,13 @@ As demonstrated above, the 'Visualize Labels' toggle can be used to view the tra
 Upon exiting the GUI, any labels created will be automatically saved to the [Dataset file created above](#creating-a-dataset). All images will also be automatically saved to the `training_img_path` directory.
 
 # Using A Folder of Images
-In order to use the images that were saved to the `training_img_path` directory, or use a prexisting dataset, first navigate to the desired directory and ensure that everything is set up [correctly](#setting-up-the-image-folder). If everything within the folder looks good, ensure the path of this main directory is linked to `training_img_path` within the config file. To create an actual dataset from this folder run `createDatasetFromFolder.py` in the same way you would run `createDatasetFromGeotiff.py`:
+In order to use the images that were saved to the `training_img_path` directory, or use a prexisting dataset, first navigate to the desired directory and ensure that everything is set up [correctly](#setting-up-the-image-folder). If everything within the folder looks good, ensure the path of this main directory is linked to `training_img_path` within the config file. If this is correct then simply change the `train_with_img` boolean within the config file to True and you are all set to start training. 
+
+If you would like to create a npy file to store this dataset you will need to ensure that the `img_path` and `npy_path` are linked to the same directory of images that was used to create the dataset. To create an actual dataset from this folder run `createDatasetFromFolder.py` in the same way you would run `createDatasetFromGeotiff.py`:
 ```
 python3 createDatasetFromFolder.py Config/mlp_negri_legacy/mlp_test_negri.config
 ```
-Once this finishes running, `training_img_npy` will be automatically updated to the new npy file created from `createDatasetFromFolder.py`. With this new npy file you will be able to train ResNet18. Simply change the `train_with_img` boolean within the config file to True and you are all set to start training. If you are using  VarioMLP you will need to ensure that the `img_path` is linked to the same directory of images that was used to create the dataset.
+Once this finishes running, `training_img_npy` will be automatically updated to the new npy file created from `createDatasetFromFolder.py`. This npy file can then be used to further [visualize](#other-forms-of-visualization) the results of the training.
 
 # Training
 
