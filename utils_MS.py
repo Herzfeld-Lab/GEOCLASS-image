@@ -5,12 +5,16 @@ from numba import jit, njit, typed
 
 import numpy as np
 import pandas as pd
+import torch 
 
 import cv2
 from numba import jit, float32, int32, types
 
 from PIL import Image, ImageOps
 Image.MAX_IMAGE_PIXELS = None
+import skimage
+
+from skimage.measure import shannon_entropy
 
 import xml.etree.ElementTree as ET
 
@@ -134,6 +138,190 @@ def draw_split_image_confs_calipso(img_mat, scale_factor_x, scale_factor_y,
                     img_mat[y_end-split_disp_size[1]:y_end, x_start:x_end, 0] = c[0]
                     img_mat[y_end-split_disp_size[1]:y_end, x_start:x_end, 1] = c[1]
                     img_mat[y_end-split_disp_size[1]:y_end, x_start:x_end, 2] = c[2]
+
+def patch_entropy(band, num_levels=32, eps=1e-10):
+    band_min, band_max = band.min(), band.max()
+    if band_max <= band_min:
+        return 0.0
+    hist, _ = np.histogram(band, bins=num_levels, range=(band_min, band_max), density=True)
+    hist = hist[hist > 0]
+    return float(-np.sum(hist * np.log2(hist + eps)))
+"""
+def glcm_features(band, distances=(1,), angles=(0,), levels=8, symmetric=True, normed=True):
+    band_norm = band.astype(np.float32)
+    minv, maxv = band_norm.min(), band_norm.max()
+    if maxv > minv:
+        band_norm = (band_norm - minv) / (maxv - minv)
+    band_q = np.floor(band_norm * (levels - 1)).astype(np.uint8)
+    glcm = greycomatrix(band_q, distances=distances, angles=angles,
+                        levels=levels, symmetric=symmetric, normed=normed)
+    props = []
+    for prop in ['contrast', 'dissimilarity', 'homogeneity', 'energy', 'correlation', 'ASM']:
+        props.append(float(np.mean(greycoprops(glcm, prop))))
+    return props
+"""
+
+def laplacian_variance(band, ksize=3):
+    band_f = band.astype(np.float32)
+    lap = cv2.Laplacian(band_f, cv2.CV_32F, ksize=ksize)
+    return float(np.var(lap))
+
+def compute_patch_wri_features(img, patch_size=(8,8),
+                               stats_bands=None,
+                               g_idx=0, r_idx=1, nir_idx=2, mir_idx=3,
+                               eps=1e-6, pad_mode='edge'):
+    """
+    Compute per-patch mean feature matrices (band means + WRI/NDWI/MNDWI).
+
+    Args:
+        img: np.ndarray, accepts (C,H,W) or (H,W,C) or (H,W).
+        patch_size: (ph, pw) tuple.
+        stats_bands: list of band indices to compute means for; if None, all bands.
+        g_idx, r_idx, nir_idx, mir_idx: band indices for green, red, NIR, MIR.
+        eps: epsilon for division safety.
+        pad_mode: padding mode (e.g., 'edge').
+
+    Returns:
+        feats: np.ndarray shape (F, Hp, Wp) with F = len(stats_bands) + 3 (WRI, NDWI, MNDWI).
+    """
+    arr = np.array(img)
+    
+    # Normalize to HWC
+    if arr.ndim == 2:
+        arr = arr[:, :, None]
+    elif arr.ndim == 3:
+        if arr.shape[0] <= 6 and arr.shape[0] != arr.shape[2]:
+            # CHW -> HWC
+            arr = np.transpose(arr, (1, 2, 0)).copy()
+    else:
+        raise ValueError(f'Unsupported img shape {arr.shape}')
+    
+    ph, pw = patch_size
+    H, W, C = arr.shape
+    
+    if stats_bands is None:
+        stats_bands = list(range(C))
+    
+    # Pad to divisible by patch size
+    pad_h = (-H) % ph
+    pad_w = (-W) % pw
+    if pad_h or pad_w:
+        arr = np.pad(arr, ((0, pad_h), (0, pad_w), (0, 0)), mode=pad_mode)
+        H, W, C = arr.shape
+    
+    H_blocks = H // ph
+    W_blocks = W // pw
+
+    # Reshape and compute per-patch means
+    patches = arr.reshape(H_blocks, ph, W_blocks, pw, C)
+    band_means = patches.mean(axis=(1, 3))  # (Hp, Wp, C)
+    band_maxs = patches.max(axis=(1, 3))  # (Hp, Wp, C)
+    band_mins = patches.min(axis=(1, 3))  # (Hp, Wp, C)
+    band_stds = patches.std(axis=(1, 3))[:, :, stats_bands]
+
+    band_hists = []
+    entropy_mats = []
+    #laplacian_mats = []
+    for b in stats_bands:
+        patch_band = patches[..., b]
+        # settings
+        num_bins = 16
+
+        # compute bin edges for this band across whole image patch-values (keeps edges consistent)
+        band_vals = patches[..., b].ravel()
+        bmin, bmax = band_vals.min(), band_vals.max()
+        if bmax <= bmin:
+            edges = np.linspace(0, 1, num_bins+1)
+        else:
+            edges = np.linspace(bmin, bmax, num_bins+1)
+
+        # allocate (num_bins, Hp, Wp)
+        #hist_mats = np.empty((num_bins, H_blocks, W_blocks), dtype=np.float32)
+
+# hist_mats has shape (num_bins, Hp, Wp) — append to a list for this band
+        #lap_var = np.empty((H_blocks, W_blocks), dtype=np.float32)
+        ent = np.empty((H_blocks, W_blocks), dtype=np.float32)
+        for i in range(H_blocks):
+            for j in range(W_blocks):
+                p = patch_band[i, :, j, :].ravel()
+                """
+                if p.size == 0:
+                    hist = np.zeros(num_bins, dtype=np.float32)
+                else:
+                    hist, _ = np.histogram(p, bins=edges, density=True)
+                #hist_mats[:, i, j] = hist
+                #lap_var[i, j] = laplacian_variance(patch_band[i, :, j, :], ksize=3)
+                """
+                ent[i, j] = shannon_entropy(patch_band[i, :, j, :])
+        entropy_mats.append(ent)
+        
+        # optional transforms (stabilize dynamic range)
+        #hist_mats = np.log1p(hist_mats)
+        #band_hists.append(hist_mats)
+        #laplacian_mats.append(lap_var)
+
+    #laplacian_mats = np.stack(laplacian_mats, axis=0)  # shape (num_stats_bands, Hp, Wp)
+
+    entropy_mats = np.stack(entropy_mats, axis=0)
+    #band_hists = np.stack(band_hists, axis=0)  # shape (num_stats_bands, num_bins, Hp, Wp)
+    
+    # flatten bins into channel dim: (B*num_bins, Hp, Wp)
+    #band_hists = band_hists.reshape(B * num_bins, Hp, Wp)
+
+
+    # Select requested bands
+    band_means_sel = band_means[:, :, stats_bands]  # (Hp, Wp, num_stats_bands)
+    band_maxs_sel = band_maxs[:, :, stats_bands]
+    band_mins_sel = band_mins[:, :, stats_bands]
+    
+    # Compute per-patch pixel-wise indices, then take the max within each patch
+    green_patch = patches[..., g_idx]  # (Hp, ph, Wp, pw)
+    red_patch   = patches[..., r_idx]
+    nir_patch   = patches[..., nir_idx]
+    mir_patch   = patches[..., mir_idx]
+
+    wri_patch  = (green_patch + red_patch) / (nir_patch + mir_patch + eps)
+    ndwi_patch = (green_patch - nir_patch) / (green_patch + nir_patch + eps)
+    ndsi_patch = (green_patch - mir_patch) / (green_patch + mir_patch + eps)
+
+    WRI  = wri_patch.max(axis=(1, 3))   # (Hp, Wp)
+    NDWI_max = ndwi_patch.max(axis=(1, 3))
+    NDWI_mean = ndwi_patch.mean(axis=(1, 3))
+    NDSI_max = ndsi_patch.max(axis=(1, 3))
+    NDSI_mean = ndsi_patch.mean(axis=(1, 3))
+
+    # Stack: selected band means (C-first) + indices
+    band_mats_mean  = np.transpose(band_means_sel, (2, 0, 1))  # (num_stats_bands, Hp, Wp)
+    band_mats_max   = np.transpose(band_maxs_sel, (2, 0, 1))
+    band_mats_mins  = np.transpose(band_mins_sel, (2, 0, 1))
+    band_mats_std = np.transpose(band_stds, (2, 0, 1))
+    #feats = np.concatenate([band_mats_mean, band_mats_max, band_mats_mins, WRI[None, :, :], NDWI[None, :, :], NDSI[None, :, :]], axis=0)
+    feats = np.concatenate([band_mats_mean, band_mats_max, band_mats_mins, band_mats_std, entropy_mats], axis=0)
+    return feats.astype(np.float32)
+
+
+def compute_patch_wri_features_batch(X, patch_size, cfg):
+    """
+    Batch compute patch-mean feature matrices.
+
+    Args:
+        X: torch.Tensor shape (B, C, H, W).
+        patch_size: (ph, pw) tuple.
+        cfg: dict with keys 'stats_bands', 'g_idx', 'r_idx', 'nir_idx', 'mir_idx', 'eps'.
+
+    Returns:
+        torch.Tensor shape (B, F, Hp, Wp) where F = len(stats_bands) + 3.
+    """
+    outs = []
+    for i in range(X.shape[0]):
+        arr = X[i].cpu().numpy()
+        mats = compute_patch_wri_features(arr, patch_size=patch_size,
+                                          stats_bands=cfg.get('stats_bands', None),
+                                          g_idx=cfg['g_idx'], r_idx=cfg['r_idx'],
+                                          nir_idx=cfg['nir_idx'], mir_idx=cfg['mir_idx'],
+                                          eps=cfg.get('eps', 1e-6))
+        outs.append(torch.from_numpy(mats))
+    return torch.stack(outs).float()  # (B, F, Hp, Wp)
 
 
 def to_netCDF(data, filepath):
@@ -842,7 +1030,8 @@ def generate_config_silas(yaml_obj):
     config_str = '''
 ### MODEL PARAMETERS ###
 
-model:          {}
+PAN_model:      {}
+MS_model:       {}
 num_classes:    {}
 vario_num_lag:  {}
 hidden_layers:  {}
@@ -898,7 +1087,8 @@ contour_path:       {}
 custom_color_map:   {}
 bg_img_path:        {}
 bg_UTM_path:        {}
-        '''.format(yaml_obj['model'],
+        '''.format(yaml_obj['PAN_model'],
+                   yaml_obj['MS_model'],
                    yaml_obj['num_classes'],
                    yaml_obj['vario_num_lag'],
                    yaml_obj['hidden_layers'],

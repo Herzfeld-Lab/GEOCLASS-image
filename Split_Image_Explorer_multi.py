@@ -514,19 +514,19 @@ class SplitImageTool(QWidget):
             # Draw split images on scaled down preview image before rotation,
             # so label pixels rotate with the image.
             if self.visualize_labels:
-                draw = self.split_info_ms[self.split_info_ms[:,7] > self.conf_thresh] #set this to all to visualize a dataset created through a folder
+                draw = self.split_info_ms[self.split_info_ms[:,9] > self.conf_thresh] #set this to all to visualize a dataset created through a folder
                 #draw = self.split_info_ms
                 cmap = (np.array(self.label_cmap.colors)*255).astype(np.uint8)
                 draw_split_image_labels(bg_img_scaled, scale_factor, split_disp_size, draw, self.selected_classes, cmap, True)
 
             elif self.visualize_predictions and self.predictions:
                 #draw = self.split_info
-                draw = self.pred_labels_ms[self.pred_labels_ms[:,7] > self.conf_thresh]
+                draw = self.pred_labels_ms[self.pred_labels_ms[:,9] > self.conf_thresh]
                 cmap = (np.array(self.label_cmap.colors)*255).astype(np.uint8)
                 draw_split_image_labels(bg_img_scaled, scale_factor, split_disp_size, draw, self.selected_classes, cmap, True)
 
             elif self.visualize_heatmap and self.predictions:
-                draw = self.pred_labels_ms[self.pred_labels_ms[:,7] > self.conf_thresh]
+                draw = self.pred_labels_ms[self.pred_labels_ms[:,9] > self.conf_thresh]
                 cmap = (np.array(self.conf_cmap.colors)*255).astype(np.uint8)
                 draw_split_image_confs(bg_img_scaled, scale_factor, split_disp_size, draw, self.selected_classes, cmap, True)
 
@@ -574,17 +574,17 @@ class SplitImageTool(QWidget):
                 # PAN labels use columns 6-7
                 draw = self.split_info[self.split_info[:,7] > self.conf_thresh]
                 cmap = (np.array(self.label_cmap.colors)*255).astype(np.uint8)
-                draw_split_image_labels(bg_img_scaled, scale_factor, split_disp_size, draw, self.selected_classes, cmap, False, label_col=6, conf_col=7)
+                draw_split_image_labels(bg_img_scaled, scale_factor, split_disp_size, draw, self.selected_classes, cmap, False)
 
             elif self.visualize_predictions and self.predictions:
                 draw = self.pred_labels[self.pred_labels[:,7] > self.conf_thresh]
                 cmap = (np.array(self.label_cmap.colors)*255).astype(np.uint8)
-                draw_split_image_labels(bg_img_scaled, scale_factor, split_disp_size, draw, self.selected_classes, cmap, False, label_col=6, conf_col=7)
+                draw_split_image_labels(bg_img_scaled, scale_factor, split_disp_size, draw, self.selected_classes, cmap, False)
 
             elif self.visualize_heatmap and self.predictions:
                 draw = self.pred_labels[self.pred_labels[:,7] > self.conf_thresh]
                 cmap = (np.array(self.conf_cmap.colors)*255).astype(np.uint8)
-                draw_split_image_confs(bg_img_scaled, scale_factor, split_disp_size, draw, self.selected_classes, cmap, False, label_col=6, conf_col=7)
+                draw_split_image_confs(bg_img_scaled, scale_factor, split_disp_size, draw, self.selected_classes, cmap, False)
 
             # Rotate tiff to align North and plot glacier contour
             if self.isMulti:
@@ -830,12 +830,16 @@ class SplitImageTool(QWidget):
             row = self.split_info[index]
             pan_x, pan_y, ms_x, ms_y = int(row[0]), int(row[1]), int(row[2]), int(row[3])
             # Get split image from image matrix
-            img = self.tiff_image_matrix_ms[:, ms_y:ms_y+self.win_sizeMS[0], ms_x:ms_x+self.win_sizeMS[1]]
+            img = self.tiff_image_matrix_ms[:, ms_x:ms_x+self.win_sizeMS[0], ms_y:ms_y+self.win_sizeMS[1]]
             img = np.stack(
                 [stretch_band_percentile(b, 2, 98) for b in img],
                 axis=0
             ).astype(np.uint8)
-            image = QImage(img.data, img.shape[1], img.shape[0], img.shape[1], QImage.Format_RGB888)
+            # Transpose to (height, width, channels) for QImage
+            img_rgb = np.transpose(img, (1, 2, 0))
+            img_rgb = np.ascontiguousarray(img_rgb)
+            h, w = img_rgb.shape[:2]
+            image = QImage(img_rgb.data, w, h, w * 3, QImage.Format_RGB888)
             image.save(fp,"png")
         else:
             row = self.split_info[index]
@@ -850,8 +854,9 @@ class SplitImageTool(QWidget):
  #CST20240403 Checks all directories for the image, and deletes it if it finds the image.
     def deleteImage(self,filePath,fileName):
         numClasses = cfg['num_classes']
+        mode_dir = 'MS' if self.isMulti else 'PAN'
         for i in range(numClasses):
-            file_path = (filePath+str(i)+'/'+str(i)+fileName+'.png')
+            file_path = (filePath+mode_dir+'/'+str(i)+'/'+str(i)+fileName+'.png')
             if os.path.isfile(file_path):
                 os.remove(file_path)
                 
@@ -881,19 +886,22 @@ class SplitImageTool(QWidget):
         
         # Rest of labeling logic stays the same
         self.split_info_ms = self._labels_to_ms_pixels(self.split_info)
+        mode_dir = 'MS' if self.isMulti else 'PAN'
         #Load training img path
         if self.cfg['training_img_path'] != 'None':
             labeled_img_path = cfg['training_img_path']
             if not os.path.exists(labeled_img_path+"/"): os.mkdir(labeled_img_path+"/")
-            if not os.path.exists(labeled_img_path+"/"+str(class_label)): os.mkdir(labeled_img_path+"/"+str(class_label))
+            if not os.path.exists(labeled_img_path+"/"+mode_dir): os.mkdir(labeled_img_path+"/"+mode_dir)
+            if not os.path.exists(labeled_img_path+"/"+mode_dir+"/"+str(class_label)): os.mkdir(labeled_img_path+"/"+mode_dir+"/"+str(class_label))
             self.deleteImage(labeled_img_path+"/", str(self.image_index)+str(numTiff))
-            self.writeImage(labeled_img_path+"/"+str(class_label), str(class_label)+str(self.image_index)+str(numTiff), self.image_index)
+            self.writeImage(labeled_img_path+"/"+mode_dir+"/"+str(class_label), str(class_label)+str(self.image_index)+str(numTiff), self.image_index)
             self.getNewImage(self.image_index)
         else:
             if not os.path.exists("Classifications/"): os.mkdir("Classifications/")
-            if not os.path.exists("Classifications/"+str(class_label)): os.mkdir("Classifications/"+str(class_label))
+            if not os.path.exists("Classifications/"+mode_dir): os.mkdir("Classifications/"+mode_dir)
+            if not os.path.exists("Classifications/"+mode_dir+"/"+str(class_label)): os.mkdir("Classifications/"+mode_dir+"/"+str(class_label))
             self.deleteImage("Classifications/", str(self.image_index)+str(numTiff))
-            self.writeImage("Classifications/"+str(class_label), str(class_label)+str(self.image_index)+str(numTiff), self.image_index)
+            self.writeImage("Classifications/"+mode_dir+"/"+str(class_label), str(class_label)+str(self.image_index)+str(numTiff), self.image_index)
             cfg['training_img_path'] = 'Classifications'
         self.update()
 
@@ -902,6 +910,7 @@ class SplitImageTool(QWidget):
         imgSize = np.array([width,height])
         pix_coords = utm_to_pix(imgSize, self.bg_img_utm.T, np.array(self.batch_select_polygon))
         batch_select = Polygon(self.batch_select_polygon)
+        mode_dir = 'MS' if self.isMulti else 'PAN'
         if self.isMulti:
             for i,img in enumerate(self.split_info):
                 if Point(img[4],img[5]).within(batch_select):
@@ -910,14 +919,16 @@ class SplitImageTool(QWidget):
                     if self.cfg['training_img_path'] != 'None':
                         labeled_img_path = self.cfg['training_img_path']
                         if not os.path.exists(labeled_img_path+"/"): os.mkdir(labeled_img_path+"/")
-                        if not os.path.exists(labeled_img_path+"/"+str(class_label)): os.mkdir(labeled_img_path+"/"+str(class_label))
+                        if not os.path.exists(labeled_img_path+"/"+mode_dir): os.mkdir(labeled_img_path+"/"+mode_dir)
+                        if not os.path.exists(labeled_img_path+"/"+mode_dir+"/"+str(class_label)): os.mkdir(labeled_img_path+"/"+mode_dir+"/"+str(class_label))
                         self.deleteImage(labeled_img_path+"/", str(i)+str(numTiff))
-                        self.writeImage(labeled_img_path+"/"+str(class_label), str(class_label)+str(i)+str(numTiff), i)
+                        self.writeImage(labeled_img_path+"/"+mode_dir+"/"+str(class_label), str(class_label)+str(i)+str(numTiff), i)
                     else:
                         if not os.path.exists("Classifications/"): os.mkdir("Classifications/")
-                        if not os.path.exists("Classifications/"+str(class_label)): os.mkdir("Classifications/"+str(class_label))
+                        if not os.path.exists("Classifications/"+mode_dir): os.mkdir("Classifications/"+mode_dir)
+                        if not os.path.exists("Classifications/"+mode_dir+"/"+str(class_label)): os.mkdir("Classifications/"+mode_dir+"/"+str(class_label))
                         self.deleteImage("Classifications/", str(i)+str(numTiff))
-                        self.writeImage("Classifications/"+str(class_label), str(class_label)+str(i)+str(numTiff), i)
+                        self.writeImage("Classifications/"+mode_dir+"/"+str(class_label), str(class_label)+str(i)+str(numTiff), i)
                         cfg['training_img_path'] = 'Classifications'
         else:
             for i,img in enumerate(self.split_info):
@@ -927,14 +938,16 @@ class SplitImageTool(QWidget):
                     if self.cfg['training_img_path'] != 'None':
                         labeled_img_path = self.cfg['training_img_path']
                         if not os.path.exists(labeled_img_path+"/"): os.mkdir(labeled_img_path+"/")
-                        if not os.path.exists(labeled_img_path+"/"+str(class_label)): os.mkdir(labeled_img_path+"/"+str(class_label))
+                        if not os.path.exists(labeled_img_path+"/"+mode_dir): os.mkdir(labeled_img_path+"/"+mode_dir)
+                        if not os.path.exists(labeled_img_path+"/"+mode_dir+"/"+str(class_label)): os.mkdir(labeled_img_path+"/"+mode_dir+"/"+str(class_label))
                         self.deleteImage(labeled_img_path+"/", str(i)+str(numTiff))
-                        self.writeImage(labeled_img_path+"/"+str(class_label), str(class_label)+str(i)+str(numTiff), i)
+                        self.writeImage(labeled_img_path+"/"+mode_dir+"/"+str(class_label), str(class_label)+str(i)+str(numTiff), i)
                     else:
                         if not os.path.exists("Classifications/"): os.mkdir("Classifications/")
-                        if not os.path.exists("Classifications/"+str(class_label)): os.mkdir("Classifications/"+str(class_label))
+                        if not os.path.exists("Classifications/"+mode_dir): os.mkdir("Classifications/"+mode_dir)
+                        if not os.path.exists("Classifications/"+mode_dir+"/"+str(class_label)): os.mkdir("Classifications/"+mode_dir+"/"+str(class_label))
                         self.deleteImage("Classifications/", str(i)+str(numTiff))
-                        self.writeImage("Classifications/"+str(class_label), str(class_label)+str(i)+str(numTiff), i)
+                        self.writeImage("Classifications/"+mode_dir+"/"+str(class_label), str(class_label)+str(i)+str(numTiff), i)
                         cfg['training_img_path'] = 'Classifications'
         self.batch_select_polygon = []
         self.split_info_ms = self._labels_to_ms_pixels(self.split_info)

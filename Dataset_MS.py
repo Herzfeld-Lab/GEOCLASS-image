@@ -20,7 +20,7 @@ import numpy
 
 #def load_split_images(img_mat, max, winSize):
 
-class SplitImageDataset(Dataset):
+class SplitImageDatasetPAN(Dataset):
 
     def __init__(self, imgPath, imgData, labels, transform=None, train=False):
 
@@ -32,9 +32,10 @@ class SplitImageDataset(Dataset):
         # Extract all split images and store in dataframe (takes longer to initialize but saves loads on memory usage during training)
         dataArray = []
         #CST20240315print("image data", imageData)
+        #[pan_x, pan_y, ms_x, ms_y, utm_x, utm_y, pan_label, pan_conf, ms_label, ms_conf, img_num]
         def to_pan_rowlist(row, split_img):
             r = np.array(row)
-            rowlist = [r[0], r[1], r[4], r[5], r[6], r[7], r[8]]
+            rowlist = [r[0], r[1], r[4], r[5], r[6], r[7], r[10]]
             rowlist.append(split_img)
             return rowlist
 
@@ -44,9 +45,9 @@ class SplitImageDataset(Dataset):
             TimageLabels = list(zip(*imageLabels)) #CST20240322 this may fail or not work as expected now
             a=0
        
-            if len(TimageLabels) == 9: #Training
-                for i in range(0,len(TimageLabels[8])):
-                    if TimageLabels[8][i]==imgNum:
+            if len(TimageLabels) == 11: #Training
+                for i in range(0,len(TimageLabels[10])):
+                    if TimageLabels[10][i]==imgNum:
                         a=1
                 if self.train and a == 0:
                             continue
@@ -57,8 +58,8 @@ class SplitImageDataset(Dataset):
                 max = get_img_sigma(imageMatrix[::10,::10])
                 winSize = imageData['winsize_pix']
             #CST 20240322
-                for i in range(0,len(TimageLabels[6])):
-                    if TimageLabels[8][i]==imgNum:
+                for i in range(0,len(TimageLabels[10])):
+                    if TimageLabels[10][i]==imgNum:
                         row = imageLabels[i]
                         x,y = row[0:2].astype('int')
                         splitImg_np = imageMatrix[x:x+winSize[0],y:y+winSize[1]]
@@ -74,7 +75,7 @@ class SplitImageDataset(Dataset):
 
                 #CST 20240329
                 for i in range(0,len(TimageLabels[0])):
-                    if TimageLabels[0][i][8]==imgNum:
+                    if TimageLabels[0][i][10]==imgNum:
                         a=1
                 if self.train and a == 0:
                             continue
@@ -87,7 +88,7 @@ class SplitImageDataset(Dataset):
                 winSize = imageData['winsize_pix']
                 #CST 20240329
                 for i in range(0,len(TimageLabels[0])):
-                    if TimageLabels[0][i][8] == imgNum:
+                    if TimageLabels[0][i][10] == imgNum:
                         row = imageLabels[i][0]
                         #print(row)
                         x,y = row[0:2].astype('int')
@@ -154,29 +155,35 @@ class SplitImageDatasetMS(Dataset):
         Multispectral split-image dataset.
         Uses ms_x/ms_y from the label rows so MS and pan cover the same UTM region.
         Expected labels (per row):
-          [pan_x, pan_y, ms_x, ms_y, utm_x, utm_y, pan_label, ms_label, conf, img_source]
+          [pan_x, pan_y, ms_x, ms_y, utm_x, utm_y, pan_label, pan_conf, ms_label, ms_conf, img_num]
         """
         self.train = train
         imagePaths = getImgPathsMS(imgPath)
         imageLabels = labels
         imageData = imgData
         self.transform = transform
+        # If the saved dataset info includes the original filename ordering, use it
+        filenames = None
+        try:
+            filenames = imageData.get('filename', None)
+        except Exception:
+            filenames = None
 
         dataArray = []
+        indices_list = []
         def to_ms_rowlist(row, split_img):
             r = np.array(row)
             # Keep only MS-relevant fields: ms_x, ms_y, utm_x, utm_y, ms_label, conf, img_source
-            rowlist = [r[2], r[3], r[4], r[5], r[6], r[7], r[8]]
+            rowlist = [r[2], r[3], r[4], r[5], r[8], r[9], r[10]]
             rowlist.append(split_img)
             return rowlist
         for imgNum, imagePath in enumerate(imagePaths):
             # If training, and there are no labeled split images from tiff image, skip loading it
             TimageLabels = list(zip(*imageLabels)) #CST20240322 this may fail or not work as expected now
             a=0
-       
-            if len(TimageLabels) == 9: #Training
-                for i in range(0,len(TimageLabels[8])):
-                    if TimageLabels[8][i]==imgNum:
+            if len(TimageLabels) == 11: #Training
+                for i in range(0,len(TimageLabels[10])):
+                    if TimageLabels[10][i]==imgNum:
                         a=1
                 if self.train and a == 0:
                             continue
@@ -187,15 +194,31 @@ class SplitImageDatasetMS(Dataset):
                 max = get_img_sigma(imageMatrix[:, ::10, ::10])
                 winSize = imageData['MS_winsize_pix']
 
-                for i in range(0,len(TimageLabels[6])):
-                    if TimageLabels[8][i]==imgNum:
+                # Determine the file index used in the original dataset for this ms image (Fixes error of not labeling final GEOTIFF)
+                file_idx = imgNum
+                if filenames is not None:
+                    try:
+                        file_idx = filenames.index(imagePath)
+                    except ValueError:
+                        # Try matching by basename if full path formats differ
+                        bas = os.path.basename(imagePath)
+                        found = -1
+                        for k,fp in enumerate(filenames):
+                            if os.path.basename(fp) == bas:
+                                found = k
+                                break
+                        if found >= 0:
+                            file_idx = found
+
+                for i in range(0,len(TimageLabels[10])):
+                    if TimageLabels[10][i]==file_idx:
                         row = imageLabels[i]
                         x,y = row[2:4].astype('int')
                         splitImg_np = imageMatrix[:, x:x+winSize[0],y:y+winSize[1]]
                         splitImg_np = scaleImage(splitImg_np, max)
                         rowlist = to_ms_rowlist(row, splitImg_np)
                         if (splitImg_np.shape[1] == 0) or (splitImg_np.shape[2] == 0):
-                            print("Error with an image: ", i, "class: ", rowlist[4], "image source: ", rowlist[6])
+                            print("Error with an image: ", i, "class: ", rowlist[8], "image source: ", rowlist[10])
                         else:
                             dataArray.append(rowlist)
                         #CST20240315print("data array", dataArray)
@@ -203,8 +226,23 @@ class SplitImageDatasetMS(Dataset):
                     # If training, and there are no labeled split images from tiff image, skip loading it
 
                 #CST 20240329
+                # Determine file index for testing branch as well
+                file_idx = imgNum
+                if filenames is not None:
+                    try:
+                        file_idx = filenames.index(imagePath)
+                    except ValueError:
+                        bas = os.path.basename(imagePath)
+                        found = -1
+                        for k,fp in enumerate(filenames):
+                            if os.path.basename(fp) == bas:
+                                found = k
+                                break
+                        if found >= 0:
+                            file_idx = found
+
                 for i in range(0,len(TimageLabels[0])):
-                    if TimageLabels[0][i][8]==imgNum:
+                    if TimageLabels[0][i][10]==file_idx:
                         a=1
                 if self.train and a == 0:
                             continue
@@ -216,8 +254,23 @@ class SplitImageDatasetMS(Dataset):
                 max = get_img_sigma(imageMatrix[:, ::10, ::10])
                 winSize = imageData['MS_winsize_pix']
                 #CST 20240329
+                # Determine file index for this ms image for testing
+                file_idx = imgNum
+                if filenames is not None:
+                    try:
+                        file_idx = filenames.index(imagePath)
+                    except ValueError:
+                        bas = os.path.basename(imagePath)
+                        found = -1
+                        for k,fp in enumerate(filenames):
+                            if os.path.basename(fp) == bas:
+                                found = k
+                                break
+                        if found >= 0:
+                            file_idx = found
+
                 for i in range(0,len(TimageLabels[0])):
-                    if TimageLabels[0][i][8] == imgNum:
+                    if TimageLabels[0][i][10] == file_idx:
                         row = imageLabels[i][0]
                         #print(row)
                         x,y = row[2:4].astype('int')
@@ -225,7 +278,7 @@ class SplitImageDatasetMS(Dataset):
                         splitImg_np = scaleImage(splitImg_np, max)
                         rowlist = to_ms_rowlist(row, splitImg_np)
                         if (splitImg_np.shape[1] == 0) or (splitImg_np.shape[2] == 0):
-                            print("Error with an image: ", i, "class: ", rowlist[4], "image source: ", rowlist[6])
+                            print("Error with an image: ", i, "class: ", rowlist[8], "image source: ", rowlist[10])
                         else:
                             dataArray.append(rowlist)
                         
@@ -253,6 +306,184 @@ class SplitImageDatasetMS(Dataset):
         else:
             return splitImg_tensor
 
+class SplitImageDatasetPAN(Dataset):
+
+    def __init__(self, imgPath, imgData, labels, transform=None, train=False):
+        """
+        Multispectral split-image dataset.
+        Uses ms_x/ms_y from the label rows so MS and pan cover the same UTM region.
+        Expected labels (per row):
+          [pan_x, pan_y, ms_x, ms_y, utm_x, utm_y, pan_label, pan_conf, ms_label, ms_conf, img_num]
+        """
+        self.train = train
+        imagePaths = getImgPathsPan(imgPath)
+        imageLabels = labels
+        imageData = imgData
+        self.transform = transform
+        # If the saved dataset info includes the original filename ordering, use it
+        filenames = None
+        try:
+            filenames = imageData.get('filename', None)
+        except Exception:
+            filenames = None
+
+        dataArray = []
+        
+        def to_pan_rowlist(row, split_img):
+            r = np.array(row)
+            # Keep only PAN-relevant fields: pan_x, pan_y, utm_x, utm_y, pan_label, conf, img_source
+            rowlist = [r[0], r[1], r[4], r[5], r[6], r[7], r[10]]
+            rowlist.append(split_img)
+            return rowlist
+        for imgNum, imagePath in enumerate(imagePaths):
+            # If training, and there are no labeled split images from tiff image, skip loading it
+            TimageLabels = list(zip(*imageLabels)) #CST20240322 this may fail or not work as expected now
+            a=0
+            if len(TimageLabels) == 11: #Training
+                for i in range(0,len(TimageLabels[10])):
+                    if TimageLabels[10][i]==imgNum:
+                        a=1
+                if self.train and a == 0:
+                            continue
+
+                img = rio.open(imagePath)
+                imageMatrix = img.read(1)
+                
+                max = get_img_sigma(imageMatrix[::10, ::10])
+                winSize = imageData['winsize_pix']
+
+                # The split table stores img_num from the MS file list, even
+                # though this loader reads the paired PAN TIFFs.  Resolve a
+                # PAN file to its MS partner before selecting its split rows.
+                file_idx = imgNum
+                if filenames is not None:
+                    try:
+                        file_idx = filenames.index(imagePath)
+                    except ValueError:
+                        # Try matching by basename if full path formats differ
+                        bas = os.path.basename(imagePath)
+                        found = -1
+                        for k,fp in enumerate(filenames):
+                            if os.path.basename(fp) == bas:
+                                found = k
+                                break
+                        if found >= 0:
+                            file_idx = found
+
+                label_file_indices = set(np.asarray(imageLabels)[:, 10].astype(int))
+                if file_idx not in label_file_indices and filenames is not None:
+                    pan_basename = os.path.basename(imagePath)
+                    ms_basename = pan_basename.replace('-P1BS-', '-M1BS-')
+                    paired_idx = next(
+                        (
+                            k for k, fp in enumerate(filenames)
+                            if os.path.basename(str(fp)) == ms_basename
+                        ),
+                        None,
+                    )
+
+                    if paired_idx in label_file_indices:
+                        file_idx = paired_idx
+                    # Compatibility fallback for saved file lists ordered as
+                    # MS, PAN, MS, PAN, ... .
+                    elif file_idx - 1 in label_file_indices:
+                        file_idx -= 1
+
+                for i in range(0,len(TimageLabels[10])):
+                    if TimageLabels[10][i]==file_idx:
+                        row = imageLabels[i]
+                        x,y = row[0:2].astype('int')
+                        splitImg_np = imageMatrix[x:x+winSize[0],y:y+winSize[1]]
+                        splitImg_np = scaleImage(splitImg_np, max)
+                        rowlist = to_pan_rowlist(row, splitImg_np)
+                        if (splitImg_np.shape[0] == 0) or (splitImg_np.shape[1] == 0):
+                            print("Error with an image: ", i, "class: ", rowlist[6], "image source: ", rowlist[10])
+                        else:
+                            dataArray.append(rowlist)
+                        #CST20240315print("data array", dataArray)
+            elif len(TimageLabels) == 1: #testing
+                    # If training, and there are no labeled split images from tiff image, skip loading it
+
+                #CST 20240329
+                # Determine file index for testing branch as well
+                file_idx = imgNum
+                if filenames is not None:
+                    try:
+                        file_idx = filenames.index(imagePath)
+                    except ValueError:
+                        bas = os.path.basename(imagePath)
+                        found = -1
+                        for k,fp in enumerate(filenames):
+                            if os.path.basename(fp) == bas:
+                                found = k
+                                break
+                        if found >= 0:
+                            file_idx = found
+
+                for i in range(0,len(TimageLabels[0])):
+                    if TimageLabels[0][i][10]==file_idx:
+                        a=1
+                if self.train and a == 0:
+                            continue
+                    
+
+                img = rio.open(imagePath)
+                imageMatrix = img.read(1)
+                
+                max = get_img_sigma(imageMatrix[::10, ::10])
+                winSize = imageData['winsize_pix']
+                #CST 20240329
+                # Determine file index for this ms image for testing
+                file_idx = imgNum
+                if filenames is not None:
+                    try:
+                        file_idx = filenames.index(imagePath)
+                    except ValueError:
+                        bas = os.path.basename(imagePath)
+                        found = -1
+                        for k,fp in enumerate(filenames):
+                            if os.path.basename(fp) == bas:
+                                found = k
+                                break
+                        if found >= 0:
+                            file_idx = found
+
+                for i in range(0,len(TimageLabels[0])):
+                    if TimageLabels[0][i][10] == file_idx:
+                        row = imageLabels[i][0]
+                        #print(row)
+                        x,y = row[0:2].astype('int')
+                        splitImg_np = imageMatrix[x:x+winSize[0],y:y+winSize[1]]
+                        splitImg_np = scaleImage(splitImg_np, max)
+                        rowlist = to_pan_rowlist(row, splitImg_np)
+                        if (splitImg_np.shape[0] == 0) or (splitImg_np.shape[1] == 0):
+                            print("Error with an image: ", i, "class: ", rowlist[6], "image source: ", rowlist[10])
+                        else:
+                            dataArray.append(rowlist)
+                        
+            else:
+                print("Error with training or testing data")
+            
+        self.dataFrame = pd.DataFrame(dataArray, columns=['x_pix','y_pix','x_utm','y_utm','label','conf','img_source','img_mat'])
+
+
+
+
+    def __len__(self):
+        return len(self.dataFrame)
+
+    def __getitem__(self, idx):
+        splitImg_np = self.dataFrame.iloc[idx, 7]
+
+        if self.transform:
+            splitImg_np = self.transform(splitImg_np)
+        splitImg_tensor = torch.from_numpy(splitImg_np)
+
+        if self.train:
+            label = int(self.dataFrame.iloc[idx, 4])
+            return (splitImg_tensor, label)
+        else:
+            return splitImg_tensor
 
 class MSPatchStatsDataset(Dataset):
     """
@@ -266,80 +497,131 @@ class MSPatchStatsDataset(Dataset):
         imagePaths = getImgPathsMS(imgPath)
         imageLabels = labels
         imageData = imgData
-        self.eps = eps #Prevents division by 0 for WRI
+        self.transform = transform
+        # If the saved dataset info includes the original filename ordering, use it
+        filenames = None
+        try:
+            filenames = imageData.get('filename', None)
+        except Exception:
+            filenames = None
 
-        g_idx, r_idx, nir_idx, mir_idx = wri_bands
-        if stats_bands is None:
-            stats_bands = [g_idx, r_idx, nir_idx, mir_idx]
-        self.stats_bands = list(stats_bands)
-
-        feature_list = []
-        label_list = []
-
+        dataArray = []
+        indices_list = []
+        def to_ms_rowlist(row, split_img):
+            r = np.array(row)
+            # Keep only MS-relevant fields: ms_x, ms_y, utm_x, utm_y, ms_label, conf, img_source
+            rowlist = [r[2], r[3], r[4], r[5], r[8], r[9], r[10]]
+            rowlist.append(split_img)
+            return rowlist
         for imgNum, imagePath in enumerate(imagePaths):
-            TimageLabels = list(zip(*imageLabels))
-            has_labels = False
-
-            if len(TimageLabels) == 9:  # Training
-                for i in range(0, len(TimageLabels[8])):
-                    if TimageLabels[8][i] == imgNum:
-                        has_labels = True
-                        break
-                if self.train and not has_labels:
-                    continue
+            # If training, and there are no labeled split images from tiff image, skip loading it
+            TimageLabels = list(zip(*imageLabels)) #CST20240322 this may fail or not work as expected now
+            a=0
+            if len(TimageLabels) == 11: #Training
+                for i in range(0,len(TimageLabels[10])):
+                    if TimageLabels[10][i]==imgNum:
+                        a=1
+                if self.train and a == 0:
+                            continue
 
                 img = rio.open(imagePath)
-                imageMatrix = img.read().astype(np.float32)
-                max_val = get_img_sigma(imageMatrix[:, ::10, ::10])
-                if max_val > 0:
-                    imageMatrix = imageMatrix / max_val
+                imageMatrix = img.read()
+                
+                max = get_img_sigma(imageMatrix[:, ::10, ::10])
                 winSize = imageData['MS_winsize_pix']
 
-                for i in range(0, len(TimageLabels[6])):
-                    if TimageLabels[8][i] == imgNum:
+                # Determine the file index used in the original dataset for this ms image (Fixes error of not labeling final GEOTIFF)
+                file_idx = imgNum
+                if filenames is not None:
+                    try:
+                        file_idx = filenames.index(imagePath)
+                    except ValueError:
+                        # Try matching by basename if full path formats differ
+                        bas = os.path.basename(imagePath)
+                        found = -1
+                        for k,fp in enumerate(filenames):
+                            if os.path.basename(fp) == bas:
+                                found = k
+                                break
+                        if found >= 0:
+                            file_idx = found
+
+                for i in range(0,len(TimageLabels[10])):
+                    if TimageLabels[10][i]==file_idx:
                         row = imageLabels[i]
-                        x, y = row[2:4].astype('int')
-                        patch = imageMatrix[:, x:x+winSize[0], y:y+winSize[1]]
-                        if (patch.shape[1] == 0) or (patch.shape[2] == 0):
-                            continue
-                        feature_list.append(self._compute_features(patch, g_idx, r_idx, nir_idx, mir_idx))
-                        label_list.append(int(row[6]))
+                        x,y = row[2:4].astype('int')
+                        splitImg_np = imageMatrix[:, x:x+winSize[0],y:y+winSize[1]]
+                        splitImg_np = scaleImage(splitImg_np, max)
+                        rowlist = to_ms_rowlist(row, splitImg_np)
+                        if (splitImg_np.shape[1] == 0) or (splitImg_np.shape[2] == 0):
+                            print("Error with an image: ", i, "class: ", rowlist[8], "image source: ", rowlist[10])
+                        else:
+                            dataArray.append(rowlist)
+                        #CST20240315print("data array", dataArray)
+            elif len(TimageLabels) == 1: #testing
+                    # If training, and there are no labeled split images from tiff image, skip loading it
 
-            elif len(TimageLabels) == 1:  # Testing
-                for i in range(0, len(TimageLabels[0])):
-                    if TimageLabels[0][i][8] == imgNum:
-                        has_labels = True
-                        break
-                if self.train and not has_labels:
-                    continue
+                #CST 20240329
+                # Determine file index for testing branch as well
+                file_idx = imgNum
+                if filenames is not None:
+                    try:
+                        file_idx = filenames.index(imagePath)
+                    except ValueError:
+                        bas = os.path.basename(imagePath)
+                        found = -1
+                        for k,fp in enumerate(filenames):
+                            if os.path.basename(fp) == bas:
+                                found = k
+                                break
+                        if found >= 0:
+                            file_idx = found
+
+                for i in range(0,len(TimageLabels[0])):
+                    if TimageLabels[0][i][10]==file_idx:
+                        a=1
+                if self.train and a == 0:
+                            continue
+                    
 
                 img = rio.open(imagePath)
-                imageMatrix = img.read().astype(np.float32)
-                max_val = get_img_sigma(imageMatrix[:, ::10, ::10])
-                if max_val > 0:
-                    imageMatrix = imageMatrix / max_val
+                imageMatrix = img.read()
+                
+                max = get_img_sigma(imageMatrix[:, ::10, ::10])
                 winSize = imageData['MS_winsize_pix']
+                #CST 20240329
+                # Determine file index for this ms image for testing
+                file_idx = imgNum
+                if filenames is not None:
+                    try:
+                        file_idx = filenames.index(imagePath)
+                    except ValueError:
+                        bas = os.path.basename(imagePath)
+                        found = -1
+                        for k,fp in enumerate(filenames):
+                            if os.path.basename(fp) == bas:
+                                found = k
+                                break
+                        if found >= 0:
+                            file_idx = found
 
-                for i in range(0, len(TimageLabels[0])):
-                    if TimageLabels[0][i][8] == imgNum:
+                for i in range(0,len(TimageLabels[0])):
+                    if TimageLabels[0][i][10] == file_idx:
                         row = imageLabels[i][0]
-                        x, y = row[2:4].astype('int')
-                        patch = imageMatrix[:, x:x+winSize[0], y:y+winSize[1]]
-                        if (patch.shape[1] == 0) or (patch.shape[2] == 0):
-                            continue
-                        feature_list.append(self._compute_features(patch, g_idx, r_idx, nir_idx, mir_idx))
-                        label_list.append(int(row[6]))
+                        #print(row)
+                        x,y = row[2:4].astype('int')
+                        splitImg_np = imageMatrix[:,x:x+winSize[0],y:y+winSize[1]]
+                        splitImg_np = scaleImage(splitImg_np, max)
+                        rowlist = to_ms_rowlist(row, splitImg_np)
+                        if (splitImg_np.shape[1] == 0) or (splitImg_np.shape[2] == 0):
+                            print("Error with an image: ", i, "class: ", rowlist[4], "image source: ", rowlist[6])
+                        else:
+                            dataArray.append(rowlist)
+                        
             else:
                 print("Error with training or testing data")
-
-        if len(feature_list) == 0:
-            self.features = np.zeros((0, 0), dtype=np.float32)
-            self.labels = np.zeros((0,), dtype=np.int64)
-        else:
-            self.features = np.asarray(feature_list, dtype=np.float32)
-            self.labels = np.asarray(label_list, dtype=np.int64)
-
-        self.feature_dim = self.features.shape[1] if self.features.ndim == 2 else 0
+            
+        self.dataFrame = pd.DataFrame(dataArray, columns=['x_pix','y_pix','x_utm','y_utm','label','conf','img_source','img_mat'])
 
     def _compute_features(self, patch, g_idx, r_idx, nir_idx, mir_idx):
         feats = []

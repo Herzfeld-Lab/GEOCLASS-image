@@ -280,10 +280,6 @@ def rotate_and_crop_geotiff(tiffInfo, tiffImg, img_mat, epsg_code, contourUTM, t
             cval=0
         )
         
-        # Debug: Check output after rotation
-        print(f"DEBUG rotate_and_crop: After rotation shape={img_mat_rot.shape}, dtype={img_mat_rot.dtype}")
-        print(f"DEBUG rotate_and_crop: After rotation min={img_mat_rot.min()}, max={img_mat_rot.max()}")
-
         # Get pixel -> UTM affine transform for rotated image
         height,width,channels = img_mat_rot.shape
         imgSize = np.array([width,height])
