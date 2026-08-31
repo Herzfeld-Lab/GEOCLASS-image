@@ -180,13 +180,26 @@ class SplitImageDatasetMS(Dataset):
         for imgNum, imagePath in enumerate(imagePaths):
             # If training, and there are no labeled split images from tiff image, skip loading it
             TimageLabels = list(zip(*imageLabels)) #CST20240322 this may fail or not work as expected now
-            a=0
             if len(TimageLabels) == 11: #Training
-                for i in range(0,len(TimageLabels[10])):
-                    if TimageLabels[10][i]==imgNum:
-                        a=1
-                if self.train and a == 0:
-                            continue
+                file_idx = imgNum
+                if filenames is not None:
+                    try:
+                        file_idx = filenames.index(imagePath)
+                    except ValueError:
+                        bas = os.path.basename(imagePath)
+                        found = -1
+                        for k, fp in enumerate(filenames):
+                            if os.path.basename(str(fp)) == bas:
+                                found = k
+                                break
+                        if found >= 0:
+                            file_idx = found
+
+                # IMPORTANT: test against file_idx, not imgNum.
+                label_file_indices = set(np.asarray(TimageLabels[10], dtype=int))
+                if self.train and file_idx not in label_file_indices:
+                    continue
+
 
                 img = rio.open(imagePath)
                 imageMatrix = img.read()
@@ -194,22 +207,7 @@ class SplitImageDatasetMS(Dataset):
                 max = get_img_sigma(imageMatrix[:, ::10, ::10])
                 winSize = imageData['MS_winsize_pix']
 
-                # Determine the file index used in the original dataset for this ms image (Fixes error of not labeling final GEOTIFF)
-                file_idx = imgNum
-                if filenames is not None:
-                    try:
-                        file_idx = filenames.index(imagePath)
-                    except ValueError:
-                        # Try matching by basename if full path formats differ
-                        bas = os.path.basename(imagePath)
-                        found = -1
-                        for k,fp in enumerate(filenames):
-                            if os.path.basename(fp) == bas:
-                                found = k
-                                break
-                        if found >= 0:
-                            file_idx = found
-
+            
                 for i in range(0,len(TimageLabels[10])):
                     if TimageLabels[10][i]==file_idx:
                         row = imageLabels[i]
@@ -234,18 +232,16 @@ class SplitImageDatasetMS(Dataset):
                     except ValueError:
                         bas = os.path.basename(imagePath)
                         found = -1
-                        for k,fp in enumerate(filenames):
-                            if os.path.basename(fp) == bas:
+                        for k, fp in enumerate(filenames):
+                            if os.path.basename(str(fp)) == bas:
                                 found = k
                                 break
                         if found >= 0:
                             file_idx = found
 
-                for i in range(0,len(TimageLabels[0])):
-                    if TimageLabels[0][i][10]==file_idx:
-                        a=1
-                if self.train and a == 0:
-                            continue
+                # IMPORTANT: test against file_idx, not imgNum.
+                if self.train and not any(row[10] == file_idx for row in TimageLabels[0]):
+                    continue
                     
 
                 img = rio.open(imagePath)
@@ -254,20 +250,6 @@ class SplitImageDatasetMS(Dataset):
                 max = get_img_sigma(imageMatrix[:, ::10, ::10])
                 winSize = imageData['MS_winsize_pix']
                 #CST 20240329
-                # Determine file index for this ms image for testing
-                file_idx = imgNum
-                if filenames is not None:
-                    try:
-                        file_idx = filenames.index(imagePath)
-                    except ValueError:
-                        bas = os.path.basename(imagePath)
-                        found = -1
-                        for k,fp in enumerate(filenames):
-                            if os.path.basename(fp) == bas:
-                                found = k
-                                break
-                        if found >= 0:
-                            file_idx = found
 
                 for i in range(0,len(TimageLabels[0])):
                     if TimageLabels[0][i][10] == file_idx:
@@ -338,42 +320,28 @@ class SplitImageDatasetPAN(Dataset):
         for imgNum, imagePath in enumerate(imagePaths):
             # If training, and there are no labeled split images from tiff image, skip loading it
             TimageLabels = list(zip(*imageLabels)) #CST20240322 this may fail or not work as expected now
-            a=0
             if len(TimageLabels) == 11: #Training
-                for i in range(0,len(TimageLabels[10])):
-                    if TimageLabels[10][i]==imgNum:
-                        a=1
-                if self.train and a == 0:
-                            continue
-
-                img = rio.open(imagePath)
-                imageMatrix = img.read(1)
-                
-                max = get_img_sigma(imageMatrix[::10, ::10])
-                winSize = imageData['winsize_pix']
-
-                # The split table stores img_num from the MS file list, even
-                # though this loader reads the paired PAN TIFFs.  Resolve a
-                # PAN file to its MS partner before selecting its split rows.
                 file_idx = imgNum
                 if filenames is not None:
                     try:
                         file_idx = filenames.index(imagePath)
                     except ValueError:
-                        # Try matching by basename if full path formats differ
                         bas = os.path.basename(imagePath)
                         found = -1
-                        for k,fp in enumerate(filenames):
-                            if os.path.basename(fp) == bas:
+                        for k, fp in enumerate(filenames):
+                            if os.path.basename(str(fp)) == bas:
                                 found = k
                                 break
                         if found >= 0:
                             file_idx = found
 
-                label_file_indices = set(np.asarray(imageLabels)[:, 10].astype(int))
+                # Convert the PAN file index to the paired MS file index used by the labels.
+                label_file_indices = set(np.asarray(TimageLabels[10], dtype=int))
+
                 if file_idx not in label_file_indices and filenames is not None:
                     pan_basename = os.path.basename(imagePath)
                     ms_basename = pan_basename.replace('-P1BS-', '-M1BS-')
+
                     paired_idx = next(
                         (
                             k for k, fp in enumerate(filenames)
@@ -384,10 +352,17 @@ class SplitImageDatasetPAN(Dataset):
 
                     if paired_idx in label_file_indices:
                         file_idx = paired_idx
-                    # Compatibility fallback for saved file lists ordered as
-                    # MS, PAN, MS, PAN, ... .
                     elif file_idx - 1 in label_file_indices:
                         file_idx -= 1
+
+                if self.train and file_idx not in label_file_indices:
+                    continue
+
+                img = rio.open(imagePath)
+                imageMatrix = img.read(1)
+                
+                max = get_img_sigma(imageMatrix[::10, ::10])
+                winSize = imageData['winsize_pix']
 
                 for i in range(0,len(TimageLabels[10])):
                     if TimageLabels[10][i]==file_idx:
@@ -413,18 +388,35 @@ class SplitImageDatasetPAN(Dataset):
                     except ValueError:
                         bas = os.path.basename(imagePath)
                         found = -1
-                        for k,fp in enumerate(filenames):
-                            if os.path.basename(fp) == bas:
+                        for k, fp in enumerate(filenames):
+                            if os.path.basename(str(fp)) == bas:
                                 found = k
                                 break
                         if found >= 0:
                             file_idx = found
 
-                for i in range(0,len(TimageLabels[0])):
-                    if TimageLabels[0][i][10]==file_idx:
-                        a=1
-                if self.train and a == 0:
-                            continue
+                # Convert the PAN file index to the paired MS file index used by the labels.
+                label_file_indices = {int(row[10]) for row in TimageLabels[0]}
+                if file_idx not in label_file_indices and filenames is not None:
+                    pan_basename = os.path.basename(imagePath)
+                    ms_basename = pan_basename.replace('-P1BS-', '-M1BS-')
+
+                    paired_idx = next(
+                        (
+                            k for k, fp in enumerate(filenames)
+                            if os.path.basename(str(fp)) == ms_basename
+                        ),
+                        None,
+                    )
+
+                    if paired_idx in label_file_indices:
+                        file_idx = paired_idx
+                    elif file_idx - 1 in label_file_indices:
+                        file_idx -= 1
+
+                # IMPORTANT: test against file_idx, not imgNum.
+                if self.train and not any(row[10] == file_idx for row in TimageLabels[0]):
+                    continue
                     
 
                 img = rio.open(imagePath)
@@ -433,20 +425,6 @@ class SplitImageDatasetPAN(Dataset):
                 max = get_img_sigma(imageMatrix[::10, ::10])
                 winSize = imageData['winsize_pix']
                 #CST 20240329
-                # Determine file index for this ms image for testing
-                file_idx = imgNum
-                if filenames is not None:
-                    try:
-                        file_idx = filenames.index(imagePath)
-                    except ValueError:
-                        bas = os.path.basename(imagePath)
-                        found = -1
-                        for k,fp in enumerate(filenames):
-                            if os.path.basename(fp) == bas:
-                                found = k
-                                break
-                        if found >= 0:
-                            file_idx = found
 
                 for i in range(0,len(TimageLabels[0])):
                     if TimageLabels[0][i][10] == file_idx:
