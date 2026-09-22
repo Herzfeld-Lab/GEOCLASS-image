@@ -62,6 +62,7 @@ args = parser.parse_args()
 with open(args.config, 'r') as ymlfile:
     cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
+
 # Set training hyperparameters as specified by config file
 learning_rate = float(cfg['learning_rate'])
 batch_size = cfg['batch_size']
@@ -292,9 +293,9 @@ if imgTrain:
     # Create directory for model checkpoints and output
     print('----- Initializing Output Directory -----')
     now = datetime.now()
-    date_str = now.strftime("%d-%m-%Y_%H:%M")
-    config_str = args.config.split('/')[1]
-    output_dir = 'Output/%s_%s'%(config_str, date_str)
+    date_str = now.strftime("%d-%m-%Y_%H-%M")
+    config_str = os.path.splitext(os.path.basename(args.config))[0]
+    output_dir = os.path.join("Output", f"{config_str}_{date_str}")
     checkpoint_str = ''
     if not os.path.exists(output_dir): os.mkdir(output_dir)
     if not os.path.exists(output_dir+'/checkpoints'): os.mkdir(output_dir+'/checkpoints')
@@ -456,12 +457,14 @@ if imgTrain:
                 optimizer.step()
                 optimizer.zero_grad()
 
-                sum_loss = sum_loss + float(criterion(Y_hat, Y))
+                #sum_loss = sum_loss + float(criterion(Y_hat, Y))
+                sum_loss += loss.detach().item()
 
                 #print("EPOCH: %d\t BATCH: %d\tTRAIN LOSS = %f"%(epoch,batch_idx,loss.item()))
                 #Make exit if batch_idx is zero
             if batch_idx != 0:
-                train_losses.append(sum_loss/batch_idx)
+                #train_losses.append(sum_loss/batch_idx)
+                train_losses.append(sum_loss / (batch_idx + 1))
             else:
                 print("ERROR: The length of the training dataset is too small") #CST 20240318
                 sys.exit(0)

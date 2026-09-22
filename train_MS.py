@@ -78,7 +78,7 @@ adapt = cfg['adaptive']
 
 # Set dataset hyperparameters as specified by config file
 topDir = cfg['img_path']
-classEnum = cfg.get('class_enum', cfg.get('class_enum'))
+classEnum = cfg.get('PAN_class_enum', cfg.get('PAN_class_enum'))
 dataset_path = cfg['npy_path']
 train_path = cfg['train_path']
 valid_path = cfg['valid_path']
@@ -87,7 +87,7 @@ valid_path = cfg['valid_path']
 print('----- Initializing Neural Network Model -----')
 #initializing ddaBool
 ddaBool = False
-if cfg['model'] == 'VarioMLP':
+if cfg['PAN_model'] == 'VarioMLP':
     num_classes = cfg['num_classes']
     vario_num_lag = cfg['vario_num_lag']
     hidden_layers = cfg['hidden_layers']
@@ -103,18 +103,7 @@ if cfg['model'] == 'VarioMLP':
         DefaultRotateVario(),
     ])
 
-elif cfg['model'] == 'wri_MLP':
-    num_classes = cfg['num_classes']
-    vario_num_lag = cfg['vario_num_lag']
-    hidden_layers = cfg['hidden_layers']
-    imSize = cfg['split_img_size']
-    image_folder = cfg['training_img_path']
-    activation = cfg['activation']
-    #Dropout is currently hardcoded to be 0 within PatchMLP
-    img_transforms_train = None
-    img_transforms_valid = None
-
-elif cfg['model'] == 'Resnet18':
+elif cfg['PAN_model'] == 'Resnet18':
     num_classes = cfg['num_classes']
     image_folder = cfg['training_img_path']
     model = Resnet18.resnet18(pretrained=False, num_classes=num_classes)
@@ -140,7 +129,7 @@ elif cfg['model'] == 'VarioNet':
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485], std=[0.229])  # Use grayscale mean and std
         ])
-elif cfg['model'] == 'DDAiceNet':
+elif cfg['PAN_model'] == 'DDAiceNet':
     ddaBool = True
     num_classes = cfg['num_classes']
     nres = cfg['nres']
@@ -150,7 +139,7 @@ elif cfg['model'] == 'DDAiceNet':
 
 
 else:
-    print("Error: Model \'{}\' not recognized".format(cfg['model']))
+    print("Error: Model \'{}\' not recognized".format(cfg['PAN_model']))
     exit(1)
 
 
@@ -193,8 +182,8 @@ for i in test_indeces:
 # Initialize Datasets and DataLoaders
 print('----- Initializing Dataset -----')
 
-if cfg['model'] == 'VarioMLP' or cfg['model'] == 'Resnet18':
-    train_dataset = SplitImageDataset(
+if cfg['PAN_model'] == 'VarioMLP' or cfg['PAN_model'] == 'Resnet18':
+    train_dataset = SplitImageDatasetPAN(
         imgPath = topDir,
         imgData = dataset_info,
         labels = train_coords,
@@ -202,14 +191,14 @@ if cfg['model'] == 'VarioMLP' or cfg['model'] == 'Resnet18':
         transform = img_transforms_train
         )
 
-    valid_dataset = SplitImageDataset(
+    valid_dataset = SplitImageDatasetPAN(
         imgPath = topDir,
         imgData = dataset_info,
         labels = test_coords,
         train = True,
         transform = img_transforms_valid
         )
-elif cfg['model'] == 'VarioNet':
+elif cfg['PAN_model'] == 'VarioNet':
     train_dataset = TestDataset(
         imgPath = topDir,
         imgData = dataset_info,
@@ -229,52 +218,7 @@ elif cfg['model'] == 'VarioNet':
     DirectionalVario(vario_num_lag),
     DefaultRotateVario(),
 ])
-        ) 
-elif cfg['model'] == 'wri_MLP':
-    wri_green = cfg.get('wri_green_band', None)
-    wri_red = cfg.get('wri_red_band', None)
-    wri_nir = cfg.get('wri_nir_band', None)
-    wri_mir = cfg.get('wri_mir_band', None)
-
-    if None in (wri_green, wri_red, wri_nir, wri_mir):
-        print("Missing WRI band indices in config. Assuming WV2 bands")
-        wri_green = 2
-        wri_red = 4
-        wri_nir = 6
-        wri_mir = 7
-    wri_vals = [int(wri_green), int(wri_red), int(wri_nir), int(wri_mir)]
-    base = 0 #Index starting at 0
-    g_idx, r_idx, nir_idx, mir_idx = [v - base for v in wri_vals]
-
-    stats_bands = sorted(set([g_idx, r_idx, nir_idx, mir_idx]))
-
-    train_dataset = MSPatchStatsDataset(
-        imgPath=topDir,
-        imgData=dataset_info,
-        labels=train_coords,
-        wri_bands=(g_idx, r_idx, nir_idx, mir_idx),
-        stats_bands=stats_bands,
-        train=True
     )
-
-    valid_dataset = MSPatchStatsDataset(
-        imgPath=topDir,
-        imgData=dataset_info,
-        labels=test_coords,
-        wri_bands=(g_idx, r_idx, nir_idx, mir_idx),
-        stats_bands=stats_bands,
-        train=True
-    )
-
-    feature_dim = train_dataset.feature_dim
-    
-    model = PatchMLP(
-            input_dim=feature_dim,
-            num_classes=num_classes,
-            hidden_layers=hidden_layers,
-            activation=activation
-        )
-
         
 else:
     train_dataset = DDAiceDataset(
@@ -372,7 +316,7 @@ train_losses = []
 valid_losses = []
 
 
-if cfg['model'] == 'VarioNet':
+if cfg['PAN_model'] == 'VarioNet':
     for epoch in range(num_epochs):
         sum_loss = 0
         print("EPOCH: {} ".format(epoch),end='',flush=True)
@@ -498,11 +442,7 @@ else:
                 print("ERROR: The length of the training dataset is too small") #CST 20240318
                 sys.exit(0)
             
-            if cfg['model'] == 'wri_MLP':
-                X = X.float()
-                Y = Y.long().view(-1)
-            else:
-                X = torch.unsqueeze(X,1).float()
+            X = torch.unsqueeze(X,1).float()
 
             # Move batch to GPU
             if args.cuda:
@@ -538,11 +478,8 @@ else:
         loss = 0
         for batch_idx,(X,Y) in enumerate(valid_loader):
             # Move batch to GPU
-            if cfg['model'] == 'wri_MLP':
-                X = X.float()
-                Y = Y.long().view(-1)
-            else:
-                X = torch.unsqueeze(X,1).float()
+            
+            X = torch.unsqueeze(X,1).float()
 
             if args.cuda:
                 X,Y = X.to(device),Y.to(device)
@@ -612,7 +549,7 @@ else:
         for i in ms_test_indices:
             ms_test_coords.append(dataset_labeled[[i]])
 
-        if ms_model in ("mlp_wri", "wri_mlp", "mlp"):
+        if ms_model in ("mlp_wri", "patchMLP", "mlp"):
             wri_green = cfg.get('wri_green_band', None)
             wri_red = cfg.get('wri_red_band', None)
             wri_nir = cfg.get('wri_nir_band', None)

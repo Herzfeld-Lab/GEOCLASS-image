@@ -52,7 +52,7 @@ valid_path = cfg['valid_path']
 # Initialize NN model as specified by config file
 print('----- Initializing Neural Network Model -----')
 ddaBool = False
-if cfg['MS_model'] == 'wri_MLP':
+if cfg['MS_model'] == 'patchMLP':
     num_classes = len(classEnum)
     vario_num_lag = cfg['vario_num_lag']
     hidden_layers = cfg['hidden_layers']
@@ -94,7 +94,7 @@ if cfg['MS_model'] == 'Resnet18' or cfg['MS_model'] == 'msCNN':
         train = False,
         transform = img_transforms_valid
         )
-elif cfg['MS_model'] == 'wri_MLP':
+elif cfg['MS_model'] == 'patchMLP':
     wri_green = cfg.get('wri_green_band', None)
     wri_red = cfg.get('wri_red_band', None)
     wri_nir = cfg.get('wri_nir_band', None)
@@ -159,8 +159,8 @@ valid_loader_ms = DataLoader(
     shuffle=False
 )
 
-# For wri_MLP, compute actual feature dimension from first batch before loading checkpoint
-if cfg['MS_model'] == 'wri_MLP' and args.load_checkpoint_ms:
+# For patchMLP, compute actual feature dimension from first batch before loading checkpoint
+if cfg['MS_model'] == 'patchMLP' and args.load_checkpoint_ms:
     first_batch = next(iter(valid_loader_ms))
     # Handle both (X, Y) and (X,) return formats
     if isinstance(first_batch, (list, tuple)):
@@ -239,7 +239,7 @@ if args.cuda:
 labels_ms = []
 confs_ms = []
 
-if cfg['MS_model'] == 'wri_MLP':
+if cfg['MS_model'] == 'patchMLP':
     iter_loader = ((x, None) for x in valid_loader_ms)
 else:
     iter_loader = ((x, None) for x in valid_loader_ms)
@@ -253,8 +253,8 @@ for batch_idx, (X_ms, Y_ms) in enumerate(iter_loader):
 
     X_ms = X_ms.float()
     
-    # Compute features if using wriMLP
-    if cfg['MS_model'] == 'wri_MLP':
+    # Compute features if using patchMLP
+    if cfg['MS_model'] == 'patchMLP':
         from utils_MS import compute_patch_wri_features_batch
         #patch_size = cfg.get('patch_size', (32, 32))
         X_ms = compute_patch_wri_features_batch(X_ms, patch_size, wri_config)  # (1, F, Hp, Wp)

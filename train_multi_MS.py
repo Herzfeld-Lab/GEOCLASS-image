@@ -91,7 +91,7 @@ valid_path = cfg['valid_path']
 print('----- Initializing Neural Network Model -----')
 #initializing ddaBool
 ddaBool = False
-if cfg['MS_model'] == 'wri_MLP':
+if cfg['MS_model'] == 'patchMLP':
     num_classes = len(classEnum)
     vario_num_lag = cfg['vario_num_lag']
     hidden_layers = cfg['hidden_layers']
@@ -193,7 +193,7 @@ if cfg['MS_model'] == 'Resnet18' or cfg['MS_model'] == 'msCNN':
         transform = img_transforms_valid
         )
 
-elif cfg['MS_model'] == 'wri_MLP':
+elif cfg['MS_model'] == 'patchMLP':
     wri_green = cfg.get('wri_green_band', None)
     wri_red = cfg.get('wri_red_band', None)
     wri_nir = cfg.get('wri_nir_band', None)
@@ -344,7 +344,7 @@ if len(ms_class_enum) == 0:
 else:
         # Get actual feature dimension from first batch before training
         first_batch_X, _ = next(iter(train_loader_ms))
-        if cfg['MS_model'] == 'wri_MLP':
+        if cfg['MS_model'] == 'patchMLP':
             if args.cuda:
                 first_batch_X = first_batch_X.to(device_ms)
             with torch.no_grad():
@@ -381,7 +381,7 @@ else:
 
                 X = X.float()  # Convert from uint8 to float32
 
-                if cfg['MS_model'] == 'wri_MLP':
+                if cfg['MS_model'] == 'patchMLP':
                     X = compute_patch_wri_features_batch(X, patch_size, wri_config)  # shape [B, F, Hp, Wp]
                     X = X.reshape(X.shape[0], -1)  # flatten to [B, F*Hp*Wp]
                     Y_hat = model_ms.forward(X)
@@ -410,7 +410,7 @@ else:
                 X = X.float()  # Convert from uint8 to float32
 
                 with torch.no_grad():
-                    if cfg['MS_model'] == 'wri_MLP':
+                    if cfg['MS_model'] == 'patchMLP':
                         X = compute_patch_wri_features_batch(X, patch_size, wri_config)  # shape [B, F, Hp, Wp]
                         X = X.reshape(X.shape[0], -1)  # flatten to [B, F*Hp*Wp]
                         Y_hat = model_ms.forward(X)
